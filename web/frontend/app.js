@@ -136,7 +136,8 @@ formScan.addEventListener("submit", async e => {
 document.getElementById("btn-download-md")?.addEventListener("click", () => {
   const data = resultsDiv._scanData;
   if (!data) return;
-  downloadFile(`${data.domain}-scan.md`, buildMarkdownReport(data), "text/markdown");
+  const filename = `${makeTimestamp()}-individual-${slugify(data.domain)}.md`;
+  downloadFile(filename, buildMarkdownReport(data), "text/markdown");
 });
 
 let _progressTimer = null;
@@ -276,7 +277,6 @@ btnBatchRun?.addEventListener("click", async () => {
 
 function renderBatchResults(data, lines) {
   const results = data.results;
-  const TESTS   = Array.from({ length: 20 }, (_, i) => String(i + 1).padStart(2, "0"));
 
   results.forEach((r, idx) => {
     const domain = r.domain || lines[idx]?.split(",")[0] || "?";
@@ -293,6 +293,7 @@ function renderBatchResults(data, lines) {
   });
 
   const table = document.getElementById("batch-summary-table");
+  table._batchResults = results;   // guardado para el reporte MD
   renderBatchTable(table, results, lines);
   batchResults.classList.remove("hidden");
 }
@@ -303,6 +304,68 @@ function renderBatchResults(data, lines) {
  * @param {Array} results - Array de resultados de scan
  * @param {Array} [lines] - Líneas CSV originales (opcional, para fallback de nombre de dominio)
  */
+const TESTS = Array.from({ length: 20 }, (_, i) => String(i + 1).padStart(2, "0"));
+
+/** Metadatos de cada test: bloque, nivel de riesgo y peso para score */
+const TESTS_META = [
+  { id:"01", name:"Cookie: Secure",               block:"Cookies",          risk:"Medio",   weight:5,  riskDesc:"Cookie enviada en claro por HTTP" },
+  { id:"02", name:"Cookie: HttpOnly",              block:"Cookies",          risk:"Alto",    weight:8,  riskDesc:"Robo de sesión via XSS" },
+  { id:"03", name:"Cookie: SameSite=Lax|Strict",  block:"Cookies",          risk:"Medio",   weight:5,  riskDesc:"CSRF cross-site" },
+  { id:"04", name:"Cookie: Path definido",         block:"Cookies",          risk:"Bajo",    weight:2,  riskDesc:"Scope de cookie sin restringir" },
+  { id:"05", name:"HTTP → HTTPS redirect",         block:"Transporte",       risk:"Medio",   weight:5,  riskDesc:"Tráfico en claro posible" },
+  { id:"06", name:"HSTS Strict-Transport-Security",block:"Transporte",       risk:"Alto",    weight:8,  riskDesc:"SSL stripping attack" },
+  { id:"07", name:"TLS 1.0 deshabilitado",         block:"Transporte",       risk:"Alto",    weight:8,  riskDesc:"Protocolo roto (POODLE/BEAST)" },
+  { id:"08", name:"TLS 1.1 deshabilitado",         block:"Transporte",       risk:"Medio",   weight:5,  riskDesc:"Protocolo obsoleto" },
+  { id:"09", name:"Certificado SSL vigente",       block:"Transporte",       risk:"Crítico", weight:10, riskDesc:"Conexión insegura si expira" },
+  { id:"10", name:"X-Frame-Options",               block:"Cabeceras HTTP",   risk:"Alto",    weight:8,  riskDesc:"Clickjacking via iframes maliciosos" },
+  { id:"11", name:"X-Content-Type-Options: nosniff",block:"Cabeceras HTTP",  risk:"Medio",   weight:5,  riskDesc:"MIME confusion attack" },
+  { id:"12", name:"Content-Security-Policy (CSP)", block:"Cabeceras HTTP",   risk:"Alto",    weight:8,  riskDesc:"XSS sin restricción de scripts" },
+  { id:"13", name:"Referrer-Policy",               block:"Cabeceras HTTP",   risk:"Bajo",    weight:2,  riskDesc:"Fuga de URLs a terceros" },
+  { id:"14", name:"Permissions-Policy",            block:"Cabeceras HTTP",   risk:"Bajo",    weight:2,  riskDesc:"Acceso sin control a APIs del navegador" },
+  { id:"15", name:"Server header oculto",          block:"Fuga de info",     risk:"Medio",   weight:5,  riskDesc:"Revela versión del servidor" },
+  { id:"16", name:"X-Powered-By ausente",          block:"Fuga de info",     risk:"Medio",   weight:5,  riskDesc:"Revela stack tecnológico (PHP, etc.)" },
+  { id:"17", name:"X-AspNet-Version ausente",      block:"Fuga de info",     risk:"Medio",   weight:5,  riskDesc:"Revela versión de .NET" },
+  { id:"18", name:"CORS sin wildcard",             block:"Config. servidor", risk:"Alto",    weight:8,  riskDesc:"Acceso cross-origin irrestricto" },
+  { id:"19", name:"HTTP TRACE deshabilitado",      block:"Config. servidor", risk:"Medio",   weight:5,  riskDesc:"XST (Cross-Site Tracing)" },
+  { id:"20", name:"Cache-Control seguro",          block:"Config. servidor", risk:"Medio",   weight:5,  riskDesc:"Datos sensibles en caché del navegador" },
+];
+
+/**
+ * Calcula un score 0–100 ponderado por nivel de riesgo.
+ * PASS=100% del peso, WARN=50%, FAIL/SKIP=0%.
+ */
+function calcScore(tests) {
+  let earned = 0, max = 0;
+  for (const t of tests) {
+    const meta = TESTS_META.find(m => m.id === t.id);
+    if (!meta || t.result === "SKIP") continue;
+    max += meta.weight;
+    if (t.result === "PASS") earned += meta.weight;
+    else if (t.result === "WARN") earned += meta.weight * 0.5;
+  }
+  return max > 0 ? Math.round((earned / max) * 100) : 0;
+}
+
+/** Devuelve emoji + etiqueta según puntuación */
+function scoreLabel(score) {
+  if (score >= 90) return "🟢 Excelente";
+  if (score >= 75) return "🟡 Aceptable";
+  if (score >= 50) return "🟠 Mejorable";
+  return "🔴 Crítico";
+}
+
+/** Bloque Markdown con la tabla de referencia de todos los tests */
+function mdReferenceTable() {
+  let t  = `## Referencia de tests\n\n`;
+  t += `| ID | Test | Bloque | Riesgo | Riesgo si falla |\n`;
+  t += `|:--:|------|--------|:------:|-----------------|\n`;
+  for (const m of TESTS_META) {
+    const riskBold = m.risk === "Alto" || m.risk === "Crítico" ? `**${m.risk}**` : m.risk;
+    t += `| ${m.id} | ${m.name} | ${m.block} | ${riskBold} | ${m.riskDesc} |\n`;
+  }
+  return t + "\n";
+}
+
 function renderBatchTable(table, results, lines = []) {
   const colCount = TESTS.length + 4;
   let html = "<thead><tr><th>Dominio</th>";
@@ -365,11 +428,9 @@ function renderBatchTable(table, results, lines = []) {
 
 document.getElementById("btn-batch-download")?.addEventListener("click", () => {
   const table = document.getElementById("batch-summary-table");
-  if (!table) return;
-  downloadFile("batch-results.csv",
-    Array.from(table.rows).map(r => Array.from(r.cells).map(c => c.textContent).join(",")).join("\n"),
-    "text/csv"
-  );
+  if (!table || !table._batchResults) return;
+  const filename = `${makeTimestamp()}-batch.md`;
+  downloadFile(filename, buildBatchMarkdownReport(table._batchResults, "Análisis Batch"), "text/markdown");
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -674,20 +735,199 @@ function downloadFile(name, content, type) {
   URL.revokeObjectURL(a.href);
 }
 
+/** Genera un timestamp con formato YYYYMMDDHHMMSS para nombres de archivo */
+function makeTimestamp() {
+  const d = new Date();
+  const pad = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+}
+
+/** Normaliza un string para usarlo en nombres de archivo (sin caracteres especiales) */
+function slugify(str) {
+  return str.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
 function buildMarkdownReport(data) {
   const s = data.summary;
-  let md = `# Reporte de Seguridad — ${data.domain}\n\n`;
+  const score = calcScore(data.tests);
+  const label = scoreLabel(score);
+  const total = s.pass + s.fail + s.warn + s.skip;
+  const now = new Date().toLocaleString("es-EC");
+
+  let md = `# Reporte de Seguridad Web — ${data.domain}\n\n`;
+
+  // Cabecera
   md += `| Campo | Valor |\n|-------|-------|\n`;
-  md += `| **Fecha** | ${data.startedAt} |\n`;
-  md += `| **URL base** | ${data.baseUrl} |\n\n`;
-  md += `## Resumen\n\n`;
+  md += `| **Fecha** | ${now} |\n`;
+  md += `| **URL base** | ${data.baseUrl || `https://${data.domain}/`} |\n`;
+  md += `| **Generado con** | Web Security Suite v3.3 |\n\n`;
+  md += `---\n\n`;
+
+  // Score
+  md += `## Puntuación de seguridad\n\n`;
+  md += `| Métrica | Valor |\n|---------|-------|\n`;
+  md += `| **Score** | **${score} / 100** |\n`;
+  md += `| **Estado** | ${label} |\n`;
+  md += `| **Tests ejecutados** | ${total} |\n\n`;
+
+  // Resumen
+  md += `## Resumen de resultados\n\n`;
   md += `| ✅ PASS | ❌ FAIL | ⚠️ WARN | ⏭ SKIP |\n|:---:|:---:|:---:|:---:|\n`;
   md += `| ${s.pass} | ${s.fail} | ${s.warn} | ${s.skip} |\n\n`;
-  md += `## Detalle\n\n| # | Test | Resultado | Detalle |\n|---|------|:---------:|---------|\n`;
+  md += `---\n\n`;
+
+  // Detalle completo
+  md += `## Detalle de tests\n\n`;
+  md += `| # | Test | Resultado | Detalle |\n|---|------|:---------:|---------|\n`;
   for (const t of data.tests) {
-    md += `| ${t.id} | ${t.name} | ${t.result} | ${t.detail || "—"} |\n`;
+    const icon = t.result === "PASS" ? "✅ PASS" : t.result === "FAIL" ? "❌ FAIL" : t.result === "WARN" ? "⚠️ WARN" : "⏭ SKIP";
+    md += `| ${t.id} | ${t.name} | ${icon} | ${t.detail || "—"} |\n`;
   }
-  md += `\n---\n_Generado con Web Security Suite v3.2_\n`;
+  md += `\n---\n\n`;
+
+  // Hallazgos críticos (FAIL)
+  const fails = data.tests.filter(t => t.result === "FAIL");
+  if (fails.length) {
+    md += `## ❌ Hallazgos críticos — acción requerida\n\n`;
+    for (const t of fails) {
+      const meta = TESTS_META.find(m => m.id === t.id);
+      md += `### TEST-${t.id} — ${t.name}\n\n`;
+      md += `- **Riesgo:** ${meta?.risk || "—"}\n`;
+      md += `- **Impacto:** ${meta?.riskDesc || "—"}\n`;
+      if (t.detail) md += `- **Detalle:** ${t.detail}\n`;
+      md += `\n`;
+    }
+    md += `---\n\n`;
+  }
+
+  // Advertencias (WARN)
+  const warns = data.tests.filter(t => t.result === "WARN");
+  if (warns.length) {
+    md += `## ⚠️ Advertencias — revisión recomendada\n\n`;
+    for (const t of warns) {
+      const meta = TESTS_META.find(m => m.id === t.id);
+      md += `- **TEST-${t.id} — ${t.name}**: ${t.detail || meta?.riskDesc || "—"}\n`;
+    }
+    md += `\n---\n\n`;
+  }
+
+  // Tabla de referencia
+  md += mdReferenceTable();
+  md += `---\n\n`;
+  md += `> **Nota para IA:** Este reporte fue generado automáticamente por Web Security Suite. `;
+  md += `Contiene los resultados de ${total} tests de seguridad HTTP sobre \`${data.domain}\`. `;
+  md += `Score obtenido: ${score}/100 (${label.replace(/^[^ ]+ /, "")}). `;
+  if (fails.length) md += `Hay ${fails.length} hallazgo(s) crítico(s) que requieren acción inmediata. `;
+  if (warns.length) md += `Hay ${warns.length} advertencia(s) a revisar. `;
+  md += `Analiza los fallos, sugiere configuraciones concretas y prioriza por nivel de riesgo.\n`;
+
+  return md;
+}
+
+/**
+ * Genera un reporte Markdown para análisis batch o scan de lista.
+ * @param {Array}  results  - Array de resultados de dominio
+ * @param {string} title    - Título del reporte
+ */
+function buildBatchMarkdownReport(results, title = "Análisis Batch") {
+  const now = new Date().toLocaleString("es-EC");
+  const validResults = results.filter(r => !r.error);
+
+  let md = `# ${title}\n\n`;
+  md += `| Campo | Valor |\n|-------|-------|\n`;
+  md += `| **Fecha** | ${now} |\n`;
+  md += `| **Dominios analizados** | ${results.length} |\n`;
+  md += `| **Generado con** | Web Security Suite v3.3 |\n\n`;
+  md += `---\n\n`;
+
+  // Tabla resumen con score y estado
+  md += `## Tabla resumen por dominio\n\n`;
+  md += `| Dominio | Score | Estado | ✅ OK | ❌ FL | ⚠️ WN | ⏭ SK |\n`;
+  md += `|---------|:-----:|--------|:----:|:----:|:----:|:----:|\n`;
+  for (const r of results) {
+    if (r.error) {
+      md += `| ${r.domain} | — | ⚠ ${r.error} | — | — | — | — |\n`;
+    } else {
+      const score = calcScore(r.tests);
+      const label = scoreLabel(score);
+      const s = r.summary;
+      md += `| ${r.domain} | **${score}** | ${label} | ${s.pass} | ${s.fail} | ${s.warn} | ${s.skip} |\n`;
+    }
+  }
+  md += `\n---\n\n`;
+
+  // Matriz por test (P/F/W/S)
+  if (validResults.length) {
+    md += `## Matriz de resultados por test\n\n`;
+    md += `_P=PASS · F=FAIL · W=WARN · S=SKIP_\n\n`;
+    const header = `| Dominio | ${TESTS.join(" | ")} |\n`;
+    const sep    = `|${"-|".repeat(TESTS.length + 1)}\n`;
+    md += header + sep;
+    for (const r of validResults) {
+      const cells = TESTS.map(id => {
+        const t = r.tests.find(x => x.id === id);
+        if (!t) return " ";
+        return t.result === "PASS" ? "P" : t.result === "FAIL" ? "F" : t.result === "WARN" ? "W" : "S";
+      });
+      md += `| ${r.domain} | ${cells.join(" | ")} |\n`;
+    }
+    md += `\n---\n\n`;
+
+    // Fallos más frecuentes
+    const failCount = {};
+    for (const r of validResults) {
+      for (const t of r.tests) {
+        if (t.result === "FAIL") failCount[t.id] = (failCount[t.id] || 0) + 1;
+      }
+    }
+    const sortedFails = Object.entries(failCount).sort((a, b) => b[1] - a[1]);
+    if (sortedFails.length) {
+      md += `## Fallos más frecuentes\n\n`;
+      md += `| Test | Descripción | Dominios afectados | Riesgo |\n`;
+      md += `|:----:|-------------|:-----------------:|:------:|\n`;
+      for (const [id, count] of sortedFails) {
+        const meta = TESTS_META.find(m => m.id === id);
+        const pct  = Math.round(count / validResults.length * 100);
+        const riskBold = meta?.risk === "Alto" || meta?.risk === "Crítico" ? `**${meta.risk}**` : (meta?.risk || "—");
+        md += `| ${id} | ${meta?.name || "—"} | ${count} / ${validResults.length} (${pct}%) | ${riskBold} |\n`;
+      }
+      md += `\n---\n\n`;
+    }
+  }
+
+  // Detalle por dominio
+  md += `## Detalle por dominio\n\n`;
+  for (const r of results) {
+    const score = r.error ? null : calcScore(r.tests);
+    const label = score !== null ? scoreLabel(score) : null;
+    md += `### ${r.domain}${score !== null ? `  —  Score: ${score}/100 ${label}` : ""}\n\n`;
+    if (r.error) {
+      md += `> ⚠ Error: ${r.error}\n\n`;
+      continue;
+    }
+    md += `| # | Test | Resultado | Detalle |\n|---|------|:---------:|---------|\n`;
+    for (const t of r.tests) {
+      const icon = t.result === "PASS" ? "✅" : t.result === "FAIL" ? "❌" : t.result === "WARN" ? "⚠️" : "⏭";
+      md += `| ${t.id} | ${t.name} | ${icon} ${t.result} | ${t.detail || "—"} |\n`;
+    }
+    md += `\n`;
+  }
+  md += `---\n\n`;
+
+  // Tabla de referencia
+  md += mdReferenceTable();
+  md += `---\n\n`;
+
+  // Nota para IA
+  const totalFails = validResults.reduce((acc, r) => acc + r.summary.fail, 0);
+  const avgScore = validResults.length
+    ? Math.round(validResults.reduce((acc, r) => acc + calcScore(r.tests), 0) / validResults.length)
+    : 0;
+  md += `> **Nota para IA:** Este reporte cubre ${results.length} dominio(s). `;
+  md += `Score promedio: ${avgScore}/100. `;
+  if (totalFails > 0) md += `Total de fallos entre todos los dominios: ${totalFails}. `;
+  md += `Identifica patrones comunes, prioriza los fallos de mayor riesgo y sugiere configuraciones concretas para cada tipo de fallo encontrado.\n`;
+
   return md;
 }
 
@@ -1033,6 +1273,7 @@ document.getElementById("btn-list-scan").addEventListener("click", async () => {
 
     // Reutilizar renderizador de batch
     const table = document.getElementById("list-batch-table");
+    table._listScanData = data;   // guardado para el reporte MD
     renderBatchTable(table, data.results);
     document.getElementById("list-scan-meta").textContent =
       `Scan completado: ${new Date().toLocaleString()} — ${data.total} dominios`;
@@ -1044,5 +1285,17 @@ document.getElementById("btn-list-scan").addEventListener("click", async () => {
     fill.style.width = "0%";
     label.textContent = "Error: " + (err.message || "Fallo al ejecutar el scan");
   }
+});
+
+document.getElementById("btn-list-download-md")?.addEventListener("click", () => {
+  const table = document.getElementById("list-batch-table");
+  if (!table?._listScanData) return;
+  const data = table._listScanData;
+  // Obtener el nombre de la lista activa del sidebar
+  const activeItem = document.querySelector(".list-index-item.active .list-index-name");
+  const listSlug = slugify(activeItem?.textContent || "lista");
+  const filename = `${makeTimestamp()}-list-${listSlug}.md`;
+  const title = `Análisis de lista — ${activeItem?.textContent || "Lista"}`;
+  downloadFile(filename, buildBatchMarkdownReport(data.results, title), "text/markdown");
 });
 

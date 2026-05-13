@@ -238,7 +238,10 @@
 
             <!-- Resultado del último scan de lista -->
             <div id="list-scan-result" class="hidden">
-              <p class="muted" id="list-scan-meta"></p>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <p class="muted" id="list-scan-meta"></p>
+                <button class="btn btn-sm" id="btn-list-download-md">⬇ Descargar reporte</button>
+              </div>
               <div class="batch-table-wrap">
                 <table id="list-batch-table" class="batch-table"></table>
               </div>
