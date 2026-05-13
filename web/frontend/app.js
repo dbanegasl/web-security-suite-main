@@ -109,10 +109,14 @@ function renderResults(data) {
   const tbody = document.getElementById("tests-tbody");
   tbody.innerHTML = "";
   for (const t of data.tests) {
+    const wikiUrl = `/wiki.html#t${t.id}`;
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${escapeHtml(t.id)}</td>
-      <td>${escapeHtml(t.name)}</td>
+      <td>
+        ${escapeHtml(t.name)}
+        <a href="${wikiUrl}" target="_blank" rel="noopener" class="wiki-link" title="Ver en wiki: ${escapeHtml(t.name)}">📖</a>
+      </td>
       <td><span class="badge badge-${t.result}">${t.result}</span></td>
       <td class="muted">${escapeHtml(t.detail || "—")}</td>
     `;
@@ -230,7 +234,7 @@ function renderBatchResults(data, lines) {
   // Tabla comparativa
   const table = document.getElementById("batch-summary-table");
   let html = "<tr><th>Dominio</th>";
-  TESTS.forEach(t => { html += `<th>${t}</th>`; });
+  TESTS.forEach(t => { html += `<th><a href="/wiki.html#t${t}" target="_blank" rel="noopener" class="wiki-th-link" title="Ver TEST-${t} en wiki">${t}</a></th>`; });
   html += "<th>OK</th><th>FL</th><th>WN</th></tr>";
 
   results.forEach((r, idx) => {

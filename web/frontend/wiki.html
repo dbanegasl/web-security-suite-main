@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Web Security Scanner — Wiki de Tests</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --bg2: #1a1d27;
+      --bg3: #22263a;
+      --border: #2e3250;
+      --cyan: #38bdf8;
+      --green: #4ade80;
+      --red: #f87171;
+      --yellow: #facc15;
+      --magenta: #c084fc;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --radius: 8px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      display: flex;
+    }
+
+    /* ── Sidebar ── */
+    nav#sidebar {
+      width: 280px;
+      min-width: 240px;
+      height: 100vh;
+      position: sticky;
+      top: 0;
+      overflow-y: auto;
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      padding: 1.5rem 0 2rem;
+      flex-shrink: 0;
+    }
+    nav#sidebar .logo {
+      padding: 0 1.25rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1rem;
+    }
+    nav#sidebar .logo h1 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--cyan);
+      line-height: 1.3;
+    }
+    nav#sidebar .logo p {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 0.25rem;
+    }
+    nav#sidebar .section-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 0.75rem 1.25rem 0.25rem;
+    }
+    nav#sidebar a {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 1.25rem;
+      font-size: 0.82rem;
+      color: var(--text);
+      text-decoration: none;
+      border-left: 3px solid transparent;
+      transition: all 0.15s;
+    }
+    nav#sidebar a:hover, nav#sidebar a.active {
+      background: var(--bg3);
+      border-left-color: var(--cyan);
+      color: var(--cyan);
+    }
+    nav#sidebar a .badge {
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+    .badge-pass { background: #166534; color: var(--green); }
+    .badge-fail { background: #7f1d1d; color: var(--red); }
+    .badge-warn { background: #713f12; color: var(--yellow); }
+
+    /* ── Main content ── */
+    main {
+      flex: 1;
+      padding: 2.5rem 3rem;
+      max-width: 960px;
+      overflow-x: hidden;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      background: linear-gradient(135deg, #0f2744 0%, #1a1d27 100%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem 2.5rem;
+      margin-bottom: 2.5rem;
+    }
+    .hero h1 { font-size: 1.75rem; color: var(--cyan); margin-bottom: 0.5rem; }
+    .hero p { color: var(--muted); max-width: 600px; }
+    .hero .meta { margin-top: 1rem; display: flex; gap: 1.5rem; flex-wrap: wrap; }
+    .hero .meta span { font-size: 0.8rem; color: var(--muted); }
+    .hero .meta span strong { color: var(--text); }
+
+    /* ── Stat grid ── */
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2.5rem; }
+    .stat-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      text-align: center;
+    }
+    .stat-card .num { font-size: 2rem; font-weight: 700; }
+    .stat-card .lbl { font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem; }
+
+    /* ── Section heading ── */
+    .block-heading {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.6rem 1rem;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin: 2.5rem 0 1.25rem;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--cyan);
+    }
+    .block-heading .icon { font-size: 1.1rem; }
+
+    /* ── Test card ── */
+    .test-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+    }
+    .test-card .card-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.25rem;
+      background: var(--bg3);
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      user-select: none;
+    }
+    .test-card .card-header:hover { background: #2a2e48; }
+    .test-card .test-id {
+      font-size: 0.75rem;
+      font-weight: 700;
+      font-family: monospace;
+      background: #0f2744;
+      color: var(--cyan);
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .test-card .test-name { font-weight: 600; flex: 1; }
+    .test-card .risk-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .risk-alto    { background: #7f1d1d; color: var(--red); }
+    .risk-medio   { background: #713f12; color: var(--yellow); }
+    .risk-bajo    { background: #164e63; color: #7dd3fc; }
+    .risk-critico { background: #4c0519; color: #fb7185; }
+    .chevron { color: var(--muted); font-size: 0.9rem; transition: transform 0.2s; }
+    .test-card.open .chevron { transform: rotate(90deg); }
+
+    .card-body { padding: 1.25rem; display: none; }
+    .test-card.open .card-body { display: block; }
+
+    .card-body h4 {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--cyan);
+      margin: 1.25rem 0 0.5rem;
+    }
+    .card-body h4:first-child { margin-top: 0; }
+    .card-body p { font-size: 0.88rem; color: var(--muted); margin-bottom: 0.5rem; }
+    .card-body ul { padding-left: 1.25rem; }
+    .card-body ul li { font-size: 0.88rem; color: var(--muted); margin-bottom: 0.3rem; }
+    .card-body ul li strong { color: var(--text); }
+
+    /* ── Results table ── */
+    .result-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: baseline;
+      margin-bottom: 0.35rem;
+      font-size: 0.85rem;
+    }
+    .result-row .tag {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .tag-pass { background: #166534; color: var(--green); }
+    .tag-fail { background: #7f1d1d; color: var(--red); }
+    .tag-warn { background: #713f12; color: var(--yellow); }
+    .tag-skip { background: #3b1f5e; color: var(--magenta); }
+
+    /* ── Platform tabs ── */
+    .platform-tabs { margin-top: 0.75rem; }
+    .tab-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .tab-btn {
+      padding: 0.3rem 0.8rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tab-btn.active, .tab-btn:hover {
+      border-color: var(--cyan);
+      color: var(--cyan);
+      background: #0f2744;
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Code blocks ── */
+    pre {
+      background: #0a0d14;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem 1.25rem;
+      font-size: 0.8rem;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      overflow-x: auto;
+      color: #a5f3fc;
+      line-height: 1.6;
+    }
+    pre .comment { color: #475569; }
+    pre .key { color: var(--cyan); }
+    pre .val { color: var(--green); }
+    pre .cmd { color: var(--yellow); }
+
+    code {
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 0.82em;
+      background: #0a0d14;
+      border: 1px solid var(--border);
+      padding: 0.1rem 0.35rem;
+      border-radius: 3px;
+      color: var(--cyan);
+    }
+
+    /* ── Info box ── */
+    .info-box {
+      border-left: 3px solid;
+      padding: 0.75rem 1rem;
+      border-radius: 0 6px 6px 0;
+      margin: 0.75rem 0;
+      font-size: 0.85rem;
+    }
+    .info-box.tip    { border-color: var(--cyan);   background: #0f2744; color: #bae6fd; }
+    .info-box.warn   { border-color: var(--yellow); background: #1f1700; color: #fde68a; }
+    .info-box.danger { border-color: var(--red);    background: #1f0a0a; color: #fca5a5; }
+
+    /* ── Footer ── */
+    footer {
+      margin-top: 4rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    @media (max-width: 768px) {
+      body { flex-direction: column; }
+      nav#sidebar { width: 100%; height: auto; position: static; }
+      main { padding: 1.5rem; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════ SIDEBAR ═══════════════════════════ -->
+<nav id="sidebar">
+  <div class="logo">
+    <h1>🔐 Web Security Scanner</h1>
+    <p>Wiki de Tests — v3.1</p>
+  </div>
+
+  <div class="section-label">Navegación</div>
+  <a href="#overview">📋 Resumen general</a>
+
+  <div class="section-label">Bloque 1 — Cookies</div>
+  <a href="#t01">TEST-01 <span class="badge badge-fail">Secure</span></a>
+  <a href="#t02">TEST-02 <span class="badge badge-fail">HttpOnly</span></a>
+  <a href="#t03">TEST-03 <span class="badge badge-warn">SameSite</span></a>
+  <a href="#t04">TEST-04 <span class="badge badge-warn">Path</span></a>
+
+  <div class="section-label">Bloque 2 — Transporte</div>
+  <a href="#t05">TEST-05 <span class="badge badge-fail">HTTP→HTTPS</span></a>
+  <a href="#t06">TEST-06 <span class="badge badge-fail">HSTS</span></a>
+  <a href="#t07">TEST-07 <span class="badge badge-fail">TLS 1.0</span></a>
+  <a href="#t08">TEST-08 <span class="badge badge-warn">TLS 1.1</span></a>
+  <a href="#t09">TEST-09 <span class="badge badge-fail">SSL Cert</span></a>
+
+  <div class="section-label">Bloque 3 — Cabeceras HTTP</div>
+  <a href="#t10">TEST-10 <span class="badge badge-fail">X-Frame-Options</span></a>
+  <a href="#t11">TEST-11 <span class="badge badge-fail">X-Content-Type</span></a>
+  <a href="#t12">TEST-12 <span class="badge badge-fail">CSP</span></a>
+  <a href="#t13">TEST-13 <span class="badge badge-warn">Referrer-Policy</span></a>
+  <a href="#t14">TEST-14 <span class="badge badge-warn">Permissions-Policy</span></a>
+
+  <div class="section-label">Bloque 4 — Fuga de info</div>
+  <a href="#t15">TEST-15 <span class="badge badge-warn">Server header</span></a>
+  <a href="#t16">TEST-16 <span class="badge badge-warn">X-Powered-By</span></a>
+  <a href="#t17">TEST-17 <span class="badge badge-pass">X-AspNet</span></a>
+
+  <div class="section-label">Bloque 5 — Config. servidor</div>
+  <a href="#t18">TEST-18 <span class="badge badge-fail">CORS</span></a>
+  <a href="#t19">TEST-19 <span class="badge badge-warn">HTTP TRACE</span></a>
+  <a href="#t20">TEST-20 <span class="badge badge-warn">Cache-Control</span></a>
+</nav>
+
+<!-- ═══════════════════════════ MAIN ═══════════════════════════ -->
+<main>
+
+  <!-- Hero -->
+  <div class="hero" id="overview">
+    <h1>🔐 Web Security Scanner — Wiki de Tests</h1>
+    <p>Documentación completa de los 20 tests de seguridad ejecutados por el scanner. Incluye qué verifica cada test, por qué importa, resultados posibles y guías de remediación para múltiples plataformas.</p>
+    <div class="meta">
+      <span><strong>Versión:</strong> 3.1</span>
+      <span><strong>Tests totales:</strong> 20</span>
+      <span><strong>Bloques:</strong> 5</span>
+      <span><strong>Plataformas cubiertas:</strong> Nginx · Apache · Tomcat · IIS · Node.js · PHP</span>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat-card">
+      <div class="num" style="color:var(--red)">9</div>
+      <div class="lbl">Tests de riesgo ALTO</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" style="color:var(--yellow)">8</div>
+      <div class="lbl">Tests de riesgo MEDIO</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" style="color:#7dd3fc">3</div>
+      <div class="lbl">Tests de riesgo BAJO</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" style="color:var(--green)">20</div>
+      <div class="lbl">Tests en total</div>
+    </div>
+  </div>
+
+  <!-- ══════════════ BLOQUE 1 — COOKIES ══════════════ -->
+  <div class="block-heading"><span class="icon">🍪</span> Bloque 1 — Cookies de sesión</div>
+
+  <!-- TEST-01 -->
+  <div class="test-card" id="t01">
+    <div class="card-header" onclick="toggle(this)">
+      <span class="test-id">TEST-01</span>
+      <span class="test-name">Cookie flag: Secure</span>
+      <span class="risk-badge risk-medio">Riesgo MEDIO</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="card-body">
+      <h4>¿Qué verifica?</h4>
+      <p>Comprueba que todas las cookies en la respuesta HTTP tengan el atributo <code>Secure</code>. Este flag instruye al navegador a enviar la cookie <strong>únicamente</strong> sobre conexiones HTTPS cifradas.</p>
+
+      <h4>¿Por qué importa?</h4>
+      <p>Sin el flag <code>Secure</code>, si el usuario visita accidentalmente la versión HTTP del sitio (por un enlace, redirección maliciosa o ataque SSL stripping), el navegador enviará la cookie en claro. Un atacante en la misma red (Wi-Fi pública, MITM) puede capturarla y suplantar la sesión.</p>
+
+      <h4>Resultados posibles</h4>
+      <div class="result-row"><span class="tag tag-pass">PASS</span> Todas las cookies tienen el atributo <code>Secure</code></div>
+      <div class="result-row"><span class="tag tag-fail">FAIL</span> Al menos una cookie no tiene el flag <code>Secure</code></div>
+
+      <h4>Remediación</h4>
+      <div class="platform-tabs">
+        <div class="tab-buttons">
+          <button class="tab-btn active" onclick="switchTab(this,'t01','nginx')">Nginx</button>
+          <button class="tab-btn" onclick="switchTab(this,'t01','apache')">Apache</button>
+          <button class="tab-btn" onclick="switchTab(this,'t01','tomcat')">Tomcat</button>
+          <button class="tab-btn" onclick="switchTab(this,'t01','php')">PHP</button>
+          <button class="tab-btn" onclick="switchTab(this,'t01','nodejs')">Node.js</button>
+        </div>
+        <div id="t01-nginx" class="tab-panel active"><pre><span class="comment"># nginx.conf — agregar a la directiva de cookies vía proxy_cookie_flags</span>
+proxy_cookie_flags ~ secure samesite=lax;
+
+<span class="comment"># O con add_header para aplicar a todas las cookies del proxy:</span>
+proxy_cookie_path / "/; Secure; SameSite=Lax";</pre></div>
+        <div id="t01-apache" class="tab-panel"><pre><span class="comment"># httpd.conf o .htaccess — requiere mod_headers</span>
+Header always edit Set-Cookie ^(.*)$ "$1; Secure"</pre></div>
+        <div id="t01-tomcat" class="tab-panel"><pre><span class="comment"># conf/context.xml</span>
+&lt;CookieProcessor sameSiteCookies="lax" /&gt;
+
+<span class="comment"># O en web.xml de la aplicación:</span>
+&lt;session-config&gt;
+  &lt;cookie-config&gt;
+    &lt;secure&gt;true&lt;/secure&gt;
+  &lt;/cookie-config&gt;
+&lt;/session-config&gt;</pre></div>
+        <div id="t01-php" class="tab-panel"><pre><span class="comment"># php.ini</span>
+session.cookie_secure = 1
+
+<span class="comment"># O en código PHP:</span>
+ini_set('session.cookie_secure', 1);
+session_set_cookie_params(['secure' => true]);</pre></div>
+        <div id="t01-nodejs" class="tab-panel"><pre><span class="comment">// Express + express-session</span>
+app.use(session({
+  cookie: {
+    secure: true,   <span class="comment">// requiere HTTPS</span>
+    httpOnly: true,
+    sameSite: 'lax'
+  }
+}));</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEST-02 -->
+  <div class="test-card" id="t02">
+    <div class="card-header" onclick="toggle(this)">
+      <span class="test-id">TEST-02</span>
+      <span class="test-name">Cookie flag: HttpOnly</span>
+      <span class="risk-badge risk-alto">Riesgo ALTO</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="card-body">
+      <h4>¿Qué verifica?</h4>
+      <p>Comprueba que la cookie de sesión principal tenga el atributo <code>HttpOnly</code>. Este flag impide que el código JavaScript pueda leer la cookie mediante <code>document.cookie</code>.</p>
+
+      <h4>¿Por qué importa?</h4>
+      <p>Es la defensa principal contra ataques XSS (Cross-Site Scripting). Si un atacante logra inyectar JavaScript en la página, <strong>sin HttpOnly puede robar la cookie de sesión</strong> directamente. Con HttpOnly, aunque haya XSS, la cookie permanece inaccesible desde el script.</p>
+
+      <h4>Resultados posibles</h4>
+      <div class="result-row"><span class="tag tag-pass">PASS</span> La cookie de sesión tiene el atributo <code>HttpOnly</code></div>
+      <div class="result-row"><span class="tag tag-fail">FAIL</span> La cookie de sesión no tiene <code>HttpOnly</code></div>
+      <div class="result-row"><span class="tag tag-skip">SKIP</span> No se encontró cookie de sesión en la raíz del dominio</div>
+
+      <h4>Remediación</h4>
+      <div class="platform-tabs">
+        <div class="tab-buttons">
+          <button class="tab-btn active" onclick="switchTab(this,'t02','nginx')">Nginx</button>
+          <button class="tab-btn" onclick="switchTab(this,'t02','apache')">Apache</button>
+          <button class="tab-btn" onclick="switchTab(this,'t02','tomcat')">Tomcat</button>
+          <button class="tab-btn" onclick="switchTab(this,'t02','php')">PHP</button>
+          <button class="tab-btn" onclick="switchTab(this,'t02','nodejs')">Node.js</button>
+          <button class="tab-btn" onclick="switchTab(this,'t02','moodle')">Moodle</button>
+        </div>
+        <div id="t02-nginx" class="tab-panel active"><pre>proxy_cookie_flags ~ secure httponly samesite=lax;
+<span class="comment"># O editando el Set-Cookie directamente:</span>
+proxy_cookie_path / "/; HttpOnly; Secure; SameSite=Lax";</pre></div>
+        <div id="t02-apache" class="tab-panel"><pre>Header always edit Set-Cookie ^(.*)$ "$1; HttpOnly; Secure"</pre></div>
+        <div id="t02-tomcat" class="tab-panel"><pre>&lt;session-config&gt;
+  &lt;cookie-config&gt;
+    &lt;http-only&gt;true&lt;/http-only&gt;
+    &lt;secure&gt;true&lt;/secure&gt;
+  &lt;/cookie-config&gt;
+&lt;/session-config&gt;</pre></div>
+        <div id="t02-php" class="tab-panel"><pre><span class="comment"># php.ini</span>
+session.cookie_httponly = 1
+session.cookie_secure = 1</pre></div>
+        <div id="t02-nodejs" class="tab-panel"><pre>cookie: { httpOnly: true, secure: true, sameSite: 'lax' }</pre></div>
+        <div id="t02-moodle" class="tab-panel"><pre><span class="comment"># config.php de Moodle</span>
+$CFG->cookiesecure = true;
+$CFG->cookiehttponly = true;</pre></div>
+      </div>
+      <div class="info-box danger">⚠️ <strong>El fallo más extendido en la infraestructura analizada.</strong> Prácticamente todos los Moodle carecen de este flag. Es la corrección con mayor impacto de seguridad.</div>
+    </div>
+  </div>
+
+  <!-- TEST-03 -->
+  <div class="test-card" id="t03">
+    <div class="card-header" onclick="toggle(this)">
+      <span class="test-id">TEST-03</span>
+      <span class="test-name">Cookie flag: SameSite</span>
+      <span class="risk-badge risk-medio">Riesgo MEDIO</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="card-body">
+      <h4>¿Qué verifica?</h4>
+      <p>Verifica que las cookies tengan el atributo <code>SameSite</code> con valor <code>Lax</code> o <code>Strict</code>. Este atributo controla cuándo el navegador envía cookies en peticiones cross-site.</p>
+
+      <h4>¿Por qué importa?</h4>
+      <p>Protege contra ataques CSRF (Cross-Site Request Forgery). Con <code>SameSite=Strict</code>, las cookies nunca se envían en peticiones originadas desde otro dominio. Con <code>Lax</code> (recomendado), solo se envían en navegación top-level (links), no en peticiones de recursos embebidos.</p>
+
+      <h4>Valores de SameSite</h4>
+      <ul>
+        <li><strong>Strict:</strong> Máxima protección. La cookie nunca se envía cross-site. Puede causar problemas de UX (ej: al llegar desde un email).</li>
+        <li><strong>Lax:</strong> Equilibrio recomendado. Bloquea peticiones POST, iframes, XHR cross-site. Permite navegación normal.</li>
+        <li><strong>None:</strong> Sin protección. Requiere también <code>Secure</code>. Necesario para escenarios de SSO legítimos.</li>
+      </ul>
+
+      <h4>Remediación</h4>
+      <div class="platform-tabs">
+        <div class="tab-buttons">
+          <button class="tab-btn active" onclick="switchTab(this,'t03','nginx')">Nginx</button>
+          <button class="tab-btn" onclick="switchTab(this,'t03','apache')">Apache</button>
+          <button class="tab-btn" onclick="switchTab(this,'t03','php')">PHP</button>
+          <button class="tab-btn" onclick="switchTab(this,'t03','nodejs')">Node.js</button>
+        </div>
+        <div id="t03-nginx" class="tab-panel active"><pre>proxy_cookie_flags ~ secure httponly samesite=lax;</pre></div>
+        <div id="t03-apache" class="tab-panel"><pre>Header always edit Set-Cookie ^(.*)$ "$1; SameSite=Lax"</pre></div>
+        <div id="t03-php" class="tab-panel"><pre>session.cookie_samesite = "Lax"  <span class="comment"># PHP 7.3+</span></pre></div>
+        <div id="t03-nodejs" class="tab-panel"><pre>cookie: { sameSite: 'lax' }</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEST-04 -->
+  <div class="test-card" id="t04">
+    <div class="card-header" onclick="toggle(this)">
+      <span class="test-id">TEST-04</span>
+      <span class="test-name">Cookie attribute: Path</span>
+      <span class="risk-badge risk-bajo">Riesgo BAJO</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="card-body">
+      <h4>¿Qué verifica?</h4>
+      <p>Comprueba que las cookies tengan definido el atributo <code>Path</code>. Sin él, la cookie se envía en cualquier ruta del dominio, incluyendo sub-aplicaciones que no deberían tener acceso a ella.</p>
+
+      <h4>Remediación</h4>
+      <div class="platform-tabs">
+        <div class="tab-buttons">
+          <button class="tab-btn active" onclick="switchTab(this,'t04','apache')">Apache</button>
+          <button class="tab-btn" onclick="switchTab(this,'t04','php')">PHP</button>
+        </div>
+        <div id="t04-apache" class="tab-panel active"><pre>Header always edit Set-Cookie ^(.*)$ "$1; Path=/app; SameSite=Lax"</pre></div>
+        <div id="t04-php" class="tab-panel"><pre>session.cookie_path = "/app"</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ BLOQUE 2 — TRANSPORTE ══════════════ -->
+  <div class="block-heading"><span class="icon">🔒</span> Bloque 2 — Transporte y TLS</div>
+
+  <!-- TEST-05 -->
+  <div class="test-card" id="t05">
+    <div class="card-header" onclick="toggle(this)">
+      <span class="test-id">TEST-05</span>
+      <span class="test-name">HTTP → HTTPS redirect 301/302</span>
+      <span class="risk-badge risk-medio">Riesgo MEDIO</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="card-body">
+      <h4>¿Qué verifica?</h4>
+      <p>Realiza una petición HTTP al puerto 80 y verifica que el servidor responda con un redirect 301 o 302 hacia la URL HTTPS equivalente.</p>
+
+      <h4>¿Por qué importa?</h4>
+      <p>Sin redirect automático, los usuarios que accedan por HTTP navegan en claro. Combinado con SSL stripping, un atacante puede interceptar todas las comunicaciones incluso si el sitio soporta HTTPS.</p>
+
+      <h4>Remediación</h4>
+      <div class="platform-tabs">
+        <div class="tab-buttons">
+          <button class="tab-btn active" onclick="switchTab(this,'t05','nginx')">Nginx</button>
+          <button class="tab-btn" onclick="switchTab(this,'t05','apache')">Apache</button>
+          <button class="tab-btn" onclick="switchTab(this,'t05','tomcat')">Tomcat</button>
+          <button class="tab-btn" onclick="switchTab(this,'t05','iis')">IIS</button>
+        </div>
+        <div id="t05-nginx" class="tab-panel active"><pre>server {
+    listen 80;
+    server_name ejemplo.com;
+    return 301 https://$host$request_uri;
+}</pre></div>
+        <div id="t05-apache" class="tab-panel"><pre>&lt;VirtualHost *:80&gt;
+    ServerName ejemplo.com
+    Redirect permanent / https://ejemplo.com/
+&lt;/VirtualHost&gt;
+
+<span class="comment"># O con mod_rewrite:</span>
+RewriteEngine On
+RewriteCond %{HTTPS} off
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]</pre></div>
+        <div id="t05-tomcat" class="tab-panel"><pre><span class="comment">&lt;!-- conf/web.xml — security-constraint --&gt;</span>
+&lt;security-constraint&gt;
+  &lt;web-resource-collection&gt;
+    &lt;web-resource-name&gt;Redirect HTTP&lt;/web-resource-name&gt;
+    &lt;url-pattern&gt;/*&lt;/url-pattern&gt;
+  &lt;/web-resource-collection&gt;
+  &lt;user-data-constraint&gt;
+    &lt;transport-guarantee&gt;CONFIDENTIAL&lt;/transport-guarantee&gt;
+  &lt;/user-data-constraint&gt;
+&lt;/security-constraint&gt;</pre></div>
+        <div id="t05-iis" class="tab-panel"><pre><span class="comment">&lt;!-- web.config --&gt;</span>
+&lt;rewrite&gt;
+  &lt;rules&gt;
+    &lt;rule name="HTTP to HTTPS" stopProcessing="true"&gt;
+      &lt;match url="(.*)" /&gt;
+      &lt;conditions&gt;
+        &lt;add input="{HTTPS}" pattern="off" /&gt;
+      &lt;/conditions&gt;
+      &lt;action type="Redirect" url="https://{HTTP_HOST}/{R:1}" redirectType="Permanent" /&gt;
+    &lt;/rule&gt;
+  &lt;/rules&gt;
+&lt;/rewrite&gt;</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEST-06 -->
+  <div class="test-card" id="t06">
+    <div class="card-header" onclick="toggle(this)">
+      <span class="test-id">TEST-06</span>
+      <span class="test-name">HSTS — Strict-Transport-Security</span>
+      <span class="risk-badge risk-alto">Riesgo ALTO</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="card-body">
+      <h4>¿Qué verifica?</h4>
+      <p>Comprueba que la respuesta incluya el header <code>Strict-Transport-Security</code> con un <code>max-age</code> de al menos 31536000 segundos (1 año).</p>
+
+      <h4>¿Por qué importa?</h4>
+      <p>HSTS le indica al navegador que <strong>nunca</strong> acceda al dominio por HTTP, aunque el usuario lo escriba manualmente o haga clic en un enlace HTTP. Después del primer acceso HTTPS, el navegador memoriza esta instrucción y bloquea conexiones no cifradas automáticamente, eliminando la ventana de ataque SSL stripping.</p>
+
+      <h4>Resultados posibles</h4>
+      <div class="result-row"><span class="tag tag-pass">PASS</span> Header presente con <code>max-age ≥ 31536000</code></div>
+      <div class="result-row"><span class="tag tag-warn">WARN</span> Header presente pero <code>max-age &lt; 31536000</code></div>
+      <div class="result-row"><span class="tag tag-fail">FAIL</span> Header ausente</div>
+
+      <h4>Remediación</h4>
+      <div class="platform-tabs">
+        <div class="tab-buttons">
+          <button class="tab-btn active" onclick="switchTab(this,'t06','nginx')">Nginx</button>
+          <button class="tab-btn" onclick="switchTab(this,'t06','apache')">Apache</button>
+          <button class="tab-btn" onclick="switchTab(this,'t06','tomcat')">Tomcat</button>
+          <button class="tab-btn" onclick="switchTab(this,'t06','iis')">IIS</button>
+        </div>
+        <div id="t06-nginx" class="tab-panel active"><pre><span class="comment"># Dentro del bloque server { } HTTPS</span>
+add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;</pre>
+<div class="info-box tip">💡 Usa <code>always</code> para que el header se incluya también en respuestas de error (4xx, 5xx).</div></div>
+        <div id="t06-apache" class="tab-panel"><pre><span class="comment"># Dentro del VirtualHost HTTPS</span>
+Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"</pre></div>
+        <div id="t06-tomcat" class="tab-panel"><pre><span class="comment">&lt;!-- web.xml de la aplicación --&gt;</span>
+&lt;filter&gt;
+  &lt;filter-name&gt;httpHeaderSecurity&lt;/filter-name&gt;
+  &lt;filter-class&gt;org.apache.catalina.filters.HttpHeaderSecurityFilter&lt;/filter-class&gt;
+  &lt;init-param&gt;
+    &lt;param-name&gt;hstsEnabled&lt;/param-name&gt;
+    &lt;param-value&gt;true&lt;/param-value&gt;
+  &lt;/init-param&gt;
+  &lt;init-param&gt;
+    &lt;param-name&gt;hstsMaxAgeSeconds&lt;/param-name&gt;
+    &lt;param-value&gt;31536000&lt;/param-value&gt;
+  &lt;/init-param&gt;
+&lt;/filter&gt;</pre></div>
+        <div id="t06-iis" class="tab-panel"><pre>&lt;httpProtocol&gt;
+  &lt;customHeaders&gt;
+    &lt;add name="Strict-Transport-Security" value="max-age=31536000; includeSubDomains" /&gt;
+  &lt;/customHeaders&gt;
+&lt;/httpProtocol&gt;</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEST-07 -->
+  <div class="test-card" id="t07">
+    <div class="card-header" onclick="toggle(this)">
+      <span class="test-id">TEST-07</span>
+      <span class="test-name">TLS 1.0 deshabilitado</span>
+      <span class="risk-badge risk-alto">Riesgo ALTO</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="card-body">
+      <h4>¿Qué verifica?</h4>
+      <p>Intenta establecer una conexión TLS 1.0 con el servidor. Si el servidor la acepta, el test falla.</p>
+
+      <h4>¿Por qué importa?</h4>
+      <p>TLS 1.0 (1999) tiene vulnerabilidades conocidas como <strong>POODLE</strong> y <strong>BEAST</strong> que permiten descifrar tráfico cifrado. PCI-DSS y muchos marcos de cumplimiento exigen que TLS 1.0 esté deshabilitado desde 2018.</p>
+
+      <h4>Remediación</h4>
+      <div class="platform-tabs">
+        <div class="tab-buttons">
+          <button class="tab-btn active" onclick="switchTab(this,'t07','nginx')">Nginx</button>
+          <button class="tab-btn" onclick="switchTab(this,'t07','apache')">Apache</button>
+          <button class="tab-btn" onclick="switchTab(this,'t07','tomcat')">Tomcat</button>
+        </div>
+        <div id="t07-nginx" class="tab-panel active"><pre>ssl_protocols TLSv1.2 TLSv1.3;
+ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256;
+ssl_prefer_server_ciphers off;</pre></div>
+        <div id="t07-apache" class="tab-panel"><pre>SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1
+SSLCipherSuite ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256
+SSLHonorCipherOrder off</pre></div>
+        <div id="t07-tomcat" class="tab-panel"><pre><span class="comment">&lt;!-- server.xml --&gt;</span>
+&lt;Connector port="443" protocol="org.apache.coyote.http11.Http11NioProtocol"
+           SSLEnabled="true"&gt;
+  &lt;SSLHostConfig protocols="TLSv1.2+TLSv1.3"&gt;
+    &lt;Certificate certificateKeystoreFile="..." /&gt;
+  &lt;/SSLHostConfig&gt;
+&lt;/Connector&gt;</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEST-08 -->
+  <div class="test-card" id="t08">
+    <div class="card-header" onclick="toggle(this)">
+      <span class="test-id">TEST-08</span>
+      <span class="test-name">TLS 1.1 deshabilitado</span>
+      <span class="risk-badge risk-medio">Riesgo MEDIO</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="card-body">
+      <h4>¿Qué verifica?</h4>
+      <p>Intenta establecer una conexión TLS 1.1 con el servidor. TLS 1.1 fue oficialmente deprecado por la IETF en 2021 (RFC 8996).</p>
+
+      <h4>Remediación</h4>
+      <p>Misma configuración que TEST-07. Deshabilitar TLS 1.0 y 1.1 en el mismo bloque de configuración dejando solo TLS 1.2 y TLS 1.3.</p>
+      <div class="info-box tip">💡 TLS 1.3 es el estándar recomendado actualmente. Ofrece mejor rendimiento (1-RTT handshake) y seguridad mejorada.</div>
+    </div>
+  </div>
+
+  <!-- TEST-09 -->
+  <div class="test-card" id="t09">
+    <div class="card-header" onclick="toggle(this)">
+      <span class="test-id">TEST-09</span>
+      <span class="test-name">Certificado SSL vigente</span>
+      <span class="risk-badge risk-critico">Riesgo CRÍTICO</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="card-body">
+      <h4>¿Qué verifica?</h4>
+      <p>Conecta al servidor con <code>openssl s_client</code> y lee la fecha de expiración del certificado X.509. Calcula los días restantes hasta la expiración.</p>
+
+      <h4>Resultados posibles</h4>
+      <div class="result-row"><span class="tag tag-pass">PASS</span> Certificado vigente (más de 30 días)</div>
+      <div class="result-row"><span class="tag tag-warn">WARN</span> Expira en ≤ 30 días — renovar pronto</div>
+      <div class="result-row"><span class="tag tag-fail">FAIL</span> Expira en ≤ 7 días — CRÍTICO</div>
+      <div class="result-row"><span class="tag tag-skip">SKIP</span> No se pudo leer el certificado</div>
+
+      <h4>Monitoreo y renovación</h4>
+      <div class="platform-tabs">
+        <div class="tab-buttons">
+          <button class="tab-btn active" onclick="switchTab(this,'t09','certbot')">Certbot (Let's Encrypt)</button>
+          <button class="tab-btn" onclick="switchTab(this,'t09','manual')">Verificación manual</button>
+          <button class="tab-btn" onclick="switchTab(this,'t09','cron')">Alerta por cron</button>
+        </div>
+        <div id="t09-certbot" class="tab-panel active"><pre><span class="comment"># Renovar todos los certificados vencidos o próximos a vencer</span>
+sudo certbot renew --dry-run   <span class="comment"># Prueba sin aplicar</span>
+sudo certbot renew             <span class="comment"># Renovación real</span>
+
+<span class="comment"># Ver certificados gestionados</span>
+sudo certbot certificates</pre></div>
+        <div id="t09-manual" class="tab-panel"><pre><span class="comment"># Verificar fecha de expiración</span>
+echo | openssl s_client -connect ejemplo.com:443 -servername ejemplo.com 2>/dev/null \
+  | openssl x509 -noout -dates
+
+<span class="comment"># Días restantes</span>
+echo | openssl s_client -connect ejemplo.com:443 2>/dev/null \
+  | openssl x509 -noout -enddate \
+  | cut -d= -f2 \
+  | xargs -I{} date -d "{}" +%s \
+  | xargs -I{} bash -c 'echo $(( ({} - $(date +%s)) / 86400 )) días'</pre></div>
+        <div id="t09-cron" class="tab-panel"><pre><span class="comment"># /etc/cron.d/ssl-check — alerta 30 días antes</span>
+0 8 * * 1 root /usr/local/bin/check-ssl.sh ejemplo.com admin@empresa.com</pre>
+<pre><span class="comment">#!/bin/bash — check-ssl.sh</span>
+DOMAIN=$1; EMAIL=$2; DAYS=30
+EXPIRY=$(echo | openssl s_client -connect ${DOMAIN}:443 2>/dev/null \
+  | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
+LEFT=$(( ($(date -d "$EXPIRY" +%s) - $(date +%s)) / 86400 ))
+[[ $LEFT -le $DAYS ]] && echo "SSL de $DOMAIN expira en $LEFT días" | mail -s "⚠️ SSL Alert" $EMAIL</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ BLOQUE 3 — CABECERAS ══════════════ -->
+  <div class="block-heading"><span class="icon">📋</span> Bloque 3 — Cabeceras de seguridad HTTP</div>
+
+  <!-- TEST-10 -->
+  <div class="test-card" id="t10">
+    <div class="card-header" onclick="toggle(this)">
+      <span class="test-id">TEST-10</span>
+      <span class="test-name">X-Frame-Options (anti-clickjacking)</span>
+      <span class="risk-badge risk-alto">Riesgo ALTO</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="card-body">
+      <h4>¿Qué verifica?</h4>
+      <p>Comprueba que la respuesta incluya el header <code>X-Frame-Options</code>. Este header controla si el navegador permite mostrar la página dentro de un <code>&lt;iframe&gt;</code>, <code>&lt;frame&gt;</code> o <code>&lt;object&gt;</code>.</p>
+
+      <h4>¿Por qué importa?</h4>
+      <p>Sin este header, un atacante puede embeber tu aplicación en un iframe en su web maliciosa y usar técnicas de <strong>clickjacking</strong>: superponer capas invisibles para que el usuario haga clic en botones de tu app sin saberlo (cambiar contraseña, confirmar transferencias, etc.).</p>
+
+      <h4>Valores recomendados</h4>
+      <ul>
+        <li><strong>DENY:</strong> Nunca puede mostrarse en un frame (máxima protección)</li>
+        <li><strong>SAMEORIGIN:</strong> Solo puede mostrarse en frames del mismo origen (recomendado para apps con iframes propios)</li>
+      </ul>
+
+      <h4>Remediación</h4>
+      <div class="platform-tabs">
+        <div class="tab-buttons">
+          <button class="tab-btn active" onclick="switchTab(this,'t10','nginx')">Nginx</button>
+          <button class="tab-btn" onclick="switchTab(this,'t10','apache')">Apache</button>
+          <button class="tab-btn" onclick="switchTab(this,'t10','tomcat')">Tomcat</button>
+          <button class="tab-btn" onclick="switchTab(this,'t10','iis')">IIS</button>
+          <button class="tab-btn" onclick="switchTab(this,'t10','nodejs')">Node.js</button>
+        </div>
+        <div id="t10-nginx" class="tab-panel active"><pre>add_header X-Frame-Options "SAMEORIGIN" always;</pre></div>
+        <div id="t10-apache" class="tab-panel"><pre>Header always set X-Frame-Options "SAMEORIGIN"</pre></div>
+        <div id="t10-tomcat" class="tab-panel"><pre><span class="comment">&lt;!-- HttpHeaderSecurityFilter en web.xml --&gt;</span>
+&lt;init-param&gt;
+  &lt;param-name&gt;antiClickJackingEnabled&lt;/param-name&gt;
+  &lt;param-value&gt;true&lt;/param-value&gt;
+&lt;/init-param&gt;
+&lt;init-param&gt;
+  &lt;param-name&gt;antiClickJackingOption&lt;/param-name&gt;
+  &lt;param-value&gt;SAMEORIGIN&lt;/param-value&gt;
+&lt;/init-param&gt;</pre></div>
+        <div id="t10-iis" class="tab-panel"><pre>&lt;add name="X-Frame-Options" value="SAMEORIGIN" /&gt;</pre></div>
+        <div id="t10-nodejs" class="tab-panel"><pre><span class="comment">// Con Helmet.js</span>
+app.use(helmet.frameguard({ action: 'sameorigin' }));</pre></div>
+      </div>
+      <div class="info-box tip">💡 En CSP moderno puedes usar <code>frame-ancestors 'self'</code> como alternativa más flexible a <code>X-Frame-Options</code>.</div>
+    </div>
+  </div>
+
+  <!-- TEST-11 -->
+  <div class="test-card" id="t11">
+    <div class="card-header" onclick="toggle(this)">
+      <span class="test-id">TEST-11</span>
+      <span class="test-name">X-Content-Type-Options: nosniff</span>
+      <span class="risk-badge risk-medio">Riesgo MEDIO</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="card-body">
+      <h4>¿Qué verifica?</h4>
+      <p>Verifica que la respuesta incluya <code>X-Content-Type-Options: nosniff</code>. Este header impide que el navegador intente adivinar el tipo MIME de un recurso ignorando el <code>Content-Type</code> declarado.</p>
+
+      <h4>¿Por qué importa?</h4>
+      <p>Sin este header, si un atacante logra subir un archivo malicioso (ej: un HTML disfrazado de imagen), el navegador puede <strong>ejecutarlo como HTML</strong> aunque el servidor lo sirva como <code>image/png</code>. Esto puede llevar a XSS.</p>
+
+      <h4>Remediación</h4>
+      <div class="platform-tabs">
+        <div class="tab-buttons">
+          <button class="tab-btn active" onclick="switchTab(this,'t11','nginx')">Nginx</button>
+          <button class="tab-btn" onclick="switchTab(this,'t11','apache')">Apache</button>
+          <button class="tab-btn" onclick="switchTab(this,'t11','nodejs')">Node.js</button>
+        </div>
+        <div id="t11-nginx" class="tab-panel active"><pre>add_header X-Content-Type-Options "nosniff" always;</pre></div>
+        <div id="t11-apache" class="tab-panel"><pre>Header always set X-Content-Type-Options "nosniff"</pre></div>
+        <div id="t11-nodejs" class="tab-panel"><pre>app.use(helmet.noSniff());</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEST-12 -->
+  <div class="test-card" id="t12">
+    <div class="card-header" onclick="toggle(this)">
+      <span class="test-id">TEST-12</span>
+      <span class="test-name">Content-Security-Policy (CSP)</span>
+      <span class="risk-badge risk-alto">Riesgo ALTO</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="card-body">
+      <h4>¿Qué verifica?</h4>
+      <p>Verifica que la respuesta incluya el header <code>Content-Security-Policy</code>. También detecta si contiene <code>unsafe-eval</code>, que debilita la política.</p>
+
+      <h4>¿Por qué importa?</h4>
+      <p>CSP es la defensa en profundidad más poderosa contra XSS. Define desde qué orígenes puede cargar el navegador scripts, estilos, imágenes, fuentes, etc. Un CSP bien configurado <strong>bloquea la ejecución de scripts inyectados</strong> aunque el atacante logre inyectarlos.</p>
+
+      <h4>El fallo más extendido</h4>
+      <div class="info-box danger">⚠️ CSP está ausente en 27 de los 37 dominios analizados (73%). Es el área con mayor déficit de seguridad en la infraestructura.</div>
+
+      <h4>CSP mínimo recomendado para Moodle/PHP</h4>
+      <div class="platform-tabs">
+        <div class="tab-buttons">
+          <button class="tab-btn active" onclick="switchTab(this,'t12','nginx')">Nginx</button>
+          <button class="tab-btn" onclick="switchTab(this,'t12','apache')">Apache</button>
+          <button class="tab-btn" onclick="switchTab(this,'t12','moodle')">Moodle</button>
+          <button class="tab-btn" onclick="switchTab(this,'t12','nodejs')">Node.js</button>
+          <button class="tab-btn" onclick="switchTab(this,'t12','report')">Report-Only (test)</button>
+        </div>
+        <div id="t12-nginx" class="tab-panel active"><pre><span class="comment"># CSP básico — ajustar según los recursos reales del sitio</span>
+add_header Content-Security-Policy "
+  default-src 'self';
+  script-src 'self' 'unsafe-inline';
+  style-src 'self' 'unsafe-inline';
+  img-src 'self' data: https:;
+  font-src 'self' https://fonts.gstatic.com;
+  frame-ancestors 'self';
+  base-uri 'self';
+  form-action 'self';
+" always;</pre></div>
+        <div id="t12-apache" class="tab-panel"><pre>Header always set Content-Security-Policy \
+  "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; frame-ancestors 'self';"</pre></div>
+        <div id="t12-moodle" class="tab-panel"><pre><span class="comment"># config.php — Moodle tiene soporte nativo de CSP</span>
+$CFG->additionalhtmlhead = '&lt;meta http-equiv="Content-Security-Policy"
+  content="default-src \'self\'; script-src \'self\' \'unsafe-inline\' \'unsafe-eval\';
+  style-src \'self\' \'unsafe-inline\'; img-src \'self\' data: https:;"&gt;';</pre>
+<div class="info-box warn">⚠️ Moodle usa <code>eval()</code> en algunas funcionalidades JavaScript. Se necesita <code>unsafe-eval</code> temporalmente mientras se migran esos módulos.</div></div>
+        <div id="t12-nodejs" class="tab-panel"><pre>app.use(helmet.contentSecurityPolicy({
+  directives: {
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'"],
+    styleSrc: ["'self'", "'unsafe-inline'"],
+    imgSrc: ["'self'", "data:", "https:"],
+    frameAncestors: ["'self'"],
+  }
+}));</pre></div>
+        <div id="t12-report" class="tab-panel"><pre><span class="comment"># Primero despliega en modo Report-Only para ver qué se rompería</span>
+add_header Content-Security-Policy-Report-Only "
+  default-src 'self';
+  report-uri /csp-report-endpoint;
+" always;</pre>
+<div class="info-box tip">💡 Usa <a href="https://report-uri.com" style="color:var(--cyan)">report-uri.com</a> para capturar y analizar los reportes CSP antes de habilitar la política completa.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEST-13 -->
+  <div class="test-card" id="t13">
+    <div class="card-header" onclick="toggle(this)">
+      <span class="test-id">TEST-13</span>
+      <span class="test-name">Referrer-Policy</span>
+      <span class="risk-badge risk-bajo">Riesgo BAJO</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="card-body">
+      <h4>¿Qué verifica?</h4>
+      <p>Verifica que la respuesta incluya el header <code>Referrer-Policy</code>. Este header controla cuánta información del <code>Referer</code> se envía al navegar a otro sitio.</p>
+
+      <h4>¿Por qué importa?</h4>
+      <p>Sin este header, al hacer clic en un enlace hacia un sitio externo, el navegador envía la URL completa de la página actual en el header <code>Referer</code>. Esto puede filtrar tokens en URLs, IDs de sesión o rutas internas a terceros (analítica, CDNs, etc.).</p>
+
+      <h4>Remediación</h4>
+      <div class="platform-tabs">
+        <div class="tab-buttons">
+          <button class="tab-btn active" onclick="switchTab(this,'t13','nginx')">Nginx</button>
+          <button class="tab-btn" onclick="switchTab(this,'t13','apache')">Apache</button>
+        </div>
+        <div id="t13-nginx" class="tab-panel active"><pre>add_header Referrer-Policy "strict-origin-when-cross-origin" always;</pre></div>
+        <div id="t13-apache" class="tab-panel"><pre>Header always set Referrer-Policy "strict-origin-when-cross-origin"</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEST-14 -->
+  <div class="test-card" id="t14">
+    <div class="card-header" onclick="toggle(this)">
+      <span class="test-id">TEST-14</span>
+      <span class="test-name">Permissions-Policy</span>
+      <span class="risk-badge risk-bajo">Riesgo BAJO</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="card-body">
+      <h4>¿Qué verifica?</h4>
+      <p>Verifica que la respuesta incluya el header <code>Permissions-Policy</code> (anteriormente <code>Feature-Policy</code>). Controla qué APIs del navegador (cámara, micrófono, geolocalización) pueden usar la página o sus iframes.</p>
+
+      <h4>Remediación</h4>
+      <div class="platform-tabs">
+        <div class="tab-buttons">
+          <button class="tab-btn active" onclick="switchTab(this,'t14','nginx')">Nginx</button>
+          <button class="tab-btn" onclick="switchTab(this,'t14','apache')">Apache</button>
+        </div>
+        <div id="t14-nginx" class="tab-panel active"><pre>add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()" always;</pre></div>
+        <div id="t14-apache" class="tab-panel"><pre>Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"</pre></div>
+      </div>
+      <div class="info-box tip">💡 <code>()</code> significa que la feature está deshabilitada para todos. Ajusta si tu aplicación necesita alguna de estas capacidades.</div>
+    </div>
+  </div>
+
+  <!-- ══════════════ BLOQUE 4 — FUGA ══════════════ -->
+  <div class="block-heading"><span class="icon">🕵️</span> Bloque 4 — Fuga de información</div>
+
+  <!-- TEST-15 -->
+  <div class="test-card" id="t15">
+    <div class="card-header" onclick="toggle(this)">
+      <span class="test-id">TEST-15</span>
+      <span class="test-name">Server header oculto (sin versión)</span>
+      <span class="risk-badge risk-medio">Riesgo MEDIO</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="card-body">
+      <h4>¿Qué verifica?</h4>
+      <p>Inspecciona el header <code>Server</code> de la respuesta. Si contiene un número de versión (ej: <code>nginx/1.18.0</code>, <code>Apache/2.4.41</code>), el test falla.</p>
+
+      <h4>¿Por qué importa?</h4>
+      <p>Revelar la versión exacta del servidor facilita a los atacantes identificar versiones vulnerables y usar exploits específicos sin necesidad de fingerprinting adicional.</p>
+
+      <h4>Remediación</h4>
+      <div class="platform-tabs">
+        <div class="tab-buttons">
+          <button class="tab-btn active" onclick="switchTab(this,'t15','nginx')">Nginx</button>
+          <button class="tab-btn" onclick="switchTab(this,'t15','apache')">Apache</button>
+          <button class="tab-btn" onclick="switchTab(this,'t15','tomcat')">Tomcat</button>
+        </div>
+        <div id="t15-nginx" class="tab-panel active"><pre><span class="comment"># nginx.conf — bloque http {}</span>
+server_tokens off;</pre></div>
+        <div id="t15-apache" class="tab-panel"><pre><span class="comment"># httpd.conf o apache2.conf</span>
+ServerTokens Prod
+ServerSignature Off</pre></div>
+        <div id="t15-tomcat" class="tab-panel"><pre><span class="comment">&lt;!-- server.xml — atributo server del Connector --&gt;</span>
+&lt;Connector port="8080" server="Apache" ... /&gt;
+
+<span class="comment">&lt;!-- Para ocultarlo completamente, usar un filtro en web.xml --&gt;</span>
+&lt;filter&gt;
+  &lt;filter-name&gt;httpHeaderSecurity&lt;/filter-name&gt;
+  &lt;filter-class&gt;org.apache.catalina.filters.HttpHeaderSecurityFilter&lt;/filter-class&gt;
+&lt;/filter&gt;</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEST-16 -->
+  <div class="test-card" id="t16">
+    <div class="card-header" onclick="toggle(this)">
+      <span class="test-id">TEST-16</span>
+      <span class="test-name">X-Powered-By ausente</span>
+      <span class="risk-badge risk-medio">Riesgo MEDIO</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="card-body">
+      <h4>¿Qué verifica?</h4>
+      <p>Verifica que no exista el header <code>X-Powered-By</code>. Este header es enviado automáticamente por PHP, Express y otros frameworks revelando el stack tecnológico (ej: <code>PHP/8.1.2</code>).</p>
+
+      <h4>Remediación</h4>
+      <div class="platform-tabs">
+        <div class="tab-buttons">
+          <button class="tab-btn active" onclick="switchTab(this,'t16','nginx')">Nginx</button>
+          <button class="tab-btn" onclick="switchTab(this,'t16','php')">PHP</button>
+          <button class="tab-btn" onclick="switchTab(this,'t16','nodejs')">Node.js/Express</button>
+          <button class="tab-btn" onclick="switchTab(this,'t16','apache')">Apache</button>
+        </div>
+        <div id="t16-nginx" class="tab-panel active"><pre><span class="comment"># Eliminar el header si viene del backend</span>
+proxy_hide_header X-Powered-By;
+fastcgi_hide_header X-Powered-By;</pre></div>
+        <div id="t16-php" class="tab-panel"><pre><span class="comment"># php.ini</span>
+expose_php = Off</pre></div>
+        <div id="t16-nodejs" class="tab-panel"><pre><span class="comment">// Express deshabilita por defecto, o con Helmet:</span>
+app.disable('x-powered-by');
+<span class="comment">// O con Helmet:</span>
+app.use(helmet.hidePoweredBy());</pre></div>
+        <div id="t16-apache" class="tab-panel"><pre>Header always unset X-Powered-By
+Header always unset X-Generator</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEST-17 -->
+  <div class="test-card" id="t17">
+    <div class="card-header" onclick="toggle(this)">
+      <span class="test-id">TEST-17</span>
+      <span class="test-name">X-AspNet-Version ausente</span>
+      <span class="risk-badge risk-medio">Riesgo MEDIO</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="card-body">
+      <h4>¿Qué verifica?</h4>
+      <p>Verifica que no existan los headers <code>X-AspNet-Version</code> o <code>X-AspNetMvc-Version</code>, emitidos automáticamente por aplicaciones ASP.NET.</p>
+
+      <h4>Remediación</h4>
+      <div class="platform-tabs">
+        <div class="tab-buttons">
+          <button class="tab-btn active" onclick="switchTab(this,'t17','iis')">IIS / web.config</button>
+          <button class="tab-btn" onclick="switchTab(this,'t17','csharp')">C# / Startup</button>
+        </div>
+        <div id="t17-iis" class="tab-panel active"><pre>&lt;system.web&gt;
+  &lt;httpRuntime enableVersionHeader="false" /&gt;
+&lt;/system.web&gt;
+
+&lt;system.webServer&gt;
+  &lt;httpProtocol&gt;
+    &lt;customHeaders&gt;
+      &lt;remove name="X-Powered-By" /&gt;
+      &lt;remove name="X-AspNet-Version" /&gt;
+    &lt;/customHeaders&gt;
+  &lt;/httpProtocol&gt;
+&lt;/system.webServer&gt;</pre></div>
+        <div id="t17-csharp" class="tab-panel"><pre><span class="comment">// Program.cs (.NET 6+)</span>
+app.Use(async (context, next) => {
+    context.Response.Headers.Remove("X-AspNet-Version");
+    context.Response.Headers.Remove("X-AspNetMvc-Version");
+    await next();
+});</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ BLOQUE 5 — CONFIG ══════════════ -->
+  <div class="block-heading"><span class="icon">⚙️</span> Bloque 5 — Configuración del servidor</div>
+
+  <!-- TEST-18 -->
+  <div class="test-card" id="t18">
+    <div class="card-header" onclick="toggle(this)">
+      <span class="test-id">TEST-18</span>
+      <span class="test-name">CORS — sin wildcard Access-Control-Allow-Origin</span>
+      <span class="risk-badge risk-alto">Riesgo ALTO</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="card-body">
+      <h4>¿Qué verifica?</h4>
+      <p>Revisa el header <code>Access-Control-Allow-Origin</code>. Si el valor es <code>*</code>, cualquier sitio externo puede hacer peticiones AJAX a esta API y leer la respuesta desde JavaScript, incluyendo datos del usuario autenticado.</p>
+
+      <h4>Remediación</h4>
+      <div class="platform-tabs">
+        <div class="tab-buttons">
+          <button class="tab-btn active" onclick="switchTab(this,'t18','nginx')">Nginx</button>
+          <button class="tab-btn" onclick="switchTab(this,'t18','apache')">Apache</button>
+          <button class="tab-btn" onclick="switchTab(this,'t18','nodejs')">Node.js</button>
+        </div>
+        <div id="t18-nginx" class="tab-panel active"><pre><span class="comment"># Restringir a un origen específico</span>
+add_header Access-Control-Allow-Origin "https://app.miempresa.com" always;
+
+<span class="comment"># Para múltiples orígenes, usar variable:</span>
+map $http_origin $cors_origin {
+    "https://app.miempresa.com" $http_origin;
+    "https://admin.miempresa.com" $http_origin;
+    default "";
+}
+add_header Access-Control-Allow-Origin $cors_origin always;</pre></div>
+        <div id="t18-apache" class="tab-panel"><pre>SetEnvIf Origin "^https://(app|admin)\.miempresa\.com$" ORIGIN=$0
+Header always set Access-Control-Allow-Origin "%{ORIGIN}e" env=ORIGIN</pre></div>
+        <div id="t18-nodejs" class="tab-panel"><pre>const cors = require('cors');
+app.use(cors({
+  origin: ['https://app.miempresa.com', 'https://admin.miempresa.com'],
+  credentials: true
+}));</pre></div>
+      </div>
+      <div class="info-box warn">⚠️ Si el endpoint es público y no requiere autenticación, <code>*</code> puede ser aceptable. El riesgo es crítico solo en APIs que devuelven datos de sesión o requieren cookies.</div>
+    </div>
+  </div>
+
+  <!-- TEST-19 -->
+  <div class="test-card" id="t19">
+    <div class="card-header" onclick="toggle(this)">
+      <span class="test-id">TEST-19</span>
+      <span class="test-name">HTTP TRACE deshabilitado</span>
+      <span class="risk-badge risk-medio">Riesgo MEDIO</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="card-body">
+      <h4>¿Qué verifica?</h4>
+      <p>Envía una petición <code>TRACE</code> al servidor y verifica la respuesta. Si responde con HTTP 200, el método está activo.</p>
+
+      <h4>¿Por qué importa?</h4>
+      <p>El método TRACE está diseñado para diagnóstico: el servidor devuelve la petición tal como la recibió. Esto habilita el ataque <strong>XST (Cross-Site Tracing)</strong>: un script malicioso puede usar TRACE para leer headers que normalmente son inaccesibles (incluyendo cookies HttpOnly en algunos navegadores antiguos).</p>
+
+      <h4>Remediación</h4>
+      <div class="platform-tabs">
+        <div class="tab-buttons">
+          <button class="tab-btn active" onclick="switchTab(this,'t19','nginx')">Nginx</button>
+          <button class="tab-btn" onclick="switchTab(this,'t19','apache')">Apache</button>
+          <button class="tab-btn" onclick="switchTab(this,'t19','tomcat')">Tomcat</button>
+        </div>
+        <div id="t19-nginx" class="tab-panel active"><pre><span class="comment"># Rechazar método TRACE</span>
+if ($request_method = TRACE) {
+    return 405;
+}</pre></div>
+        <div id="t19-apache" class="tab-panel"><pre>TraceEnable off</pre></div>
+        <div id="t19-tomcat" class="tab-panel"><pre><span class="comment">&lt;!-- web.xml de la aplicación --&gt;</span>
+&lt;security-constraint&gt;
+  &lt;web-resource-collection&gt;
+    &lt;web-resource-name&gt;Disable TRACE&lt;/web-resource-name&gt;
+    &lt;url-pattern&gt;/*&lt;/url-pattern&gt;
+    &lt;http-method&gt;TRACE&lt;/http-method&gt;
+  &lt;/web-resource-collection&gt;
+  &lt;auth-constraint /&gt;
+&lt;/security-constraint&gt;</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEST-20 -->
+  <div class="test-card" id="t20">
+    <div class="card-header" onclick="toggle(this)">
+      <span class="test-id">TEST-20</span>
+      <span class="test-name">Cache-Control adecuado</span>
+      <span class="risk-badge risk-medio">Riesgo MEDIO</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="card-body">
+      <h4>¿Qué verifica?</h4>
+      <p>Verifica que el header <code>Cache-Control</code> esté presente y contenga directivas como <code>no-store</code>, <code>no-cache</code> o <code>private</code>.</p>
+
+      <h4>¿Por qué importa?</h4>
+      <p>Sin directivas de caché apropiadas, el navegador puede almacenar páginas que contienen datos sensibles (expedientes, datos personales, reportes financieros). Si el usuario usa un equipo compartido, la siguiente persona puede acceder al historial del navegador o a la caché y ver esos datos sin autenticarse.</p>
+
+      <h4>Remediación</h4>
+      <div class="platform-tabs">
+        <div class="tab-buttons">
+          <button class="tab-btn active" onclick="switchTab(this,'t20','nginx')">Nginx</button>
+          <button class="tab-btn" onclick="switchTab(this,'t20','apache')">Apache</button>
+          <button class="tab-btn" onclick="switchTab(this,'t20','php')">PHP</button>
+          <button class="tab-btn" onclick="switchTab(this,'t20','nodejs')">Node.js</button>
+        </div>
+        <div id="t20-nginx" class="tab-panel active"><pre><span class="comment"># Para rutas autenticadas / con datos sensibles:</span>
+location /app/ {
+    add_header Cache-Control "no-store, no-cache, must-revalidate, private" always;
+    add_header Pragma "no-cache" always;
+}
+
+<span class="comment"># Para recursos estáticos (JS, CSS, imágenes) — caché agresiva:</span>
+location ~* \.(js|css|png|jpg|woff2)$ {
+    add_header Cache-Control "public, max-age=31536000, immutable";
+}</pre></div>
+        <div id="t20-apache" class="tab-panel"><pre>&lt;LocationMatch "^/app/"&gt;
+    Header always set Cache-Control "no-store, no-cache, must-revalidate, private"
+    Header always set Pragma "no-cache"
+&lt;/LocationMatch&gt;</pre></div>
+        <div id="t20-php" class="tab-panel"><pre>header("Cache-Control: no-store, no-cache, must-revalidate, private");
+header("Pragma: no-cache");
+header("Expires: 0");</pre></div>
+        <div id="t20-nodejs" class="tab-panel"><pre>res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+res.set('Pragma', 'no-cache');</pre></div>
+      </div>
+      <div class="info-box tip">💡 No apliques <code>no-store</code> a recursos estáticos (CSS, JS, imágenes). Solo a rutas que sirven contenido dinámico con datos del usuario.</div>
+    </div>
+  </div>
+
+  <!-- ══════════════ FOOTER ══════════════ -->
+  <footer>
+    Web Security Scanner v3.1 — Wiki de Tests
+    &nbsp;·&nbsp; 20 tests · 5 bloques · 6 plataformas
+    &nbsp;·&nbsp; Generado 2026-05-12
+  </footer>
+</main>
+
+<script>
+  function toggle(header) {
+    const card = header.parentElement;
+    card.classList.toggle('open');
+  }
+
+  function switchTab(btn, testId, platform) {
+    const container = btn.closest('.platform-tabs');
+    container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    container.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    const panel = document.getElementById(testId + '-' + platform);
+    if (panel) panel.classList.add('active');
+  }
+
+  // Highlight sidebar link on scroll
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const id = e.target.id;
+        document.querySelectorAll('#sidebar a').forEach(a => {
+          a.classList.toggle('active', a.getAttribute('href') === '#' + id);
+        });
+      }
+    });
+  }, { threshold: 0.3 });
+
+  document.querySelectorAll('.test-card, .hero').forEach(el => observer.observe(el));
+
+  // Open card if navigated directly via hash
+  if (location.hash) {
+    const card = document.querySelector(location.hash);
+    if (card && card.classList.contains('test-card')) card.classList.add('open');
+  }
+</script>
+</body>
+</html>
