@@ -231,22 +231,26 @@ function renderBatchResults(data, lines) {
       `✅ ${s.pass}P  ❌ ${s.fail}F  ⚠ ${s.warn}W  ⏭ ${s.skip}S`;
   });
 
-  // Tabla comparativa
+  // Tabla comparativa con filas de detalle expandibles
   const table = document.getElementById("batch-summary-table");
-  let html = "<tr><th>Dominio</th>";
+  const colCount = TESTS.length + 4;
+  let html = "<thead><tr><th>Dominio</th>";
   TESTS.forEach(t => { html += `<th><a href="/wiki.html#t${t}" target="_blank" rel="noopener" class="wiki-th-link" title="Ver TEST-${t} en wiki">${t}</a></th>`; });
-  html += "<th>OK</th><th>FL</th><th>WN</th></tr>";
+  html += "<th>OK</th><th>FL</th><th>WN</th></tr></thead><tbody>";
 
   results.forEach((r, idx) => {
     const domain = r.domain || lines[idx]?.split(",")[0] || "?";
-    html += `<tr><td class="domain-cell">${escapeHtml(domain)}</td>`;
+    const key = sanitizeId(domain);
+    html += `<tr class="batch-domain-row" data-key="${key}">`;
+    html += `<td class="domain-cell"><span class="expand-toggle">▶</span> ${escapeHtml(domain)}</td>`;
     if (r.error) {
       html += `<td colspan="${TESTS.length + 3}" style="color:var(--red)">${escapeHtml(r.error)}</td>`;
     } else {
-      const testMap = Object.fromEntries(r.tests.map(t => [t.id, t.result]));
+      const testMap = Object.fromEntries(r.tests.map(t => [t.id, t]));
       let p = 0, f = 0, w = 0;
       TESTS.forEach(t => {
-        const res = testMap[t] || "?";
+        const test = testMap[t];
+        const res = test?.result || "?";
         const cls = res === "PASS" ? "cell-P" : res === "FAIL" ? "cell-F"
                   : res === "WARN" ? "cell-W" : res === "SKIP" ? "cell-S" : "";
         const ch  = res === "PASS" ? "P" : res === "FAIL" ? "F"
@@ -259,8 +263,37 @@ function renderBatchResults(data, lines) {
       html += `<td class="cell-P">${p}</td><td class="cell-F">${f}</td><td class="cell-W">${w}</td>`;
     }
     html += "</tr>";
+
+    // Fila de detalle (oculta por defecto)
+    html += `<tr class="batch-detail-row hidden" id="bdetail-${key}"><td colspan="${colCount}">`;
+    html += `<div class="batch-detail-wrap">`;
+    if (!r.error) {
+      r.tests.forEach(t => {
+        const cls = t.result === "PASS" ? "cell-P" : t.result === "FAIL" ? "cell-F"
+                  : t.result === "WARN" ? "cell-W" : "cell-S";
+        html += `<div class="detail-test-row"><span class="detail-id">TEST-${t.id}</span>`;
+        html += `<span class="detail-name">${escapeHtml(t.name)}</span>`;
+        html += `<span class="detail-result ${cls}">${t.result}</span>`;
+        if (t.detail) html += `<span class="detail-info">${escapeHtml(t.detail)}</span>`;
+        html += "</div>";
+      });
+    }
+    html += "</div></td></tr>";
   });
+  html += "</tbody>";
   table.innerHTML = html;
+
+  // Toggles
+  table.querySelectorAll(".batch-domain-row").forEach(row => {
+    row.addEventListener("click", () => {
+      const detail = document.getElementById(`bdetail-${row.dataset.key}`);
+      const tog = row.querySelector(".expand-toggle");
+      if (!detail) return;
+      detail.classList.toggle("hidden");
+      tog.textContent = detail.classList.contains("hidden") ? "▶" : "▼";
+    });
+  });
+
   batchResults.classList.remove("hidden");
 }
 

@@ -129,6 +129,8 @@ code {
 .btn-primary  { background: var(--green); color: #000; }
 .btn-secondary{ background: var(--bg3); color: var(--text); border-color: var(--border); }
 .btn-sm       { padding: 5px 12px; font-size: 12px; background: var(--bg3); color: var(--text); border-color: var(--border); }
+.btn-template { padding: 5px 14px; font-size: 12px; background: transparent; color: var(--text-muted); border-color: var(--border); text-decoration: none; }
+.btn-template:hover { color: var(--text); border-color: var(--text-muted); }
 
 /* ── Barra de progreso ────────────────────────────────────────── */
 .progress-bar {
@@ -323,6 +325,31 @@ code {
 }
 .batch-table th { background: var(--bg2); color: var(--text-muted); }
 .batch-table td.domain-cell { text-align: left; font-family: monospace; }
+.batch-domain-row { cursor: pointer; }
+.batch-domain-row:hover { background: var(--bg2); }
+.expand-toggle { display: inline-block; font-size: 10px; margin-right: 5px; color: var(--text-muted); transition: transform .15s; }
+.batch-detail-row td { padding: 0; border-top: none; }
+.batch-detail-wrap {
+  padding: 10px 16px 14px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 4px 16px;
+}
+.detail-test-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+.detail-test-row:hover { background: var(--bg3); }
+.detail-id   { font-family: monospace; color: var(--text-muted); min-width: 58px; flex-shrink: 0; }
+.detail-name { flex: 1; color: var(--text); }
+.detail-result { font-weight: 600; min-width: 36px; flex-shrink: 0; }
+.detail-info { color: var(--text-muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
 .cell-P { color: var(--green);   }
 .cell-F { color: var(--red);     }
 .cell-W { color: var(--yellow);  }
