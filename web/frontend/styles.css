@@ -833,3 +833,33 @@ code {
   border: 1px solid var(--border);
   color: var(--text-muted);
 }
+
+/* ── Chips de metadatos de scan ── */
+.scan-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.scan-meta-chip i {
+  color: var(--accent);
+  font-size: 11px;
+}
+.scan-meta-chip.scan-meta-dim {
+  opacity: 0.45;
+}
+.scan-meta-label {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.scan-meta-value {
+  color: var(--text);
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+}

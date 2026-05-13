@@ -181,7 +181,7 @@ batch_run() {
 
     # Auto-detectar cookie si no está definida
     if [[ -z "$SESSION_COOKIE_NAME" ]]; then
-      SESSION_COOKIE_NAME=$(echo "$COOKIES" | grep -oP "set-cookie:\s*\K[^=]+" | head -1)
+      SESSION_COOKIE_NAME=$(echo "$COOKIES" | grep -oP "(?i)set-cookie:\s*\K[^=]+" | head -1)
     fi
 
     BATCH_RESULTS["${_dom}:STATUS"]="OK"
@@ -463,6 +463,8 @@ emit_json() {
   printf '  "domain": "%s",\n'   "$SCAN_DOMAIN"
   printf '  "baseUrl": "%s",\n'  "$BASE_URL"
   printf '  "startedAt": "%s",\n' "$_iso_date"
+  printf '  "sessionCookie": "%s",\n' "${SESSION_COOKIE_NAME:-}"
+  printf '  "resolvedIp": "%s",\n'    "${IP:-${RESOLVED_IP:-}}"
   printf '  "summary": { "pass": %d, "fail": %d, "warn": %d, "skip": %d },\n' \
     "$PASS" "$FAIL" "$WARN" "$SKIP"
   printf '  "tests": [\n'
@@ -645,6 +647,9 @@ fi
 [[ "$BATCH_SILENT" != "1" ]] && echo -e "${GREEN}OK${RESET} (HTTP ${HTTP_CHECK})" || true
 [[ "$BATCH_SILENT" != "1" ]] && echo "" || true
 
+RESOLVE_443="${IP:+--resolve ${DOMAIN}:443:${IP}}"
+RESOLVE_80="${IP:+--resolve ${DOMAIN}:80:${IP}}"
+
 # ── PASO 2: Descubrir cookies ────────────────────────────────
 if [[ "$BATCH_SILENT" != "1" ]]; then
   echo -e "${CYAN}Paso 2/3 — Cookie de sesión${RESET}"
@@ -652,7 +657,7 @@ if [[ "$BATCH_SILENT" != "1" ]]; then
   echo ""
 fi
 
-DISCOVERED=$(curl --max-time 8 --connect-timeout 4 -sk -I "$BASE_URL" | grep -i "^set-cookie" | grep -oP "set-cookie:\s*\K[^=]+")
+DISCOVERED=$(curl --max-time 8 --connect-timeout 4 -sk -I $RESOLVE_443 "$BASE_URL" | grep -i "^set-cookie" | grep -oP "(?i)set-cookie:\s*\K[^=]+")
 
 if [[ -z "$DISCOVERED" ]]; then
   if [[ "$BATCH_SILENT" != "1" ]]; then
@@ -671,8 +676,8 @@ else
   fi
   if [[ -n "$SESSION_COOKIE_NAME" ]]; then
     [[ "$BATCH_SILENT" != "1" ]] && echo -e "  Cookie de sesión: ${CYAN}$SESSION_COOKIE_NAME${RESET} (variable de entorno)"
-  elif [[ "$BATCH_SILENT" == "1" ]]; then
-    # Modo JSON/no-interactivo: auto-detectar primera cookie
+  elif [[ "$BATCH_SILENT" == "1" ]] || [[ "$_ENV_FORMAT" == "json" ]]; then
+    # Modo no-interactivo (batch o API JSON): auto-seleccionar primera cookie detectada
     SESSION_COOKIE_NAME=$(echo "$DISCOVERED" | head -1)
   else
     declare -a COOKIE_LIST
@@ -697,9 +702,6 @@ if [[ -z "$IP" ]] && [[ "$_ENV_FORMAT" != "json" ]]; then
   read -rp "  IP del servidor [Enter para omitir]: " IP
 fi
 [[ "$_ENV_FORMAT" != "json" ]] && echo ""
-
-RESOLVE_443="${IP:+--resolve ${DOMAIN}:443:${IP}}"
-RESOLVE_80="${IP:+--resolve ${DOMAIN}:80:${IP}}"
 
 # ── Cabecera de ejecución ────────────────────────────────────
 if [[ "$BATCH_SILENT" != "1" ]]; then

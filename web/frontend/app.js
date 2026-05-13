@@ -158,8 +158,30 @@ function stopProgress() {
 function renderResults(data) {
   resultsDiv._scanData = data;
   document.getElementById("results-domain").textContent = data.domain;
-  document.getElementById("results-meta").textContent =
-    `${data.baseUrl}  ·  ${data.startedAt}`;
+
+  // Chips de metadatos: URL · fecha · cookie detectada · IP resuelta
+  const metaChip = (icon, label, value, dimmed = false) =>
+    `<span class="scan-meta-chip${dimmed ? " scan-meta-dim" : ""}">` +
+    `<i class="fa-solid ${icon}"></i> ` +
+    `<span class="scan-meta-label">${label}</span> ` +
+    `<span class="scan-meta-value">${escapeHtml(value)}</span></span>`;
+
+  const dateStr = data.startedAt
+    ? new Date(data.startedAt).toLocaleString("es-EC", { dateStyle: "short", timeStyle: "short" })
+    : "—";
+  const cookieVal = data.sessionCookie || null;
+  const ipVal     = data.resolvedIp    || null;
+
+  let metaHtml = metaChip("fa-link", "URL", data.baseUrl || `https://${data.domain}/`);
+  metaHtml    += metaChip("fa-calendar", "Fecha", dateStr);
+  metaHtml    += cookieVal
+    ? metaChip("fa-cookie-bite", "Cookie", cookieVal)
+    : metaChip("fa-cookie-bite", "Cookie", "no detectada", true);
+  metaHtml    += ipVal
+    ? metaChip("fa-server", "IP", ipVal)
+    : metaChip("fa-server", "IP", "no resuelta", true);
+
+  document.getElementById("results-meta").innerHTML = metaHtml;
 
   const s = data.summary;
   document.getElementById("summary-cards").innerHTML = `
