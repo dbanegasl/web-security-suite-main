@@ -1,38 +1,52 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-bs-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Web Security Suite</title>
-  <link rel="stylesheet" href="styles.css" />
+  <!-- Bootswatch Vapor (incluye Bootstrap 5.3) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/vapor/bootstrap.min.css" />
+  <!-- Overrides y clases propias -->
+  <link rel="stylesheet" href="custom.css" />
 </head>
 <body>
 
-  <!-- ══ Pantalla de login ══════════════════════════════════ -->
-  <div id="login-screen" class="login-overlay">
-    <div class="login-card">
-      <div class="login-logo">
-        <span class="logo-icon">🔐</span>
-        <span class="logo-text">Web Security Suite</span>
+  <!-- ══ Topbar mobile (visible solo en <992px) ════════════════ -->
+  <header class="topbar-mobile">
+    <button id="btn-sidebar-toggle" class="btn btn-outline-secondary btn-sm">☰</button>
+    <span class="fw-semibold">🔐 Web Security Suite</span>
+  </header>
+
+  <!-- ── Backdrop sidebar mobile ──────────────────────────────── -->
+  <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
+
+  <!-- ══ Pantalla de login ══════════════════════════════════════ -->
+  <div id="login-screen">
+    <div class="card" style="width:360px;max-width:95vw;">
+      <div class="card-body p-4">
+        <div class="d-flex align-items-center justify-content-center gap-2 mb-4">
+          <span style="font-size:24px">🔐</span>
+          <span class="fw-semibold fs-5">Web Security Suite</span>
+        </div>
+        <form id="form-login" novalidate>
+          <div class="mb-3">
+            <label for="login-username" class="form-label">Usuario</label>
+            <input type="text" id="login-username" class="form-control" autocomplete="username" required />
+          </div>
+          <div class="mb-3">
+            <label for="login-password" class="form-label">Contraseña</label>
+            <input type="password" id="login-password" class="form-control" autocomplete="current-password" required />
+          </div>
+          <button type="submit" class="btn btn-success w-100" id="btn-login">Iniciar sesión</button>
+        </form>
+        <div id="login-error" class="alert alert-danger mt-3 hidden" role="alert"></div>
       </div>
-      <form id="form-login" novalidate>
-        <div class="form-row">
-          <label for="login-username">Usuario</label>
-          <input type="text" id="login-username" autocomplete="username" required />
-        </div>
-        <div class="form-row">
-          <label for="login-password">Contraseña</label>
-          <input type="password" id="login-password" autocomplete="current-password" required />
-        </div>
-        <button type="submit" class="btn btn-primary btn-full" id="btn-login">Iniciar sesión</button>
-      </form>
-      <div id="login-error" class="login-error hidden"></div>
     </div>
   </div>
 
-  <!-- ══ Modal comparativa ══════════════════════════════════ -->
+  <!-- ══ Modal comparativa ══════════════════════════════════════ -->
   <div id="compare-modal" class="modal-overlay hidden">
-    <div class="modal-card">
+    <div class="modal-card" style="max-width:860px">
       <div class="modal-header">
         <h2>Comparativa de scans</h2>
         <button class="modal-close" id="btn-modal-close">✕</button>
@@ -54,144 +68,128 @@
     </div>
   </div>
 
-  <!-- ── Sidebar ──────────────────────────────────────────── -->
+  <!-- ── Sidebar ──────────────────────────────────────────────── -->
   <nav class="sidebar">
-    <div class="logo">
-      <span class="logo-icon">🔐</span>
-      <span class="logo-text">Web Security Suite</span>
+    <div class="sidebar-logo">
+      <span style="font-size:20px">🔐</span>
+      <span>Web Security Suite</span>
     </div>
-    <ul class="nav-links">
+    <ul class="sidebar-nav">
       <li><a href="#" class="nav-item active" data-view="individual">Análisis individual</a></li>
       <li><a href="#" class="nav-item" data-view="batch">Análisis batch</a></li>
       <li><a href="#" class="nav-item" data-view="lists">📋 Listas de dominios</a></li>
       <li><a href="#" class="nav-item" data-view="history">Historial</a></li>
     </ul>
-    <div class="sidebar-separator"></div>
-    <ul class="nav-links">
-      <li><a href="#" class="nav-item nav-wiki" data-view="wiki">📖 Wiki de tests</a></li>
+    <div class="sidebar-sep"></div>
+    <ul class="sidebar-nav" style="flex:0">
+      <li><a href="#" class="nav-item" data-view="wiki" style="font-size:12px">📖 Wiki de tests</a></li>
     </ul>
     <div class="sidebar-footer">
-      <span id="sidebar-user" class="sidebar-user"></span>
-      <a href="#" id="btn-logout" class="logout-link">Cerrar sesión</a>
-      <div>v3.3 — Fase B</div>
+      <span id="sidebar-user" class="d-block mb-1"></span>
+      <a href="#" id="btn-logout">Cerrar sesión</a>
+      <div class="mt-1">v3.3 — Fase B</div>
     </div>
   </nav>
 
-  <!-- ── Main content ─────────────────────────────────────── -->
-  <main class="content">
+  <!-- ── Main content ─────────────────────────────────────────── -->
+  <main class="main-content">
 
-    <!-- ══ Vista: Análisis individual ══════════════════════ -->
+    <!-- ══ Vista: Análisis individual ══════════════════════════ -->
     <section id="view-individual" class="view active">
-      <h1>Análisis individual</h1>
+      <h1 class="h4 fw-semibold mb-4">Análisis individual</h1>
 
       <form id="form-scan" class="scan-form" novalidate>
-        <div class="form-row">
-          <label for="domain">Dominio <span class="required">*</span></label>
-          <input
-            type="text" id="domain" name="domain"
-            placeholder="ejemplo.com"
-            autocomplete="off" spellcheck="false" required
-          />
-          <small>Sin protocolo. Ej: <code>app.miempresa.com</code></small>
+        <div class="mb-3">
+          <label for="domain" class="form-label">Dominio <span class="text-danger">*</span></label>
+          <input type="text" id="domain" name="domain" class="form-control"
+            placeholder="ejemplo.com" autocomplete="off" spellcheck="false" required />
+          <div class="form-text">Sin protocolo. Ej: <code>app.miempresa.com</code></div>
         </div>
-
-        <div class="form-row">
-          <label for="session-cookie">Cookie de sesión</label>
-          <input
-            type="text" id="session-cookie" name="session_cookie"
-            placeholder="sessionid  (opcional — se autodetecta si se omite)"
-            autocomplete="off"
-          />
+        <div class="mb-3">
+          <label for="session-cookie" class="form-label">Cookie de sesión</label>
+          <input type="text" id="session-cookie" name="session_cookie" class="form-control"
+            placeholder="sessionid  (opcional — se autodetecta si se omite)" autocomplete="off" />
         </div>
-
-        <div class="form-row">
-          <label for="ip">IP forzada</label>
-          <input
-            type="text" id="ip" name="ip"
-            placeholder="192.168.x.x  (opcional)"
-            autocomplete="off"
-          />
-          <small>Usa esta IP en lugar de la resolución DNS normal.</small>
+        <div class="mb-3">
+          <label for="ip" class="form-label">IP forzada</label>
+          <input type="text" id="ip" name="ip" class="form-control"
+            placeholder="192.168.x.x  (opcional)" autocomplete="off" />
+          <div class="form-text">Usa esta IP en lugar de la resolución DNS normal.</div>
         </div>
-
-        <button type="submit" class="btn btn-primary" id="btn-scan">
-          <span class="btn-icon">▶</span> Iniciar scan
-        </button>
+        <button type="submit" class="btn btn-success" id="btn-scan">▶ Iniciar scan</button>
       </form>
 
       <!-- Barra de progreso -->
-      <div id="scan-progress" class="progress-bar hidden">
-        <div class="progress-fill" id="progress-fill"></div>
+      <div id="scan-progress" class="progress-wrap hidden">
+        <div class="progress">
+          <div class="progress-bar progress-bar-striped progress-bar-animated bg-info"
+               id="progress-fill" style="width:0%" role="progressbar"></div>
+        </div>
         <span class="progress-label" id="progress-label">Ejecutando scan...</span>
       </div>
 
       <!-- Resultados -->
       <div id="results" class="results hidden">
-        <div class="results-header">
+        <div class="d-flex justify-content-between align-items-start mt-4 mb-2 flex-wrap gap-2">
           <div>
-            <h2 id="results-domain"></h2>
-            <small id="results-meta"></small>
+            <h2 class="h5 fw-semibold mb-0" id="results-domain"></h2>
+            <small class="text-muted" id="results-meta"></small>
           </div>
-          <div class="results-actions">
-            <button class="btn btn-sm" id="btn-download-md">⬇ Descargar MD</button>
+          <div>
+            <button class="btn btn-outline-secondary btn-sm" id="btn-download-md">⬇ Descargar MD</button>
           </div>
         </div>
-
         <!-- Tarjetas de resumen -->
-        <div class="summary-cards" id="summary-cards"></div>
-
+        <div class="row row-cols-2 row-cols-sm-4 g-2 my-3" id="summary-cards"></div>
         <!-- Tabla de tests -->
-        <table class="tests-table" id="tests-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Test</th>
-              <th>Resultado</th>
-              <th>Detalle</th>
-            </tr>
-          </thead>
-          <tbody id="tests-tbody"></tbody>
-        </table>
+        <div class="table-responsive">
+          <table class="table table-dark table-hover table-sm" id="tests-table">
+            <thead>
+              <tr><th>#</th><th>Test</th><th>Resultado</th><th>Detalle</th></tr>
+            </thead>
+            <tbody id="tests-tbody"></tbody>
+          </table>
+        </div>
       </div>
 
       <!-- Error banner -->
       <div id="error-banner" class="error-banner hidden"></div>
     </section>
 
-    <!-- ══ Vista: Análisis batch ════════════════════════════ -->
+    <!-- ══ Vista: Análisis batch ════════════════════════════════ -->
     <section id="view-batch" class="view">
-      <h1>Análisis batch</h1>
+      <h1 class="h4 fw-semibold mb-4">Análisis batch</h1>
 
       <div class="csv-upload-area" id="csv-drop-area">
         <span>Arrastra tu <code>domains.csv</code> aquí</span>
-        <span>o</span>
-        <label class="btn btn-secondary">
+        <span class="text-muted">o</span>
+        <label class="btn btn-outline-secondary btn-sm">
           Seleccionar archivo
           <input type="file" id="csv-file-input" accept=".csv,.txt" hidden />
         </label>
-        <small>Formato: <code>dominio,cookie_sesion,ip_forzada</code> (columnas 2 y 3 opcionales)</small>
-        <a href="/domains.template.csv" download="domains.csv" class="btn btn-template">⬇ Descargar plantilla CSV</a>
+        <small class="text-muted">Formato: <code>dominio,cookie_sesion,ip_forzada</code> (columnas 2 y 3 opcionales)</small>
+        <a href="/domains.template.csv" download="domains.csv" class="btn-template">⬇ Descargar plantilla CSV</a>
       </div>
 
-      <div id="csv-preview" class="csv-preview hidden">
-        <h3>Dominios cargados (<span id="csv-count">0</span>)</h3>
+      <div id="csv-preview" class="hidden mt-3">
+        <h3 class="h6 fw-semibold">Dominios cargados (<span id="csv-count">0</span>)</h3>
         <ul id="csv-list" class="csv-list"></ul>
-        <button class="btn btn-primary" id="btn-batch-run">▶ Ejecutar análisis batch</button>
+        <button class="btn btn-success btn-sm" id="btn-batch-run">▶ Ejecutar análisis batch</button>
       </div>
 
-      <div id="batch-progress" class="batch-progress hidden">
-        <div id="batch-domain-list" class="batch-domain-list"></div>
+      <div id="batch-progress" class="hidden mt-3">
+        <div id="batch-domain-list" class="d-flex flex-column gap-1"></div>
       </div>
 
-      <div id="batch-results" class="hidden">
-        <div class="batch-table-wrap">
+      <div id="batch-results" class="hidden mt-3">
+        <div class="table-responsive">
           <table id="batch-summary-table" class="batch-table"></table>
         </div>
-        <button class="btn btn-sm" id="btn-batch-download">⬇ Descargar reporte</button>
+        <button class="btn btn-outline-secondary btn-sm mt-2" id="btn-batch-download">⬇ Descargar reporte</button>
       </div>
     </section>
 
-    <!-- ══ Vista: Listas de dominios ════════════════════════ -->
+    <!-- ══ Vista: Listas de dominios ════════════════════════════ -->
     <section id="view-lists" class="view">
       <div class="lists-layout">
 
@@ -199,7 +197,7 @@
         <div class="lists-sidebar">
           <div class="lists-sidebar-header">
             <h2>Listas</h2>
-            <button class="btn btn-sm btn-primary" id="btn-new-list">+ Nueva</button>
+            <button class="btn btn-success btn-sm" id="btn-new-list">+ Nueva</button>
           </div>
           <ul id="lists-index" class="lists-index"></ul>
         </div>
@@ -209,64 +207,65 @@
 
           <!-- Estado vacío -->
           <div id="list-empty-state" class="list-empty-state">
-            <p>Selecciona o crea una lista para comenzar.</p>
+            <p class="text-muted">Selecciona o crea una lista para comenzar.</p>
           </div>
 
           <!-- Contenido de lista activa -->
           <div id="list-active" class="hidden">
             <div class="list-detail-header">
               <div>
-                <h2 id="list-title" class="list-title"></h2>
-                <p id="list-description" class="list-desc muted"></p>
+                <h2 id="list-title" class="h5 fw-semibold mb-1"></h2>
+                <p id="list-description" class="text-muted small mb-0"></p>
               </div>
               <div class="list-actions">
-                <button class="btn btn-sm" id="btn-list-edit">✏ Editar</button>
-                <button class="btn btn-sm" id="btn-list-import">⬆ Importar CSV</button>
-                <button class="btn btn-sm" id="btn-list-export">⬇ Exportar CSV</button>
-                <button class="btn btn-sm btn-primary" id="btn-list-scan">▶ Lanzar scan</button>
-                <button class="btn btn-sm btn-danger" id="btn-list-delete">🗑 Eliminar</button>
+                <button class="btn btn-outline-secondary btn-sm" id="btn-list-edit">✏ Editar</button>
+                <button class="btn btn-outline-secondary btn-sm" id="btn-list-import">⬆ Importar CSV</button>
+                <button class="btn btn-outline-secondary btn-sm" id="btn-list-export">⬇ Exportar CSV</button>
+                <button class="btn btn-success btn-sm" id="btn-list-scan">▶ Lanzar scan</button>
+                <button class="btn btn-danger btn-sm" id="btn-list-delete">🗑 Eliminar</button>
               </div>
             </div>
 
             <!-- Barra de progreso del scan de lista -->
             <div id="list-scan-progress" class="hidden">
-              <div class="progress-bar">
-                <div class="progress-fill" id="list-progress-fill"></div>
+              <div class="progress-wrap">
+                <div class="progress">
+                  <div class="progress-bar progress-bar-striped progress-bar-animated bg-info"
+                       id="list-progress-fill" style="width:0%" role="progressbar"></div>
+                </div>
                 <span class="progress-label" id="list-progress-label">Ejecutando scan...</span>
               </div>
             </div>
 
             <!-- Resultado del último scan de lista -->
             <div id="list-scan-result" class="hidden">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                <p class="muted" id="list-scan-meta"></p>
-                <button class="btn btn-sm" id="btn-list-download-md">⬇ Descargar reporte</button>
+              <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                <p class="text-muted small mb-0" id="list-scan-meta"></p>
+                <button class="btn btn-outline-secondary btn-sm" id="btn-list-download-md">⬇ Descargar reporte</button>
               </div>
-              <div class="batch-table-wrap">
+              <div class="table-responsive">
                 <table id="list-batch-table" class="batch-table"></table>
               </div>
             </div>
 
             <!-- Toolbar dominios -->
             <div class="list-domains-toolbar">
-              <span id="list-domain-count" class="muted"></span>
-              <button class="btn btn-sm" id="btn-add-domain">+ Añadir dominio</button>
+              <span id="list-domain-count" class="text-muted small"></span>
+              <button class="btn btn-outline-secondary btn-sm" id="btn-add-domain">+ Añadir dominio</button>
             </div>
 
             <!-- Tabla de dominios -->
-            <table class="lists-table" id="list-domains-table">
-              <thead>
-                <tr>
-                  <th>Dominio</th>
-                  <th>Cookie sesión</th>
-                  <th>IP forzada</th>
-                  <th>Notas</th>
-                  <th>Activo</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody id="list-domains-tbody"></tbody>
-            </table>
+            <div class="table-responsive">
+              <table class="table table-dark table-hover table-sm" id="list-domains-table">
+                <thead>
+                  <tr>
+                    <th>Dominio</th><th>Cookie sesión</th><th>IP forzada</th>
+                    <th>Notas</th><th>Activo</th><th></th>
+                  </tr>
+                </thead>
+                <tbody id="list-domains-tbody"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -280,18 +279,18 @@
           </div>
           <div class="modal-body">
             <form id="form-list" novalidate>
-              <div class="form-row">
-                <label for="list-name">Nombre <span class="required">*</span></label>
-                <input type="text" id="list-name" maxlength="128" required />
+              <div class="mb-3">
+                <label for="list-name" class="form-label">Nombre <span class="text-danger">*</span></label>
+                <input type="text" id="list-name" class="form-control" maxlength="128" required />
               </div>
-              <div class="form-row">
-                <label for="list-desc-input">Descripción</label>
-                <input type="text" id="list-desc-input" maxlength="512" />
+              <div class="mb-3">
+                <label for="list-desc-input" class="form-label">Descripción</label>
+                <input type="text" id="list-desc-input" class="form-control" maxlength="512" />
               </div>
-              <div id="list-form-error" class="login-error hidden"></div>
-              <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
-                <button type="button" class="btn btn-secondary" id="btn-list-form-cancel">Cancelar</button>
-                <button type="submit" class="btn btn-primary" id="btn-list-form-submit">Guardar</button>
+              <div id="list-form-error" class="alert alert-danger hidden"></div>
+              <div class="d-flex gap-2 mt-3 justify-content-end">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-list-form-cancel">Cancelar</button>
+                <button type="submit" class="btn btn-success btn-sm" id="btn-list-form-submit">Guardar</button>
               </div>
             </form>
           </div>
@@ -307,26 +306,26 @@
           </div>
           <div class="modal-body">
             <form id="form-domain" novalidate>
-              <div class="form-row">
-                <label for="df-domain">Dominio <span class="required">*</span></label>
-                <input type="text" id="df-domain" placeholder="ejemplo.com" required />
+              <div class="mb-3">
+                <label for="df-domain" class="form-label">Dominio <span class="text-danger">*</span></label>
+                <input type="text" id="df-domain" class="form-control" placeholder="ejemplo.com" required />
               </div>
-              <div class="form-row">
-                <label for="df-cookie">Cookie de sesión</label>
-                <input type="text" id="df-cookie" placeholder="sessionid (opcional)" />
+              <div class="mb-3">
+                <label for="df-cookie" class="form-label">Cookie de sesión</label>
+                <input type="text" id="df-cookie" class="form-control" placeholder="sessionid (opcional)" />
               </div>
-              <div class="form-row">
-                <label for="df-ip">IP forzada</label>
-                <input type="text" id="df-ip" placeholder="192.168.x.x (opcional)" />
+              <div class="mb-3">
+                <label for="df-ip" class="form-label">IP forzada</label>
+                <input type="text" id="df-ip" class="form-control" placeholder="192.168.x.x (opcional)" />
               </div>
-              <div class="form-row">
-                <label for="df-notes">Notas</label>
-                <input type="text" id="df-notes" placeholder="Opcional" maxlength="512" />
+              <div class="mb-3">
+                <label for="df-notes" class="form-label">Notas</label>
+                <input type="text" id="df-notes" class="form-control" placeholder="Opcional" maxlength="512" />
               </div>
-              <div id="domain-form-error" class="login-error hidden"></div>
-              <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
-                <button type="button" class="btn btn-secondary" id="btn-domain-form-cancel">Cancelar</button>
-                <button type="submit" class="btn btn-primary">Guardar</button>
+              <div id="domain-form-error" class="alert alert-danger hidden"></div>
+              <div class="d-flex gap-2 mt-3 justify-content-end">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-domain-form-cancel">Cancelar</button>
+                <button type="submit" class="btn btn-success btn-sm">Guardar</button>
               </div>
             </form>
           </div>
@@ -341,39 +340,40 @@
             <button class="modal-close" id="btn-import-csv-close">✕</button>
           </div>
           <div class="modal-body">
-            <p class="muted" style="margin-bottom:12px">Formato: <code>dominio,cookie_sesion,ip_forzada</code></p>
+            <p class="text-muted small mb-3">Formato: <code>dominio,cookie_sesion,ip_forzada</code></p>
             <div class="csv-upload-area" id="import-drop-area">
               <span>Arrastra tu CSV aquí</span>
-              <span>o</span>
-              <label class="btn btn-secondary">
+              <span class="text-muted">o</span>
+              <label class="btn btn-outline-secondary btn-sm">
                 Seleccionar archivo
                 <input type="file" id="import-file-input" accept=".csv,.txt" hidden />
               </label>
             </div>
-            <p id="import-preview-count" class="muted" style="margin-top:8px"></p>
-            <div id="import-error" class="login-error hidden"></div>
-            <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
-              <button type="button" class="btn btn-secondary" id="btn-import-csv-cancel">Cancelar</button>
-              <button type="button" class="btn btn-primary" id="btn-import-csv-confirm" disabled>Importar</button>
+            <p id="import-preview-count" class="text-muted small mt-2"></p>
+            <div id="import-error" class="alert alert-danger hidden"></div>
+            <div class="d-flex gap-2 mt-3 justify-content-end">
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-import-csv-cancel">Cancelar</button>
+              <button type="button" class="btn btn-success btn-sm" id="btn-import-csv-confirm" disabled>Importar</button>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ══ Vista: Historial ═════════════════════════════════ -->
+    <!-- ══ Vista: Historial ══════════════════════════════════════ -->
     <section id="view-history" class="view">
-      <h1>Historial de scans</h1>
+      <h1 class="h4 fw-semibold mb-4">Historial de scans</h1>
       <div class="history-toolbar">
-        <input type="text" id="history-search" placeholder="Filtrar por dominio…" class="history-search" />
-        <button class="btn btn-sm" id="btn-compare" disabled>⚖ Comparar seleccionados</button>
+        <input type="text" id="history-search" placeholder="Filtrar por dominio…"
+               class="form-control form-control-sm" style="max-width:300px" />
+        <button class="btn btn-outline-secondary btn-sm" id="btn-compare" disabled>⚖ Comparar seleccionados</button>
       </div>
-      <p class="muted" id="history-count"></p>
-      <ul id="history-list" class="history-list"></ul>
-      <button class="btn btn-secondary btn-load-more hidden" id="btn-load-more">Cargar más</button>
+      <p class="text-muted small mb-3" id="history-count"></p>
+      <ul id="history-list" class="list-unstyled"></ul>
+      <button class="btn btn-outline-secondary btn-sm mt-3 hidden" id="btn-load-more">Cargar más</button>
     </section>
 
-    <!-- ══ Vista: Wiki de tests ════════════════════════════ -->
+    <!-- ══ Vista: Wiki de tests ══════════════════════════════════ -->
     <section id="view-wiki" class="view view-wiki">
       <iframe src="/wiki.html" class="wiki-frame" title="Wiki de tests de seguridad"></iframe>
     </section>
@@ -389,14 +389,29 @@
         <h2 id="confirm-modal-title">Confirmar</h2>
       </div>
       <div class="modal-body">
-        <p id="confirm-modal-msg" style="color:var(--text-muted);margin-bottom:20px"></p>
-        <div style="display:flex;gap:8px;justify-content:flex-end">
-          <button type="button" class="btn btn-secondary" id="confirm-modal-cancel">Cancelar</button>
-          <button type="button" class="btn btn-danger" id="confirm-modal-ok">Eliminar</button>
+        <p id="confirm-modal-msg" class="text-muted mb-4"></p>
+        <div class="d-flex gap-2 justify-content-end">
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="confirm-modal-cancel">Cancelar</button>
+          <button type="button" class="btn btn-danger btn-sm" id="confirm-modal-ok">Eliminar</button>
         </div>
       </div>
     </div>
   </div>
+
+  <!-- Bootstrap JS bundle (incluye Popper) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Mobile sidebar toggle -->
+  <script>
+    document.getElementById('btn-sidebar-toggle')?.addEventListener('click', () => {
+      document.querySelector('.sidebar')?.classList.toggle('sidebar-open');
+      document.getElementById('sidebar-backdrop')?.classList.toggle('show');
+    });
+    document.getElementById('sidebar-backdrop')?.addEventListener('click', () => {
+      document.querySelector('.sidebar')?.classList.remove('sidebar-open');
+      document.getElementById('sidebar-backdrop')?.classList.remove('show');
+    });
+  </script>
 
   <script src="app.js"></script>
 </body>

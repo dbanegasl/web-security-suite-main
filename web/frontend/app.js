@@ -169,10 +169,10 @@ function renderResults(data) {
 
   const s = data.summary;
   document.getElementById("summary-cards").innerHTML = `
-    <div class="summary-card card-pass"><div class="count">${s.pass}</div><div class="label">PASS</div></div>
-    <div class="summary-card card-fail"><div class="count">${s.fail}</div><div class="label">FAIL</div></div>
-    <div class="summary-card card-warn"><div class="count">${s.warn}</div><div class="label">WARN</div></div>
-    <div class="summary-card card-skip"><div class="count">${s.skip}</div><div class="label">SKIP</div></div>
+    <div class="col"><div class="card summary-card card-pass"><div class="card-body py-2"><div class="count">${s.pass}</div><div class="label">PASS</div></div></div></div>
+    <div class="col"><div class="card summary-card card-fail"><div class="card-body py-2"><div class="count">${s.fail}</div><div class="label">FAIL</div></div></div></div>
+    <div class="col"><div class="card summary-card card-warn"><div class="card-body py-2"><div class="count">${s.warn}</div><div class="label">WARN</div></div></div></div>
+    <div class="col"><div class="card summary-card card-skip"><div class="card-body py-2"><div class="count">${s.skip}</div><div class="label">SKIP</div></div></div></div>
   `;
 
   const tbody = document.getElementById("tests-tbody");
@@ -269,7 +269,7 @@ btnBatchRun?.addEventListener("click", async () => {
     const data = await apiPost("/api/batch", { csv_content: _csvContent });
     renderBatchResults(data, lines);
   } catch (err) {
-    batchDomList.innerHTML = `<p style="color:var(--red)">❌ ${escapeHtml(err.message)}</p>`;
+    batchDomList.innerHTML = `<p class="text-danger">❌ ${escapeHtml(err.message)}</p>`;
   } finally {
     btnBatchRun.disabled = false;
   }
@@ -486,17 +486,18 @@ async function loadHistoryPage(offset, reset) {
     data.items.forEach(item => {
       const badge = item.fail_count > 0 ? "FAIL" : item.warn_count > 0 ? "WARN" : "PASS";
       const li = document.createElement("li");
-      li.className = "history-item";
+      li.className = "d-flex align-items-center gap-2 p-2 mb-1 rounded border border-secondary-subtle";
+      li.style.cursor = "default";
       li.dataset.id = item.id;
       li.innerHTML = `
-        <input type="checkbox" class="history-check" data-id="${item.id}" title="Seleccionar para comparar" />
-        <span class="h-domain">${escapeHtml(item.domain)}</span>
+        <input type="checkbox" class="history-check form-check-input" data-id="${item.id}" title="Seleccionar para comparar" />
+        <span class="h-domain flex-grow-1 font-monospace small">${escapeHtml(item.domain)}</span>
         <span class="badge badge-${badge} h-badge">
           ${item.fail_count > 0 ? `❌ ${item.fail_count}F` : item.warn_count > 0 ? `⚠ ${item.warn_count}W` : "✅ OK"}
         </span>
-        <span class="h-mode">${item.scan_mode}</span>
-        <span class="h-date">${formatDate(item.scanned_at)}</span>
-        <button class="btn btn-sm h-view-btn" data-id="${item.id}">Ver</button>
+        <span class="badge bg-secondary text-light h-mode">${item.scan_mode}</span>
+        <span class="text-muted small h-date">${formatDate(item.scanned_at)}</span>
+        <button class="btn btn-outline-secondary btn-sm h-view-btn" data-id="${item.id}">Ver</button>
       `;
       historyList.appendChild(li);
     });
@@ -654,7 +655,7 @@ function showToast(type, title, msg = "", duration = 4000) {
   const container = document.getElementById("toast-container");
 
   const toast = document.createElement("div");
-  toast.className = `toast is-${type}`;
+  toast.className = `toast-wss is-${type}`;
 
   const msgHtml = msg
     ? `<div class="toast-msg">${escapeHtml(msg).replace(/\n/g, "<br>")}</div>`
@@ -946,6 +947,11 @@ document.querySelectorAll(".nav-item").forEach(link => {
     const view = document.getElementById(`view-${target}`);
     if (view) view.classList.add("active");
     if (target === "lists") loadListsIndex();
+    // Cerrar sidebar en mobile al navegar
+    if (window.innerWidth < 992) {
+      document.querySelector(".sidebar")?.classList.remove("sidebar-open");
+      document.getElementById("sidebar-backdrop")?.classList.remove("show");
+    }
   });
 });
 
