@@ -545,7 +545,12 @@ async function apiFetch(path, options = {}) {
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || `HTTP ${res.status}`);
+    // FastAPI devuelve detail como array en errores de validación Pydantic
+    let msg = err.detail;
+    if (Array.isArray(msg)) {
+      msg = msg.map(e => e.msg || JSON.stringify(e)).join(" | ");
+    }
+    throw new Error(msg || `HTTP ${res.status}`);
   }
   return res.json();
 }

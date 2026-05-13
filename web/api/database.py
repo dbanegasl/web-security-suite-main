@@ -19,6 +19,26 @@ _engine = create_engine(
 
 def create_db_and_tables() -> None:
     SQLModel.metadata.create_all(_engine)
+    # Migración ligera: añadir columnas nuevas que no existían en versiones anteriores
+    _migrate_add_columns()
+
+
+def _migrate_add_columns() -> None:
+    """Añade columnas nuevas a tablas existentes si aún no existen (SQLite no hace ALTER automático)."""
+    migrations = [
+        ("scan_history", "list_id", "INTEGER REFERENCES domain_lists(id)"),
+    ]
+    with _engine.connect() as conn:
+        for table, column, col_def in migrations:
+            # Verificar si la columna ya existe
+            existing = [row[1] for row in conn.execute(
+                __import__('sqlalchemy').text(f"PRAGMA table_info({table})")
+            )]
+            if column not in existing:
+                conn.execute(__import__('sqlalchemy').text(
+                    f"ALTER TABLE {table} ADD COLUMN {column} {col_def}"
+                ))
+                conn.commit()
 
 
 def get_session():
