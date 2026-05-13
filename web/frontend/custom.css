@@ -103,6 +103,10 @@ body { overflow-x: hidden; }
   font-size: 14px;
   flex-shrink: 0;
 }
+.sidebar-logo .fa-shield-halved {
+  font-size: 20px;
+  color: var(--bs-success);
+}
 
 .sidebar-nav {
   list-style: none;

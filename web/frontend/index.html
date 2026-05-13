@@ -6,6 +6,8 @@
   <title>Web Security Suite</title>
   <!-- Bootswatch Vapor (incluye Bootstrap 5.3) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/vapor/bootstrap.min.css" />
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
   <!-- Overrides y clases propias -->
   <link rel="stylesheet" href="custom.css" />
 </head>
@@ -13,8 +15,8 @@
 
   <!-- ══ Topbar mobile (visible solo en <992px) ════════════════ -->
   <header class="topbar-mobile">
-    <button id="btn-sidebar-toggle" class="btn btn-outline-secondary btn-sm">☰</button>
-    <span class="fw-semibold">🔐 Web Security Suite</span>
+    <button id="btn-sidebar-toggle" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-bars"></i></button>
+    <span class="fw-semibold"><i class="fa-solid fa-shield-halved me-1"></i>Web Security Suite</span>
   </header>
 
   <!-- ── Backdrop sidebar mobile ──────────────────────────────── -->
@@ -71,22 +73,22 @@
   <!-- ── Sidebar ──────────────────────────────────────────────── -->
   <nav class="sidebar">
     <div class="sidebar-logo">
-      <span style="font-size:20px">🔐</span>
+      <i class="fa-solid fa-shield-halved"></i>
       <span>Web Security Suite</span>
     </div>
     <ul class="sidebar-nav">
-      <li><a href="#" class="nav-item active" data-view="individual">Análisis individual</a></li>
-      <li><a href="#" class="nav-item" data-view="batch">Análisis batch</a></li>
-      <li><a href="#" class="nav-item" data-view="lists">📋 Listas de dominios</a></li>
-      <li><a href="#" class="nav-item" data-view="history">Historial</a></li>
+      <li><a href="#" class="nav-item active" data-view="individual"><i class="fa-solid fa-magnifying-glass fa-fw me-2"></i>Análisis individual</a></li>
+      <li><a href="#" class="nav-item" data-view="batch"><i class="fa-solid fa-layer-group fa-fw me-2"></i>Análisis batch</a></li>
+      <li><a href="#" class="nav-item" data-view="lists"><i class="fa-solid fa-clipboard-list fa-fw me-2"></i>Análisis listas</a></li>
+      <li><a href="#" class="nav-item" data-view="history"><i class="fa-solid fa-clock-rotate-left fa-fw me-2"></i>Historial</a></li>
     </ul>
     <div class="sidebar-sep"></div>
     <ul class="sidebar-nav" style="flex:0">
-      <li><a href="#" class="nav-item" data-view="wiki" style="font-size:12px">📖 Wiki de tests</a></li>
+      <li><a href="#" class="nav-item" data-view="wiki" style="font-size:12px"><i class="fa-solid fa-book-open fa-fw me-2"></i>Wiki de tests</a></li>
     </ul>
     <div class="sidebar-footer">
       <span id="sidebar-user" class="d-block mb-1"></span>
-      <a href="#" id="btn-logout">Cerrar sesión</a>
+      <a href="#" id="btn-logout"><i class="fa-solid fa-right-from-bracket me-1"></i>Cerrar sesión</a>
       <div class="mt-1">v3.3 — Fase B</div>
     </div>
   </nav>
