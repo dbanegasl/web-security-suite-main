@@ -16,6 +16,7 @@ Suite de pruebas de seguridad HTTP para auditoría de dominios web. Ejecuta **20
 - Resultados por niveles: `PASS` / `FAIL` / `WARN` / `SKIP`
 - Resolución DNS forzada por IP (útil en entornos internos o staging)
 - Carpeta `reports/` incluida en la estructura (trackeada vía `.gitkeep`, contenido ignorado por git)
+- **Interfaz web** disponible vía Docker: SPA con análisis individual, batch por CSV, historial de sesión y descarga de reportes
 
 ---
 
@@ -56,6 +57,59 @@ bash web-security-scan.sh   # → opción [2] en el menú
 | `DOMAIN` | Dominio a analizar (sin `https://`) |
 | `SESSION_COOKIE_NAME` | Nombre de la cookie de sesión principal |
 | `IP` | IP del servidor para forzar resolución DNS (opcional) |
+
+---
+
+## Interfaz web (Docker)
+
+La suite incluye una interfaz web completa que expone los mismos 20 tests desde el navegador mediante un stack Docker (FastAPI + nginx + SPA).
+
+### Inicio rápido
+
+```bash
+cd web
+cp .env.example .env        # ajusta FRONTEND_PORT si es necesario
+docker compose up -d
+# → http://localhost:8778
+```
+
+Para reconstruir tras cambios en el código:
+
+```bash
+cd web && docker compose up --build
+```
+
+### Variables de entorno (`web/.env`)
+
+| Variable | Descripción | Valor por defecto |
+|---|---|---|
+| `FRONTEND_PORT` | Puerto del host para acceder a la interfaz | `8778` |
+| `FRONTEND_ORIGIN` | Origen permitido por la API (CORS) | `http://localhost:8778` |
+| `SCAN_TIMEOUT_SECONDS` | Timeout por dominio (segundos) | `120` |
+
+### Arquitectura
+
+```
+navegador → nginx :FRONTEND_PORT ─┬─ /api/ → FastAPI :8000 (interno)
+                                   └─ /     → SPA (HTML/JS/CSS)
+```
+
+- **nginx** sirve el frontend y hace proxy reverso de `/api/` al backend — un único puerto expuesto al host.
+- **FastAPI** (`web/api/main.py`) ejecuta `scan.sh` como subprocess con `OUTPUT_FORMAT=json` y devuelve JSON estructurado.
+- **scan.sh** es el motor de `web-security-scan.sh` con soporte de salida JSON y modo batch silencioso.
+
+### Funcionalidades de la interfaz
+
+- Análisis individual con formulario (dominio, cookie de sesión, IP forzada opcional)
+- Análisis batch cargando un `domains.csv` por arrastrar o seleccionar
+- Tabla de resultados con badge por test y detalle expandible
+- Historial de escaneos en la sesión actual
+- Descarga del reporte en Markdown
+
+### Requisitos
+
+- Docker ≥ 24 con plugin Compose
+- Acceso de red al dominio a auditar desde el host donde corre Docker
 
 ---
 
@@ -113,22 +167,38 @@ RESUMEN: 19 PASS  0 FAIL  1 WARN  0 SKIP  /  20 tests
 web-security-suite/
 ├── README.md                      # Este archivo
 ├── web-security-scan.sh           # Script principal (v3.1)
+├── scan.sh                        # Motor de escaneo con salida JSON (usado por la API)
 ├── domains.csv.example            # Plantilla de dominios para análisis batch
 ├── domains.csv                    # Tu lista de dominios (gitignored — copiar del .example)
 ├── .gitignore
 ├── reports/                       # Reportes generados (gitignored, carpeta trackeada)
 │   └── .gitkeep
+├── web/                           # Stack de la interfaz web
+│   ├── .env.example               # Variables de entorno (copiar como .env)
+│   ├── docker-compose.yml         # Orquestación: API (FastAPI) + Frontend (nginx)
+│   ├── api/
+│   │   ├── Dockerfile
+│   │   ├── main.py                # API FastAPI — endpoints /api/scan y /api/batch
+│   │   └── requirements.txt
+│   └── frontend/
+│       ├── Dockerfile
+│       ├── nginx.conf             # Proxy reverso /api/ → API interna
+│       ├── index.html
+│       ├── app.js
+│       └── styles.css
 └── docs/
     ├── usage-guide.md             # Guía detallada de uso, modos, ejemplos y correcciones
-    └── tests-reference.md         # Especificación técnica (PRD) de cada test con snippets bash
+    ├── tests-reference.md         # Especificación técnica (PRD) de cada test con snippets bash
+    └── planificacion-interfaz-web.md  # Análisis y planificación de la interfaz web
 ```
 
 ---
 
 ## Documentación
 
-- [Guía de uso](docs/usage-guide.md) — modos de ejecución, ejemplos por dominio, interpretación de resultados, correcciones comunes, CI/CD
+- [Guía de uso](docs/usage-guide.md) — modos de ejecución (CLI, no interactivo, Docker), ejemplos por dominio, interpretación de resultados, correcciones comunes, CI/CD
 - [Referencia de tests](docs/tests-reference.md) — especificación técnica de los 20 tests con bash snippets individuales y criterios de aceptación
+- [Interfaz web — planificación e implementación](docs/planificacion-interfaz-web.md) — análisis de viabilidad, arquitectura del stack Docker y estado de fases
 
 ---
 

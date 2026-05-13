@@ -1,6 +1,9 @@
 # Datos sensibles
 domains.csv
+web/.env
 
 # Reportes generados — solo se trackea la carpeta
 reports/*
 !reports/.gitkeep
+
+temp/

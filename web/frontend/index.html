@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Web Security Suite</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- ── Sidebar ──────────────────────────────────────────── -->
+  <nav class="sidebar">
+    <div class="logo">
+      <span class="logo-icon">🔐</span>
+      <span class="logo-text">Web Security Suite</span>
+    </div>
+    <ul class="nav-links">
+      <li><a href="#" class="nav-item active" data-view="individual">Análisis individual</a></li>
+      <li><a href="#" class="nav-item" data-view="batch">Análisis batch</a></li>
+      <li><a href="#" class="nav-item" data-view="history">Historial</a></li>
+    </ul>
+    <div class="sidebar-footer">v3.1 — Opción B</div>
+  </nav>
+
+  <!-- ── Main content ─────────────────────────────────────── -->
+  <main class="content">
+
+    <!-- ══ Vista: Análisis individual ══════════════════════ -->
+    <section id="view-individual" class="view active">
+      <h1>Análisis individual</h1>
+
+      <form id="form-scan" class="scan-form" novalidate>
+        <div class="form-row">
+          <label for="domain">Dominio <span class="required">*</span></label>
+          <input
+            type="text" id="domain" name="domain"
+            placeholder="ejemplo.com"
+            autocomplete="off" spellcheck="false" required
+          />
+          <small>Sin protocolo. Ej: <code>app.miempresa.com</code></small>
+        </div>
+
+        <div class="form-row">
+          <label for="session-cookie">Cookie de sesión</label>
+          <input
+            type="text" id="session-cookie" name="session_cookie"
+            placeholder="sessionid  (opcional — se autodetecta si se omite)"
+            autocomplete="off"
+          />
+        </div>
+
+        <div class="form-row">
+          <label for="ip">IP forzada</label>
+          <input
+            type="text" id="ip" name="ip"
+            placeholder="192.168.x.x  (opcional)"
+            autocomplete="off"
+          />
+          <small>Usa esta IP en lugar de la resolución DNS normal.</small>
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="btn-scan">
+          <span class="btn-icon">▶</span> Iniciar scan
+        </button>
+      </form>
+
+      <!-- Barra de progreso -->
+      <div id="scan-progress" class="progress-bar hidden">
+        <div class="progress-fill" id="progress-fill"></div>
+        <span class="progress-label" id="progress-label">Ejecutando scan...</span>
+      </div>
+
+      <!-- Resultados -->
+      <div id="results" class="results hidden">
+        <div class="results-header">
+          <div>
+            <h2 id="results-domain"></h2>
+            <small id="results-meta"></small>
+          </div>
+          <div class="results-actions">
+            <button class="btn btn-sm" id="btn-download-md">⬇ Descargar MD</button>
+          </div>
+        </div>
+
+        <!-- Tarjetas de resumen -->
+        <div class="summary-cards" id="summary-cards"></div>
+
+        <!-- Tabla de tests -->
+        <table class="tests-table" id="tests-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Test</th>
+              <th>Resultado</th>
+              <th>Detalle</th>
+            </tr>
+          </thead>
+          <tbody id="tests-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Error banner -->
+      <div id="error-banner" class="error-banner hidden"></div>
+    </section>
+
+    <!-- ══ Vista: Análisis batch ════════════════════════════ -->
+    <section id="view-batch" class="view">
+      <h1>Análisis batch</h1>
+
+      <div class="csv-upload-area" id="csv-drop-area">
+        <span>Arrastra tu <code>domains.csv</code> aquí</span>
+        <span>o</span>
+        <label class="btn btn-secondary">
+          Seleccionar archivo
+          <input type="file" id="csv-file-input" accept=".csv,.txt" hidden />
+        </label>
+        <small>Formato: <code>dominio,cookie_sesion,ip_forzada</code> (columnas 2 y 3 opcionales)</small>
+      </div>
+
+      <div id="csv-preview" class="csv-preview hidden">
+        <h3>Dominios cargados (<span id="csv-count">0</span>)</h3>
+        <ul id="csv-list" class="csv-list"></ul>
+        <button class="btn btn-primary" id="btn-batch-run">▶ Ejecutar análisis batch</button>
+      </div>
+
+      <div id="batch-progress" class="batch-progress hidden">
+        <div id="batch-domain-list" class="batch-domain-list"></div>
+      </div>
+
+      <div id="batch-results" class="hidden">
+        <div class="batch-table-wrap">
+          <table id="batch-summary-table" class="batch-table"></table>
+        </div>
+        <button class="btn btn-sm" id="btn-batch-download">⬇ Descargar reporte</button>
+      </div>
+    </section>
+
+    <!-- ══ Vista: Historial ═════════════════════════════════ -->
+    <section id="view-history" class="view">
+      <h1>Historial de scans</h1>
+      <p class="muted">Los resultados de esta sesión aparecerán aquí.</p>
+      <ul id="history-list" class="history-list"></ul>
+    </section>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

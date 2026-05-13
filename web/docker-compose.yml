@@ -1,0 +1,37 @@
+services:
+
+  # ── API Backend ─────────────────────────────────────────────
+  api:
+    build:
+      context: ..
+      dockerfile: web/api/Dockerfile
+    environment:
+      SCAN_TIMEOUT_SECONDS: "${SCAN_TIMEOUT_SECONDS:-120}"
+      FRONTEND_ORIGIN: "${FRONTEND_ORIGIN:-http://localhost:8080}"
+    volumes:
+      # Montar reports/ del host para persistir reportes Markdown
+      - ../reports:/app/reports
+    restart: unless-stopped
+    # No exponer el puerto directamente; el frontend hace proxy reverso.
+    # Descomentar para desarrollo/debug:
+    # ports:
+    #   - "8000:8000"
+    networks:
+      - internal
+
+  # ── Frontend ────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ..
+      dockerfile: web/frontend/Dockerfile
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge

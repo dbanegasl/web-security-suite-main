@@ -281,6 +281,76 @@ if ($request_method = TRACE) { return 405; }
 
 ---
 
+## Interfaz web (Docker)
+
+La suite incluye un stack Docker completo con frontend web SPA y API FastAPI que expone los mismos 20 tests desde el navegador.
+
+### Levantar el stack
+
+```bash
+cd web
+cp .env.example .env        # ajustar FRONTEND_PORT si es necesario
+docker compose up -d
+# → http://localhost:8778
+```
+
+Para reconstruir tras cambios en el código:
+
+```bash
+cd web && docker compose up --build
+```
+
+Para ver logs en tiempo real:
+
+```bash
+cd web && docker compose logs -f
+```
+
+### Variables de entorno (`web/.env`)
+
+| Variable | Descripción | Valor por defecto |
+|---|---|---|
+| `FRONTEND_PORT` | Puerto del host para el frontend | `8778` |
+| `FRONTEND_ORIGIN` | Origen CORS permitido por la API | `http://localhost:8778` |
+| `SCAN_TIMEOUT_SECONDS` | Timeout por dominio en segundos | `120` |
+
+### Arquitectura del stack
+
+```
+navegador → nginx :FRONTEND_PORT ─┬─ /api/ → FastAPI :8000 (red interna Docker)
+                                   └─ /     → SPA (HTML/JS/CSS estático)
+```
+
+El puerto de la API **no se expone directamente al host** — todo el tráfico pasa por nginx. El frontend usa rutas relativas (`/api/scan`) y nginx hace el proxy reverso al contenedor `api`.
+
+### Verificar estado
+
+```bash
+# Health check de la API (a través de nginx)
+curl http://localhost:8778/api/health
+# → {"status":"ok","scriptExists":true}
+```
+
+### Análisis individual desde la web
+
+El formulario acepta los mismos parámetros que el CLI:
+
+| Campo | Equivalente CLI | Descripción |
+|---|---|---|
+| Dominio | `DOMAIN` | Sin `https://`; se admite path (ej: `servicios.unae.edu.ec/app/`) |
+| Cookie de sesión | `SESSION_COOKIE_NAME` | Nombre de la cookie (no su valor); opcional |
+| IP forzada | `IP` | IP del servidor para `--resolve`; opcional |
+
+### Análisis batch desde la web
+
+Se carga el mismo `domains.csv` que usa el CLI (arrastrar o seleccionar). El endpoint `/api/batch` procesa los dominios en secuencia y devuelve los 20 tests de cada uno en JSON.
+
+### Dominios internos desde Docker
+
+Para auditar dominios con IPs privadas (`192.168.x.x`, `10.x.x.x`) el contenedor necesita acceso a esa red. Si Docker corre en una máquina dentro de la red institucional, el modo bridge por defecto es suficiente; solo hay que indicar la IP forzada en el campo correspondiente.
+
+---
+
 ## Integración CI/CD
 
 ### GitHub Actions
