@@ -1,4 +1,27 @@
 /* ── Reset y variables ──────────────────────────────────────── */
+/*
+ * PALETA DE SEGURIDAD — concepto para evolución futura
+ * -------------------------------------------------------
+ * La UI sigue un esquema "terminal de auditoría":
+ *
+ *   PASS  → --green    #3fb950  (sistema correcto, sin riesgo)
+ *   FAIL  → --red      #f85149  (vulnerabilidad confirmada)
+ *   WARN  → --yellow   #d29922  (riesgo potencial / revisar)
+ *   SKIP  → --text-muted        (no evaluado)
+ *   INFO  → --blue     #388bfd  (datos neutros / informativos)
+ *
+ * Tonos de fondo en capas (profundidad visual):
+ *   --bg   más oscuro  →  espacio exterior / página
+ *   --bg2  medio       →  paneles y tarjetas
+ *   --bg3  más claro   →  cabeceras de tabla, inputs, hover
+ *
+ * Variables reservadas para evolución:
+ *   --critical: para hallazgos de severidad crítica (rojo intenso)
+ *   --high:     severidad alta  (naranja)
+ *   --medium:   severidad media (amarillo)
+ *   --low:      severidad baja  (azul-verde)
+ *   --info:     informativo     (azul)
+ */
 :root {
   --bg:        #0d1117;
   --bg2:       #161b22;
@@ -13,6 +36,42 @@
   --magenta:   #bc8cff;
   --radius:    6px;
   --sidebar-w: 220px;
+
+  /* Severidades (reservadas para Fase C — dashboard de hallazgos) */
+  --critical:  #ff4444;
+  --high:      #e8640c;
+  --medium:    --yellow;
+  --low:       #26a69a;
+
+  /* Scrollbar */
+  --scroll-track: #0d1117;
+  --scroll-thumb: #30363d;
+  --scroll-thumb-hover: #4a5568;
+}
+
+/* ── Scrollbar personalizado ────────────────────────────────── */
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+}
+/* Chrome / Edge / Safari */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+}
+::-webkit-scrollbar-corner {
+  background: var(--scroll-track);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
