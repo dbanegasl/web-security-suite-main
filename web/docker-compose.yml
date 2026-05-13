@@ -8,9 +8,16 @@ services:
     environment:
       SCAN_TIMEOUT_SECONDS: "${SCAN_TIMEOUT_SECONDS:-120}"
       FRONTEND_ORIGIN: "${FRONTEND_ORIGIN:-http://localhost:8080}"
+      APP_FIRST_ADMIN_USER: "${APP_FIRST_ADMIN_USER:-admin}"
+      APP_FIRST_ADMIN_PASSWORD: "${APP_FIRST_ADMIN_PASSWORD}"
+      JWT_SECRET: "${JWT_SECRET}"
+      JWT_EXPIRE_MINUTES: "${JWT_EXPIRE_MINUTES:-480}"
+      DB_PATH: "/app/data/wss.db"
     volumes:
       # Montar reports/ del host para persistir reportes Markdown
       - ../reports:/app/reports
+      # Montar data/ para persistir la base de datos SQLite
+      - ../data:/app/data
     restart: unless-stopped
     # No exponer el puerto directamente; el frontend hace proxy reverso.
     # Descomentar para desarrollo/debug:

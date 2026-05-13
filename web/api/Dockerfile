@@ -24,6 +24,9 @@ RUN chmod +x /app/scan.sh
 
 # Código de la API
 COPY web/api/main.py /app/main.py
+COPY web/api/auth.py /app/auth.py
+COPY web/api/database.py /app/database.py
+COPY web/api/models.py /app/models.py
 
 EXPOSE 8000
 

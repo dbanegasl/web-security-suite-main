@@ -7,6 +7,53 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+
+  <!-- ══ Pantalla de login ══════════════════════════════════ -->
+  <div id="login-screen" class="login-overlay">
+    <div class="login-card">
+      <div class="login-logo">
+        <span class="logo-icon">🔐</span>
+        <span class="logo-text">Web Security Suite</span>
+      </div>
+      <form id="form-login" novalidate>
+        <div class="form-row">
+          <label for="login-username">Usuario</label>
+          <input type="text" id="login-username" autocomplete="username" required />
+        </div>
+        <div class="form-row">
+          <label for="login-password">Contraseña</label>
+          <input type="password" id="login-password" autocomplete="current-password" required />
+        </div>
+        <button type="submit" class="btn btn-primary btn-full" id="btn-login">Iniciar sesión</button>
+      </form>
+      <div id="login-error" class="login-error hidden"></div>
+    </div>
+  </div>
+
+  <!-- ══ Modal comparativa ══════════════════════════════════ -->
+  <div id="compare-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Comparativa de scans</h2>
+        <button class="modal-close" id="btn-modal-close">✕</button>
+      </div>
+      <div id="compare-meta" class="compare-meta"></div>
+      <div class="modal-body">
+        <table class="compare-table" id="compare-table">
+          <thead>
+            <tr>
+              <th>#</th><th>Test</th>
+              <th id="compare-th-a">Scan A</th>
+              <th id="compare-th-b">Scan B</th>
+              <th>Cambio</th>
+            </tr>
+          </thead>
+          <tbody id="compare-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Sidebar ──────────────────────────────────────────── -->
   <nav class="sidebar">
     <div class="logo">
@@ -22,7 +69,11 @@
     <ul class="nav-links">
       <li><a href="#" class="nav-item nav-wiki" data-view="wiki">📖 Wiki de tests</a></li>
     </ul>
-    <div class="sidebar-footer">v3.1 — Opción B</div>
+    <div class="sidebar-footer">
+      <span id="sidebar-user" class="sidebar-user"></span>
+      <a href="#" id="btn-logout" class="logout-link">Cerrar sesión</a>
+      <div>v3.2 — Fase A</div>
+    </div>
   </nav>
 
   <!-- ── Main content ─────────────────────────────────────── -->
@@ -142,8 +193,13 @@
     <!-- ══ Vista: Historial ═════════════════════════════════ -->
     <section id="view-history" class="view">
       <h1>Historial de scans</h1>
-      <p class="muted">Los resultados de esta sesión aparecerán aquí.</p>
+      <div class="history-toolbar">
+        <input type="text" id="history-search" placeholder="Filtrar por dominio…" class="history-search" />
+        <button class="btn btn-sm" id="btn-compare" disabled>⚖ Comparar seleccionados</button>
+      </div>
+      <p class="muted" id="history-count"></p>
       <ul id="history-list" class="history-list"></ul>
+      <button class="btn btn-secondary btn-load-more hidden" id="btn-load-more">Cargar más</button>
     </section>
 
     <!-- ══ Vista: Wiki de tests ════════════════════════════ -->

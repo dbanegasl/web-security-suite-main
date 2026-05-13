@@ -6,4 +6,8 @@ web/.env
 reports/*
 !reports/.gitkeep
 
+# Base de datos SQLite — solo se trackea la carpeta
+data/*
+!data/.gitkeep
+
 temp/
