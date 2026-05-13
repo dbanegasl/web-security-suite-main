@@ -724,3 +724,255 @@ async def lists_scan(
             results.append(r)
 
     return {"list_id": list_id, "total": len(results), "results": results}
+
+
+# ── Endpoints: Fase C — Evolución temporal ────────────────────────────────────
+from datetime import timedelta  # noqa: E402 — import al final para no reorganizar
+
+
+@app.get("/api/history/evolution/{domain}")
+async def history_evolution(
+    domain: str,
+    days: int = Query(90, ge=7, le=365),
+    current_user: User = Depends(auth.get_current_user),
+    session: Session = Depends(database.get_session),
+):
+    since = datetime.utcnow() - timedelta(days=days)
+    records = session.exec(
+        select(ScanHistory)
+        .where(ScanHistory.domain == domain)
+        .where(ScanHistory.scanned_at >= since)
+        .order_by(col(ScanHistory.scanned_at).asc())
+    ).all()
+
+    tests_ts: dict[str, dict] = {}
+    for rec in records:
+        data = json.loads(rec.results_json)
+        for test in data.get("tests", []):
+            tid = test["id"]
+            if tid not in tests_ts:
+                tests_ts[tid] = {"id": tid, "name": test.get("name", ""), "series": []}
+            tests_ts[tid]["series"].append({
+                "date": rec.scanned_at.isoformat(),
+                "result": test.get("result", "?"),
+                "scan_id": rec.id,
+            })
+
+    return {
+        "domain": domain,
+        "days": days,
+        "total_scans": len(records),
+        "tests": sorted(tests_ts.values(), key=lambda x: x["id"]),
+    }
+
+
+@app.get("/api/lists/{list_id}/summary")
+async def lists_summary(
+    list_id: int,
+    current_user: User = Depends(auth.get_current_user),
+    session: Session = Depends(database.get_session),
+):
+    dl = _list_or_404(list_id, session)
+    domains = session.exec(
+        select(ListDomain)
+        .where(ListDomain.list_id == list_id)
+        .where(ListDomain.is_active == True)  # noqa: E712
+    ).all()
+
+    result = []
+    for d in domains:
+        scans = session.exec(
+            select(ScanHistory)
+            .where(ScanHistory.domain == d.domain)
+            .where(ScanHistory.list_id == list_id)
+            .order_by(col(ScanHistory.scanned_at).desc())
+            .limit(2)
+        ).all()
+        last = scans[0] if scans else None
+        prev = scans[1] if len(scans) > 1 else None
+
+        trend = "stable"
+        if last and prev:
+            if last.fail_count < prev.fail_count:
+                trend = "improving"
+            elif last.fail_count > prev.fail_count:
+                trend = "worsening"
+
+        last_tests: dict[str, str] = {}
+        if last:
+            data = json.loads(last.results_json)
+            for t in data.get("tests", []):
+                last_tests[t["id"]] = t.get("result", "?")
+
+        result.append({
+            "domain": d.domain,
+            "last_scan_id": last.id if last else None,
+            "last_scanned_at": last.scanned_at.isoformat() if last else None,
+            "fail_count": last.fail_count if last else None,
+            "warn_count": last.warn_count if last else None,
+            "pass_count": last.pass_count if last else None,
+            "trend": trend,
+            "tests": last_tests,
+        })
+
+    return {
+        "list_id": list_id,
+        "list_name": dl.name,
+        "domains": result,
+    }
+
+
+# ── Endpoints: Fase C — Admin: gestión de usuarios ───────────────────────────
+
+def _require_admin(current_user: User = Depends(auth.get_current_user)) -> User:
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Acceso restringido a administradores")
+    return current_user
+
+
+class UserCreateRequest(BaseModel):
+    username: str
+    password: str
+    role: str = "analyst"
+
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, v: str) -> str:
+        v = v.strip()
+        if not v or len(v) > 64:
+            raise ValueError("El nombre de usuario es obligatorio (máx. 64 caracteres)")
+        if not re.match(r"^[a-zA-Z0-9_\-\.]+$", v):
+            raise ValueError("Solo letras, números, _, -, .")
+        return v
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if len(v) < 6:
+            raise ValueError("La contraseña debe tener al menos 6 caracteres")
+        return v
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, v: str) -> str:
+        if v not in ("admin", "analyst"):
+            raise ValueError("Rol no válido (admin | analyst)")
+        return v
+
+
+class UserUpdateRequest(BaseModel):
+    role: str
+    is_active: bool
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, v: str) -> str:
+        if v not in ("admin", "analyst"):
+            raise ValueError("Rol no válido")
+        return v
+
+
+class PasswordResetRequest(BaseModel):
+    password: str
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if len(v) < 6:
+            raise ValueError("La contraseña debe tener al menos 6 caracteres")
+        return v
+
+
+@app.get("/api/admin/users")
+async def admin_users_list(
+    admin: User = Depends(_require_admin),
+    session: Session = Depends(database.get_session),
+):
+    users = session.exec(select(User).order_by(col(User.username))).all()
+    return [
+        {
+            "id": u.id,
+            "username": u.username,
+            "role": u.role,
+            "is_active": u.is_active,
+            "created_at": u.created_at.isoformat(),
+            "last_login": u.last_login.isoformat() if u.last_login else None,
+        }
+        for u in users
+    ]
+
+
+@app.post("/api/admin/users", status_code=201)
+async def admin_users_create(
+    body: UserCreateRequest,
+    admin: User = Depends(_require_admin),
+    session: Session = Depends(database.get_session),
+):
+    if session.exec(select(User).where(User.username == body.username)).first():
+        raise HTTPException(status_code=409, detail="El usuario ya existe")
+    u = User(
+        username=body.username,
+        password_hash=auth.hash_password(body.password),
+        role=body.role,
+    )
+    session.add(u)
+    session.commit()
+    session.refresh(u)
+    return {
+        "id": u.id,
+        "username": u.username,
+        "role": u.role,
+        "is_active": u.is_active,
+        "created_at": u.created_at.isoformat(),
+    }
+
+
+@app.put("/api/admin/users/{user_id}")
+async def admin_users_update(
+    user_id: int,
+    body: UserUpdateRequest,
+    admin: User = Depends(_require_admin),
+    session: Session = Depends(database.get_session),
+):
+    u = session.get(User, user_id)
+    if not u:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if u.id == admin.id:
+        raise HTTPException(status_code=400, detail="No puedes modificar tu propia cuenta desde aquí")
+    u.role = body.role
+    u.is_active = body.is_active
+    session.add(u)
+    session.commit()
+    session.refresh(u)
+    return {"id": u.id, "username": u.username, "role": u.role, "is_active": u.is_active}
+
+
+@app.delete("/api/admin/users/{user_id}", status_code=204)
+async def admin_users_delete(
+    user_id: int,
+    admin: User = Depends(_require_admin),
+    session: Session = Depends(database.get_session),
+):
+    u = session.get(User, user_id)
+    if not u:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if u.id == admin.id:
+        raise HTTPException(status_code=400, detail="No puedes eliminar tu propia cuenta")
+    session.delete(u)
+    session.commit()
+
+
+@app.put("/api/admin/users/{user_id}/reset-password")
+async def admin_users_reset_password(
+    user_id: int,
+    body: PasswordResetRequest,
+    admin: User = Depends(_require_admin),
+    session: Session = Depends(database.get_session),
+):
+    u = session.get(User, user_id)
+    if not u:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    u.password_hash = auth.hash_password(body.password)
+    session.add(u)
+    session.commit()
+    return {"ok": True}

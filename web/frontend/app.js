@@ -36,7 +36,14 @@ function hideLogin() {
 
 function applyUserUI() {
   const user = getUser();
-  if (user) sidebarUser.textContent = `👤 ${user.username}`;
+  if (!user) return;
+  sidebarUser.textContent = `👤 ${user.username}`;
+  // Mostrar enlace de admin solo si el rol es admin
+  const adminItem = document.getElementById("nav-admin-item");
+  if (adminItem) {
+    if (user.role === "admin") adminItem.classList.remove("hidden");
+    else adminItem.classList.add("hidden");
+  }
 }
 
 formLogin.addEventListener("submit", async e => {
@@ -57,7 +64,7 @@ formLogin.addEventListener("submit", async e => {
     saveAuth(data.access_token, { username: data.username, role: data.role });
     applyUserUI();
     hideLogin();
-    loadHistoryPage(0, true);
+    navigateTo("home");
   } catch (err) {
     loginError.textContent = err.message;
     loginError.classList.remove("hidden");
@@ -81,25 +88,12 @@ btnLogout.addEventListener("click", e => {
     await apiFetch("/api/auth/me", { method: "GET" });
     applyUserUI();
     hideLogin();
-    loadHistoryPage(0, true);
+    navigateTo("home");
   } catch {
     clearAuth();
     showLogin();
   }
 })();
-
-// ── Navegación ────────────────────────────────────────────────
-document.querySelectorAll(".nav-item").forEach(link => {
-  link.addEventListener("click", e => {
-    e.preventDefault();
-    const target = link.dataset.view;
-    document.querySelectorAll(".nav-item").forEach(l => l.classList.remove("active"));
-    document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
-    link.classList.add("active");
-    document.getElementById(`view-${target}`)?.classList.add("active");
-    if (target === "history") loadHistoryPage(0, true);
-  });
-});
 
 // ══════════════════════════════════════════════════════════════
 // ANÁLISIS INDIVIDUAL
@@ -633,6 +627,18 @@ async function apiPost(path, body) {
   });
 }
 
+async function apiPut(path, body) {
+  return apiFetch(path, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+async function apiDelete(path) {
+  return apiFetch(path, { method: "DELETE" });
+}
+
 async function apiGet(path) {
   return apiFetch(path, { method: "GET" });
 }
@@ -936,23 +942,43 @@ function buildBatchMarkdownReport(results, title = "Análisis Batch") {
 // ── Historial en memoria de sesión ──────────────────────────────
 const scanHistory = [];
 
-// ── Navegación ────────────────────────────────────────────────
-document.querySelectorAll(".nav-item").forEach(link => {
+// ── Navegación centralizada ───────────────────────────────────
+function navigateTo(target) {
+  if (!target) return;
+  // Actualizar nav items del sidebar
+  document.querySelectorAll(".sidebar-nav .nav-item").forEach(l => l.classList.remove("active"));
+  const navLink = document.querySelector(`.sidebar-nav .nav-item[data-view="${target}"]`);
+  if (navLink) navLink.classList.add("active");
+  // Actualizar vistas
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+  document.getElementById(`view-${target}`)?.classList.add("active");
+  // Actualizar username en home si aplica
+  if (target === "home") {
+    const homeUser = document.getElementById("home-username");
+    if (homeUser) homeUser.textContent = getUser()?.username || "";
+  }
+  // Cargar datos de la vista
+  if (target === "history")   loadHistoryPage(0, true);
+  if (target === "lists")     loadListsIndex();
+  if (target === "evolution") initEvolutionView();
+  if (target === "admin")     loadAdminUsers();
+  // Cerrar sidebar en mobile
+  if (window.innerWidth < 992) {
+    document.querySelector(".sidebar")?.classList.remove("sidebar-open");
+    document.getElementById("sidebar-backdrop")?.classList.remove("show");
+  }
+}
+
+document.querySelectorAll(".sidebar-nav .nav-item").forEach(link => {
   link.addEventListener("click", e => {
     e.preventDefault();
-    const target = link.dataset.view;
-    document.querySelectorAll(".nav-item").forEach(l => l.classList.remove("active"));
-    document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
-    link.classList.add("active");
-    const view = document.getElementById(`view-${target}`);
-    if (view) view.classList.add("active");
-    if (target === "lists") loadListsIndex();
-    // Cerrar sidebar en mobile al navegar
-    if (window.innerWidth < 992) {
-      document.querySelector(".sidebar")?.classList.remove("sidebar-open");
-      document.getElementById("sidebar-backdrop")?.classList.remove("show");
-    }
+    navigateTo(link.dataset.view);
   });
+});
+
+// Clicks en tarjetas del home
+document.querySelectorAll(".home-card[data-nav]").forEach(card => {
+  card.addEventListener("click", () => navigateTo(card.dataset.nav));
 });
 
 
@@ -1305,3 +1331,356 @@ document.getElementById("btn-list-download-md")?.addEventListener("click", () =>
   downloadFile(filename, buildBatchMarkdownReport(data.results, title), "text/markdown");
 });
 
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// FASE C.5 — VISTA EVOLUCIÓN TEMPORAL
+// ══════════════════════════════════════════════════════════════════════════════
+
+async function initEvolutionView() {
+  // Cargar listas disponibles en el selector
+  try {
+    const lists = await apiFetch("/api/lists");
+    const sel = document.getElementById("evo-list-select");
+    sel.innerHTML = `<option value="">-- Selecciona una lista --</option>`;
+    lists.forEach(l => {
+      const opt = document.createElement("option");
+      opt.value = l.id;
+      opt.textContent = `${l.name} (${l.domain_count} dominios)`;
+      sel.appendChild(opt);
+    });
+  } catch (err) {
+    // No crítico: las listas son opcionales
+  }
+}
+
+// Tabs de la vista evolución
+document.querySelectorAll("[data-evo-tab]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("[data-evo-tab]").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    const tab = btn.dataset.evoTab;
+    document.getElementById("evo-tab-domain").classList.toggle("hidden", tab !== "domain");
+    document.getElementById("evo-tab-list").classList.toggle("hidden", tab !== "list");
+  });
+});
+
+async function loadEvolution() {
+  const domain  = document.getElementById("evo-domain").value.trim();
+  const days    = parseInt(document.getElementById("evo-days").value, 10);
+  const errEl   = document.getElementById("evo-error");
+  const resultEl = document.getElementById("evo-result");
+
+  errEl.classList.add("hidden");
+  resultEl.classList.add("hidden");
+
+  if (!domain) {
+    errEl.textContent = "Introduce un dominio para analizar.";
+    errEl.classList.remove("hidden");
+    return;
+  }
+
+  const btn = document.getElementById("btn-evo-load");
+  btn.disabled = true;
+  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-1"></i>Cargando…`;
+
+  try {
+    const data = await apiFetch(`/api/history/evolution/${encodeURIComponent(domain)}?days=${days}`);
+    renderEvolutionMatrix(data);
+    resultEl.classList.remove("hidden");
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.classList.remove("hidden");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<i class="fa-solid fa-magnifying-glass me-1"></i>Analizar`;
+  }
+}
+
+function renderEvolutionMatrix(data) {
+  const container = document.getElementById("evo-matrix");
+
+  if (!data.total_scans) {
+    container.innerHTML = `<p class="text-muted">No hay scans de <strong>${escapeHtml(data.domain)}</strong> en los últimos ${data.days} días.</p>`;
+    return;
+  }
+
+  // Recolectar todas las fechas únicas ordenadas
+  const allDates = [...new Set(data.tests.flatMap(t => t.series.map(s => s.date)))].sort();
+
+  const fmtDate = iso => {
+    const d = new Date(iso);
+    return `${d.getDate().toString().padStart(2,"0")}/${(d.getMonth()+1).toString().padStart(2,"0")}<br><small>${d.getHours().toString().padStart(2,"0")}:${d.getMinutes().toString().padStart(2,"0")}</small>`;
+  };
+
+  let html = `<p class="text-muted small mb-2"><strong>${escapeHtml(data.domain)}</strong> — ${data.total_scans} scan${data.total_scans !== 1 ? "s" : ""} en los últimos ${data.days} días</p>`;
+  html += `<div class="table-responsive"><table class="table table-dark table-sm table-bordered evo-table">`;
+  html += `<thead><tr><th style="min-width:130px">Test</th>`;
+  allDates.forEach(d => html += `<th class="text-center" style="min-width:60px">${fmtDate(d)}</th>`);
+  html += `</tr></thead><tbody>`;
+
+  data.tests.forEach(test => {
+    const byDate = Object.fromEntries(test.series.map(s => [s.date, s.result]));
+    html += `<tr><td class="small"><span class="text-muted">${escapeHtml(test.id)}</span> ${escapeHtml(test.name)}</td>`;
+    allDates.forEach(d => {
+      const r = byDate[d];
+      if (!r) { html += `<td class="text-center text-muted">—</td>`; return; }
+      const cls = r === "PASS" ? "cell-P" : r === "FAIL" ? "cell-F" : r === "WARN" ? "cell-W" : r === "SKIP" ? "cell-S" : "";
+      html += `<td class="text-center ${cls}"><span class="badge badge-${r}">${r}</span></td>`;
+    });
+    html += `</tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  container.innerHTML = html;
+}
+
+document.getElementById("btn-evo-load")?.addEventListener("click", loadEvolution);
+document.getElementById("evo-domain")?.addEventListener("keydown", e => {
+  if (e.key === "Enter") loadEvolution();
+});
+
+// Vista por lista: matriz dominios × tests (último scan)
+async function loadEvolutionByList() {
+  const listId  = document.getElementById("evo-list-select").value;
+  const errEl   = document.getElementById("evo-list-error");
+  const resultEl = document.getElementById("evo-list-result");
+
+  errEl.classList.add("hidden");
+  resultEl.classList.add("hidden");
+
+  if (!listId) {
+    errEl.textContent = "Selecciona una lista primero.";
+    errEl.classList.remove("hidden");
+    return;
+  }
+
+  const btn = document.getElementById("btn-evo-list-load");
+  btn.disabled = true;
+  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-1"></i>Cargando…`;
+
+  try {
+    const data = await apiFetch(`/api/lists/${listId}/summary`);
+    renderListEvolutionMatrix(data);
+    resultEl.classList.remove("hidden");
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.classList.remove("hidden");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<i class="fa-solid fa-table me-1"></i>Ver matriz`;
+  }
+}
+
+function renderListEvolutionMatrix(data) {
+  const container = document.getElementById("evo-list-matrix");
+
+  if (!data.domains.length) {
+    container.innerHTML = `<p class="text-muted">La lista <strong>${escapeHtml(data.list_name)}</strong> no tiene dominios activos.</p>`;
+    return;
+  }
+
+  // Obtener IDs de tests del primer dominio con scans
+  const testIds = TESTS_META.map(t => t.id);
+  const trendIcon = t => t === "improving" ? `<i class="fa-solid fa-arrow-trend-up text-success" title="Mejorando"></i>`
+                       : t === "worsening" ? `<i class="fa-solid fa-arrow-trend-down text-danger" title="Empeorando"></i>`
+                       : `<i class="fa-solid fa-minus text-muted" title="Estable"></i>`;
+
+  let html = `<p class="text-muted small mb-2"><strong>${escapeHtml(data.list_name)}</strong> — ${data.domains.length} dominio${data.domains.length !== 1 ? "s" : ""}</p>`;
+  html += `<div class="table-responsive"><table class="table table-dark table-sm table-bordered evo-table">`;
+  html += `<thead><tr><th style="min-width:160px">Dominio</th><th class="text-center">Tendencia</th>`;
+  testIds.forEach(id => html += `<th class="text-center" style="min-width:44px" title="${TESTS_META.find(t=>t.id===id)?.name||id}">${id}</th>`);
+  html += `</tr></thead><tbody>`;
+
+  data.domains.forEach(d => {
+    const dateStr = d.last_scanned_at ? formatDate(d.last_scanned_at) : "—";
+    html += `<tr>
+      <td class="small font-monospace" title="Último scan: ${escapeHtml(dateStr)}">${escapeHtml(d.domain)}</td>
+      <td class="text-center">${trendIcon(d.trend)}</td>`;
+    testIds.forEach(id => {
+      const r = d.tests[id];
+      if (!r) { html += `<td class="text-center text-muted small">—</td>`; return; }
+      const cls = r === "PASS" ? "cell-P" : r === "FAIL" ? "cell-F" : r === "WARN" ? "cell-W" : r === "SKIP" ? "cell-S" : "";
+      html += `<td class="text-center ${cls}"><span class="badge badge-${r}" style="font-size:10px">${r}</span></td>`;
+    });
+    html += `</tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  container.innerHTML = html;
+}
+
+document.getElementById("btn-evo-list-load")?.addEventListener("click", loadEvolutionByList);
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// FASE C.6 — VISTA ADMINISTRACIÓN DE USUARIOS
+// ══════════════════════════════════════════════════════════════════════════════
+
+async function loadAdminUsers() {
+  const tbody = document.getElementById("admin-users-tbody");
+  if (!tbody) return;
+  tbody.innerHTML = `<tr><td colspan="6" class="text-muted text-center"><i class="fa-solid fa-spinner fa-spin me-1"></i>Cargando…</td></tr>`;
+  try {
+    const users = await apiFetch("/api/admin/users");
+    const meId  = getUser()?.id;
+
+    tbody.innerHTML = users.map(u => `
+      <tr data-uid="${u.id}">
+        <td class="font-monospace small fw-semibold">${escapeHtml(u.username)}</td>
+        <td>
+          <select class="form-select form-select-sm admin-role-select" data-uid="${u.id}" ${u.id === meId ? "disabled" : ""}>
+            <option value="admin"   ${u.role === "admin"   ? "selected" : ""}>admin</option>
+            <option value="analyst" ${u.role === "analyst" ? "selected" : ""}>analyst</option>
+          </select>
+        </td>
+        <td class="text-center">
+          <div class="form-check form-switch d-flex justify-content-center mb-0">
+            <input class="form-check-input admin-active-toggle" type="checkbox"
+              data-uid="${u.id}" ${u.is_active ? "checked" : ""} ${u.id === meId ? "disabled" : ""} />
+          </div>
+        </td>
+        <td class="text-muted small">${formatDate(u.created_at)}</td>
+        <td class="text-muted small">${u.last_login ? formatDate(u.last_login) : "—"}</td>
+        <td>
+          <div class="d-flex gap-1">
+            <button class="btn btn-outline-secondary btn-sm admin-reset-pwd"
+              data-uid="${u.id}" data-uname="${escapeHtml(u.username)}"
+              title="Cambiar contraseña"><i class="fa-solid fa-key"></i></button>
+            ${u.id !== meId ? `
+            <button class="btn btn-danger btn-sm admin-delete-user"
+              data-uid="${u.id}" data-uname="${escapeHtml(u.username)}"
+              title="Eliminar usuario"><i class="fa-solid fa-trash"></i></button>` : ""}
+          </div>
+        </td>
+      </tr>
+    `).join("");
+
+    // Bind: cambio de rol
+    tbody.querySelectorAll(".admin-role-select").forEach(sel => {
+      sel.addEventListener("change", async () => {
+        const uid  = parseInt(sel.dataset.uid, 10);
+        const row  = tbody.querySelector(`tr[data-uid="${uid}"]`);
+        const active = row.querySelector(".admin-active-toggle").checked;
+        await adminUpdateUser(uid, sel.value, active);
+      });
+    });
+
+    // Bind: toggle activo
+    tbody.querySelectorAll(".admin-active-toggle").forEach(cb => {
+      cb.addEventListener("change", async () => {
+        const uid  = parseInt(cb.dataset.uid, 10);
+        const row  = tbody.querySelector(`tr[data-uid="${uid}"]`);
+        const role = row.querySelector(".admin-role-select").value;
+        await adminUpdateUser(uid, role, cb.checked);
+      });
+    });
+
+    // Bind: reset contraseña
+    tbody.querySelectorAll(".admin-reset-pwd").forEach(btn => {
+      btn.addEventListener("click", () =>
+        openResetPasswordModal(parseInt(btn.dataset.uid, 10), btn.dataset.uname)
+      );
+    });
+
+    // Bind: eliminar usuario
+    tbody.querySelectorAll(".admin-delete-user").forEach(btn => {
+      btn.addEventListener("click", () =>
+        confirmDeleteUser(parseInt(btn.dataset.uid, 10), btn.dataset.uname)
+      );
+    });
+
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-danger">${escapeHtml(err.message)}</td></tr>`;
+  }
+}
+
+async function adminUpdateUser(uid, role, isActive) {
+  try {
+    await apiPut(`/api/admin/users/${uid}`, { role, is_active: isActive });
+    showToast("success", "Usuario actualizado");
+  } catch (err) {
+    showToast("error", "Error al actualizar", err.message);
+    loadAdminUsers();  // revertir UI
+  }
+}
+
+function openResetPasswordModal(uid, username) {
+  document.getElementById("reset-pwd-uid").value = uid;
+  document.getElementById("reset-pwd-username").textContent = username;
+  document.getElementById("reset-pwd-input").value = "";
+  document.getElementById("reset-pwd-error").classList.add("hidden");
+  openModal("reset-pwd-modal");
+}
+
+document.getElementById("btn-reset-pwd-confirm")?.addEventListener("click", async () => {
+  const uid   = parseInt(document.getElementById("reset-pwd-uid").value, 10);
+  const pwd   = document.getElementById("reset-pwd-input").value;
+  const errEl = document.getElementById("reset-pwd-error");
+  errEl.classList.add("hidden");
+  if (!pwd || pwd.length < 6) {
+    errEl.textContent = "La contraseña debe tener al menos 6 caracteres.";
+    errEl.classList.remove("hidden");
+    return;
+  }
+  try {
+    await apiPut(`/api/admin/users/${uid}/reset-password`, { password: pwd });
+    closeModal("reset-pwd-modal");
+    showToast("success", "Contraseña actualizada");
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.classList.remove("hidden");
+  }
+});
+
+["btn-reset-pwd-close", "btn-reset-pwd-cancel"].forEach(id =>
+  document.getElementById(id)?.addEventListener("click", () => closeModal("reset-pwd-modal"))
+);
+
+async function confirmDeleteUser(uid, username) {
+  const ok = await showConfirm(
+    `¿Eliminar al usuario "${username}"? Esta acción no se puede deshacer.`,
+    "Eliminar usuario"
+  );
+  if (!ok) return;
+  try {
+    await apiDelete(`/api/admin/users/${uid}`);
+    showToast("success", "Usuario eliminado");
+    loadAdminUsers();
+  } catch (err) {
+    showToast("error", "Error al eliminar", err.message);
+  }
+}
+
+document.getElementById("btn-admin-new-user")?.addEventListener("click", () => {
+  document.getElementById("form-new-user")?.reset();
+  document.getElementById("new-user-error").classList.add("hidden");
+  openModal("new-user-modal");
+});
+
+["btn-new-user-close", "btn-new-user-cancel"].forEach(id =>
+  document.getElementById(id)?.addEventListener("click", () => closeModal("new-user-modal"))
+);
+
+document.getElementById("form-new-user")?.addEventListener("submit", async e => {
+  e.preventDefault();
+  const errEl    = document.getElementById("new-user-error");
+  errEl.classList.add("hidden");
+  const username = document.getElementById("nu-username").value.trim();
+  const password = document.getElementById("nu-password").value;
+  const role     = document.getElementById("nu-role").value;
+  if (!username || !password) {
+    errEl.textContent = "Usuario y contraseña son obligatorios.";
+    errEl.classList.remove("hidden");
+    return;
+  }
+  try {
+    await apiPost("/api/admin/users", { username, password, role });
+    closeModal("new-user-modal");
+    showToast("success", "Usuario creado", username);
+    loadAdminUsers();
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.classList.remove("hidden");
+  }
+});

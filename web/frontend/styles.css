@@ -755,3 +755,81 @@ code {
   transition: background .12s;
 }
 .btn-danger-sm:hover { background: rgba(248,81,73,.1); }
+
+/* ── Fase C.5: Evolución temporal ── */
+.evo-table {
+  font-size: 12px;
+}
+.evo-table thead th {
+  white-space: nowrap;
+  font-size: 11px;
+  padding: 4px 6px;
+}
+.evo-table td {
+  padding: 3px 5px;
+  vertical-align: middle;
+}
+.evo-table .badge {
+  font-size: 10px;
+  padding: 2px 4px;
+}
+
+/* ── Fase C: Vista Home ── */
+.home-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: var(--radius);
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: background .14s, border-color .14s, transform .1s;
+  height: 100%;
+}
+.home-card:hover {
+  background: var(--bg3);
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+.home-card-icon {
+  font-size: 22px;
+  color: var(--accent);
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+.home-card-body { flex: 1; }
+.home-card-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.home-card-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.home-blocks-info {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+}
+.home-blocks-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--text-muted);
+}
+.home-block-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}

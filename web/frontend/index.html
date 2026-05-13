@@ -77,10 +77,13 @@
       <span>Web Security Suite</span>
     </div>
     <ul class="sidebar-nav">
-      <li><a href="#" class="nav-item active" data-view="individual"><i class="fa-solid fa-magnifying-glass fa-fw me-2"></i>Análisis individual</a></li>
+      <li><a href="#" class="nav-item active" data-view="home"><i class="fa-solid fa-house fa-fw me-2"></i>Inicio</a></li>
+      <li><a href="#" class="nav-item" data-view="individual"><i class="fa-solid fa-magnifying-glass fa-fw me-2"></i>Análisis individual</a></li>
       <li><a href="#" class="nav-item" data-view="batch"><i class="fa-solid fa-layer-group fa-fw me-2"></i>Análisis batch</a></li>
       <li><a href="#" class="nav-item" data-view="lists"><i class="fa-solid fa-clipboard-list fa-fw me-2"></i>Análisis listas</a></li>
       <li><a href="#" class="nav-item" data-view="history"><i class="fa-solid fa-clock-rotate-left fa-fw me-2"></i>Historial</a></li>
+      <li><a href="#" class="nav-item" data-view="evolution"><i class="fa-solid fa-chart-line fa-fw me-2"></i>Evolución</a></li>
+      <li id="nav-admin-item" class="hidden"><a href="#" class="nav-item" data-view="admin"><i class="fa-solid fa-users-gear fa-fw me-2"></i>Administración</a></li>
     </ul>
     <div class="sidebar-sep"></div>
     <ul class="sidebar-nav" style="flex:0">
@@ -89,15 +92,92 @@
     <div class="sidebar-footer">
       <span id="sidebar-user" class="d-block mb-1"></span>
       <a href="#" id="btn-logout"><i class="fa-solid fa-right-from-bracket me-1"></i>Cerrar sesión</a>
-      <div class="mt-1">v3.3 — Fase B</div>
+      <div class="mt-1">v4.0 — Fase C</div>
     </div>
   </nav>
 
   <!-- ── Main content ─────────────────────────────────────────── -->
   <main class="main-content">
 
+    <!-- ══ Vista: Inicio / Home ════════════════════════════════ -->
+    <section id="view-home" class="view active">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="h4 fw-semibold mb-0"><i class="fa-solid fa-house fa-fw me-2"></i>Inicio</h2>
+      </div>
+      <p class="mb-1">Bienvenido a <strong>Web Security Suite</strong>, <span id="home-username" class="text-accent"></span>.</p>
+      <p class="text-muted mb-4" style="max-width:600px">Suite de auditoría de seguridad HTTP. Analiza cabeceras, certificados TLS, cookies, redirecciones y más en <strong>20 tests automatizados</strong> organizados en 5 bloques.</p>
+
+      <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-lg-4">
+          <div class="home-card" data-nav="individual">
+            <div class="home-card-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
+            <div class="home-card-body">
+              <div class="home-card-title">Análisis individual</div>
+              <div class="home-card-desc">Audita un dominio en tiempo real y obtén los resultados de los 20 tests al instante.</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-4">
+          <div class="home-card" data-nav="batch">
+            <div class="home-card-icon"><i class="fa-solid fa-layer-group"></i></div>
+            <div class="home-card-body">
+              <div class="home-card-title">Análisis batch</div>
+              <div class="home-card-desc">Analiza múltiples dominios en una sola sesión cargando un archivo CSV.</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-4">
+          <div class="home-card" data-nav="lists">
+            <div class="home-card-icon"><i class="fa-solid fa-clipboard-list"></i></div>
+            <div class="home-card-body">
+              <div class="home-card-title">Listas de dominios</div>
+              <div class="home-card-desc">Gestiona listas persistentes y ejecuta scans sobre grupos de dominios guardados.</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-4">
+          <div class="home-card" data-nav="history">
+            <div class="home-card-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
+            <div class="home-card-body">
+              <div class="home-card-title">Historial</div>
+              <div class="home-card-desc">Consulta todos los scans previos, filtra por dominio y descarga reportes Markdown.</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-4">
+          <div class="home-card" data-nav="evolution">
+            <div class="home-card-icon"><i class="fa-solid fa-chart-line"></i></div>
+            <div class="home-card-body">
+              <div class="home-card-title">Evolución temporal</div>
+              <div class="home-card-desc">Visualiza la evolución de resultados de seguridad de un dominio a lo largo del tiempo.</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-4">
+          <div class="home-card" data-nav="wiki">
+            <div class="home-card-icon"><i class="fa-solid fa-book-open"></i></div>
+            <div class="home-card-body">
+              <div class="home-card-title">Wiki de tests</div>
+              <div class="home-card-desc">Referencia técnica de los 20 tests: criterios, cabeceras analizadas y recomendaciones.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="home-blocks-info">
+        <div class="home-blocks-title">20 tests en 5 bloques</div>
+        <div class="d-flex flex-wrap gap-2 mt-2">
+          <span class="home-block-badge"><i class="fa-solid fa-lock me-1"></i>TLS / HTTPS — 4 tests</span>
+          <span class="home-block-badge"><i class="fa-solid fa-cookie-bite me-1"></i>Cookies — 2 tests</span>
+          <span class="home-block-badge"><i class="fa-solid fa-shield-halved me-1"></i>Cabeceras HTTP — 8 tests</span>
+          <span class="home-block-badge"><i class="fa-solid fa-right-left me-1"></i>Redirecciones — 3 tests</span>
+          <span class="home-block-badge"><i class="fa-solid fa-eye-slash me-1"></i>Exposición de info — 3 tests</span>
+        </div>
+      </div>
+    </section>
+
     <!-- ══ Vista: Análisis individual ══════════════════════════ -->
-    <section id="view-individual" class="view active">
+    <section id="view-individual" class="view">
       <h1 class="h4 fw-semibold mb-4">Análisis individual</h1>
 
       <form id="form-scan" class="scan-form" novalidate>
@@ -379,7 +459,85 @@
     <section id="view-wiki" class="view view-wiki">
       <iframe src="/wiki.html" class="wiki-frame" title="Wiki de tests de seguridad"></iframe>
     </section>
+    <!-- ══ Vista: Evolución temporal (C.5) ═══════════════════ -->
+    <section id="view-evolution" class="view">
+      <h1 class="h4 fw-semibold mb-4"><i class="fa-solid fa-chart-line me-2"></i>Evolución temporal</h1>
 
+      <!-- Modo: por dominio -->
+      <ul class="nav nav-tabs mb-4" id="evo-tabs">
+        <li class="nav-item">
+          <button class="nav-link active" data-evo-tab="domain"><i class="fa-solid fa-magnifying-glass me-1"></i>Por dominio</button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" data-evo-tab="list"><i class="fa-solid fa-clipboard-list me-1"></i>Por lista</button>
+        </li>
+      </ul>
+
+      <!-- Tab: por dominio -->
+      <div id="evo-tab-domain">
+        <div class="d-flex gap-2 flex-wrap align-items-end mb-3">
+          <div>
+            <label for="evo-domain" class="form-label mb-1">Dominio</label>
+            <input type="text" id="evo-domain" class="form-control" placeholder="ejemplo.com" style="min-width:240px" />
+          </div>
+          <div>
+            <label for="evo-days" class="form-label mb-1">Período</label>
+            <select id="evo-days" class="form-select">
+              <option value="7">7 días</option>
+              <option value="30">30 días</option>
+              <option value="90" selected>90 días</option>
+              <option value="180">180 días</option>
+              <option value="365">1 año</option>
+            </select>
+          </div>
+          <button class="btn btn-success" id="btn-evo-load"><i class="fa-solid fa-magnifying-glass me-1"></i>Analizar</button>
+        </div>
+        <div id="evo-error" class="alert alert-danger hidden"></div>
+        <div id="evo-result" class="hidden">
+          <div id="evo-matrix"></div>
+        </div>
+      </div>
+
+      <!-- Tab: por lista -->
+      <div id="evo-tab-list" class="hidden">
+        <div class="d-flex gap-2 flex-wrap align-items-end mb-3">
+          <div>
+            <label for="evo-list-select" class="form-label mb-1">Lista</label>
+            <select id="evo-list-select" class="form-select" style="min-width:220px">
+              <option value="">-- Selecciona una lista --</option>
+            </select>
+          </div>
+          <button class="btn btn-success" id="btn-evo-list-load"><i class="fa-solid fa-table me-1"></i>Ver matriz</button>
+        </div>
+        <div id="evo-list-error" class="alert alert-danger hidden"></div>
+        <div id="evo-list-result" class="hidden">
+          <div id="evo-list-matrix"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ Vista: Administración de usuarios (C.6 — solo admin) ══ -->
+    <section id="view-admin" class="view">
+      <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <h1 class="h4 fw-semibold mb-0"><i class="fa-solid fa-users-gear me-2"></i>Administración de usuarios</h1>
+        <button class="btn btn-success" id="btn-admin-new-user"><i class="fa-solid fa-user-plus me-1"></i>Nuevo usuario</button>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-dark table-hover table-sm">
+          <thead>
+            <tr>
+              <th>Usuario</th>
+              <th>Rol</th>
+              <th class="text-center">Activo</th>
+              <th>Creado</th>
+              <th>Último login</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="admin-users-tbody"></tbody>
+        </table>
+      </div>
+    </section>
   </main>
 
   <div id="toast-container"></div>
@@ -396,6 +554,63 @@
           <button type="button" class="btn btn-outline-secondary btn-sm" id="confirm-modal-cancel">Cancelar</button>
           <button type="button" class="btn btn-danger btn-sm" id="confirm-modal-ok">Eliminar</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: resetear contraseña -->
+  <div id="reset-pwd-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-card" style="max-width:400px">
+      <div class="modal-header">
+        <h2>Cambiar contraseña</h2>
+        <button class="modal-close" id="btn-reset-pwd-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">Usuario: <strong id="reset-pwd-username"></strong></p>
+        <input type="hidden" id="reset-pwd-uid" />
+        <div class="mb-3">
+          <label for="reset-pwd-input" class="form-label">Nueva contraseña</label>
+          <input type="password" id="reset-pwd-input" class="form-control" autocomplete="new-password" />
+        </div>
+        <div id="reset-pwd-error" class="alert alert-danger hidden"></div>
+        <div class="d-flex gap-2 justify-content-end">
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-reset-pwd-cancel">Cancelar</button>
+          <button type="button" class="btn btn-warning btn-sm" id="btn-reset-pwd-confirm"><i class="fa-solid fa-key me-1"></i>Cambiar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: nuevo usuario -->
+  <div id="new-user-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-card" style="max-width:420px">
+      <div class="modal-header">
+        <h2>Nuevo usuario</h2>
+        <button class="modal-close" id="btn-new-user-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-new-user" novalidate>
+          <div class="mb-3">
+            <label for="nu-username" class="form-label">Usuario <span class="text-danger">*</span></label>
+            <input type="text" id="nu-username" class="form-control" autocomplete="off" required />
+          </div>
+          <div class="mb-3">
+            <label for="nu-password" class="form-label">Contraseña <span class="text-danger">*</span></label>
+            <input type="password" id="nu-password" class="form-control" autocomplete="new-password" required />
+          </div>
+          <div class="mb-3">
+            <label for="nu-role" class="form-label">Rol</label>
+            <select id="nu-role" class="form-select">
+              <option value="analyst" selected>analyst</option>
+              <option value="admin">admin</option>
+            </select>
+          </div>
+          <div id="new-user-error" class="alert alert-danger hidden"></div>
+          <div class="d-flex gap-2 justify-content-end">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-new-user-cancel">Cancelar</button>
+            <button type="submit" class="btn btn-success btn-sm"><i class="fa-solid fa-user-plus me-1"></i>Crear</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
