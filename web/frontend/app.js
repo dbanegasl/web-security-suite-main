@@ -88,7 +88,7 @@ btnLogout.addEventListener("click", e => {
     await apiFetch("/api/auth/me", { method: "GET" });
     applyUserUI();
     hideLogin();
-    navigateTo("home");
+    navigateFromHash();  // Respetar hash en URL; si vacío → home
   } catch {
     clearAuth();
     showLogin();
@@ -582,13 +582,6 @@ function openCompareModal(data) {
 // ══════════════════════════════════════════════════════════════
 // UTILIDADES
 // ══════════════════════════════════════════════════════════════
-function navigateTo(view) {
-  document.querySelectorAll(".nav-item").forEach(l => l.classList.remove("active"));
-  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
-  document.querySelector(`[data-view='${view}']`)?.classList.add("active");
-  document.getElementById(`view-${view}`)?.classList.add("active");
-}
-
 async function apiFetch(path, options = {}) {
   const token = getToken();
   const headers = { ...(options.headers || {}) };
@@ -942,9 +935,18 @@ function buildBatchMarkdownReport(results, title = "Análisis Batch") {
 // ── Historial en memoria de sesión ──────────────────────────────
 const scanHistory = [];
 
-// ── Navegación centralizada ───────────────────────────────────
-function navigateTo(target) {
-  if (!target) return;
+// ── Navegación centralizada con hash routing ─────────────────
+const VALID_VIEWS = new Set(["home","individual","batch","lists","history","evolution","admin","wiki"]);
+
+function navigateTo(target, { pushHash = true } = {}) {
+  if (!target || !VALID_VIEWS.has(target)) return;
+  const user = getUser();
+  // Proteger vista admin: redirigir a home si no es admin
+  if (target === "admin" && user?.role !== "admin") target = "home";
+  // Actualizar hash sin disparar hashchange de nuevo
+  if (pushHash && location.hash !== `#${target}`) {
+    history.pushState(null, "", `#${target}`);
+  }
   // Actualizar nav items del sidebar
   document.querySelectorAll(".sidebar-nav .nav-item").forEach(l => l.classList.remove("active"));
   const navLink = document.querySelector(`.sidebar-nav .nav-item[data-view="${target}"]`);
@@ -952,12 +954,11 @@ function navigateTo(target) {
   // Actualizar vistas
   document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
   document.getElementById(`view-${target}`)?.classList.add("active");
-  // Actualizar username en home si aplica
+  // Datos específicos por vista
   if (target === "home") {
     const homeUser = document.getElementById("home-username");
-    if (homeUser) homeUser.textContent = getUser()?.username || "";
+    if (homeUser) homeUser.textContent = user?.username || "";
   }
-  // Cargar datos de la vista
   if (target === "history")   loadHistoryPage(0, true);
   if (target === "lists")     loadListsIndex();
   if (target === "evolution") initEvolutionView();
@@ -968,6 +969,17 @@ function navigateTo(target) {
     document.getElementById("sidebar-backdrop")?.classList.remove("show");
   }
 }
+
+// Leer hash actual y navegar (sin re-pushear)
+function navigateFromHash() {
+  const hash = location.hash.replace(/^#/, "").trim();
+  navigateTo(VALID_VIEWS.has(hash) ? hash : "home", { pushHash: false });
+}
+
+// Botón atrás / adelante del navegador
+window.addEventListener("popstate", () => {
+  if (getToken()) navigateFromHash();
+});
 
 document.querySelectorAll(".sidebar-nav .nav-item").forEach(link => {
   link.addEventListener("click", e => {
