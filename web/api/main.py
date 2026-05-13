@@ -24,7 +24,7 @@ from sqlmodel import Session, col, func, select
 
 import auth
 import database
-from models import ScanHistory, User
+from models import DomainList, ListDomain, ScanHistory, User
 
 # ── Configuración ──────────────────────────────────────────────────────────────
 SCAN_SCRIPT = Path(os.environ.get("SCAN_SCRIPT_PATH", str(Path(__file__).parent / "scan.sh")))
@@ -43,7 +43,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[FRONTEND_ORIGIN],
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["Content-Type", "Authorization"],
 )
 
@@ -182,6 +182,7 @@ def _save_scan(
     data: dict[str, Any],
     mode: str,
     user_id: Optional[int],
+    list_id: Optional[int] = None,
 ) -> ScanHistory:
     """Persiste el resultado de un scan en la base de datos."""
     s = data.get("summary", {})
@@ -194,6 +195,7 @@ def _save_scan(
         scan_mode=mode,
         results_json=json.dumps(data),
         triggered_by=user_id,
+        list_id=list_id,
     )
     session.add(record)
     session.commit()
@@ -404,7 +406,299 @@ async def history_list(
                 "warn_count": r.warn_count,
                 "skip_count": r.skip_count,
                 "scan_mode": r.scan_mode,
+                "list_id": r.list_id,
             }
             for r in records
         ],
     }
+
+
+# ── Endpoints: listas de dominios (Fase B) ────────────────────────────────────
+
+class ListCreateRequest(BaseModel):
+    name: str
+    description: str = ""
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        v = v.strip()
+        if not v or len(v) > 128:
+            raise ValueError("El nombre es obligatorio y debe tener menos de 128 caracteres")
+        return v
+
+
+class DomainEntryRequest(BaseModel):
+    domain: str
+    session_cookie: str = ""
+    ip: str = ""
+    notes: str = ""
+    is_active: bool = True
+
+    @field_validator("domain")
+    @classmethod
+    def validate_domain(cls, v: str) -> str:
+        v = v.strip()
+        v = re.sub(r"^https?://", "", v)
+        host = v.split("/")[0]
+        if not _DOMAIN_RE.match(v) or len(host) > 253:
+            raise ValueError("Dominio no válido")
+        return v
+
+    @field_validator("session_cookie")
+    @classmethod
+    def validate_cookie(cls, v: str) -> str:
+        v = v.strip()
+        if v and not _COOKIE_RE.match(v):
+            raise ValueError("Nombre de cookie no válido")
+        return v
+
+    @field_validator("ip")
+    @classmethod
+    def validate_ip(cls, v: str) -> str:
+        v = v.strip()
+        if v and not _IP_RE.match(v):
+            raise ValueError("IP no válida")
+        return v
+
+
+def _list_or_404(list_id: int, session: Session) -> DomainList:
+    dl = session.get(DomainList, list_id)
+    if not dl:
+        raise HTTPException(status_code=404, detail="Lista no encontrada")
+    return dl
+
+
+@app.get("/api/lists")
+async def lists_index(
+    current_user: User = Depends(auth.get_current_user),
+    session: Session = Depends(database.get_session),
+):
+    rows = session.exec(select(DomainList).order_by(col(DomainList.created_at).desc())).all()
+    return [
+        {
+            "id": r.id,
+            "name": r.name,
+            "description": r.description,
+            "created_at": r.created_at.isoformat(),
+            "domain_count": session.exec(
+                select(func.count()).where(ListDomain.list_id == r.id)
+            ).one(),
+        }
+        for r in rows
+    ]
+
+
+@app.post("/api/lists", status_code=201)
+async def lists_create(
+    body: ListCreateRequest,
+    current_user: User = Depends(auth.get_current_user),
+    session: Session = Depends(database.get_session),
+):
+    dl = DomainList(name=body.name, description=body.description, created_by=current_user.id)
+    session.add(dl)
+    session.commit()
+    session.refresh(dl)
+    return {"id": dl.id, "name": dl.name, "description": dl.description, "created_at": dl.created_at.isoformat()}
+
+
+@app.get("/api/lists/{list_id}")
+async def lists_get(
+    list_id: int,
+    current_user: User = Depends(auth.get_current_user),
+    session: Session = Depends(database.get_session),
+):
+    dl = _list_or_404(list_id, session)
+    domains = session.exec(select(ListDomain).where(ListDomain.list_id == list_id)).all()
+    return {
+        "id": dl.id,
+        "name": dl.name,
+        "description": dl.description,
+        "created_at": dl.created_at.isoformat(),
+        "domains": [
+            {
+                "id": d.id,
+                "domain": d.domain,
+                "session_cookie": d.session_cookie,
+                "ip": d.ip,
+                "notes": d.notes,
+                "is_active": d.is_active,
+                "added_at": d.added_at.isoformat(),
+            }
+            for d in domains
+        ],
+    }
+
+
+@app.put("/api/lists/{list_id}")
+async def lists_update(
+    list_id: int,
+    body: ListCreateRequest,
+    current_user: User = Depends(auth.get_current_user),
+    session: Session = Depends(database.get_session),
+):
+    dl = _list_or_404(list_id, session)
+    dl.name = body.name
+    dl.description = body.description
+    session.add(dl)
+    session.commit()
+    session.refresh(dl)
+    return {"id": dl.id, "name": dl.name, "description": dl.description}
+
+
+@app.delete("/api/lists/{list_id}", status_code=204)
+async def lists_delete(
+    list_id: int,
+    current_user: User = Depends(auth.get_current_user),
+    session: Session = Depends(database.get_session),
+):
+    dl = _list_or_404(list_id, session)
+    # Eliminar dominios asociados primero
+    for d in session.exec(select(ListDomain).where(ListDomain.list_id == list_id)).all():
+        session.delete(d)
+    session.delete(dl)
+    session.commit()
+
+
+@app.post("/api/lists/{list_id}/domains", status_code=201)
+async def lists_add_domain(
+    list_id: int,
+    body: DomainEntryRequest,
+    current_user: User = Depends(auth.get_current_user),
+    session: Session = Depends(database.get_session),
+):
+    _list_or_404(list_id, session)
+    d = ListDomain(
+        list_id=list_id,
+        domain=body.domain,
+        session_cookie=body.session_cookie,
+        ip=body.ip,
+        notes=body.notes,
+        is_active=body.is_active,
+    )
+    session.add(d)
+    session.commit()
+    session.refresh(d)
+    return {"id": d.id, "domain": d.domain, "session_cookie": d.session_cookie, "ip": d.ip, "notes": d.notes, "is_active": d.is_active}
+
+
+@app.put("/api/lists/{list_id}/domains/{domain_id}")
+async def lists_update_domain(
+    list_id: int,
+    domain_id: int,
+    body: DomainEntryRequest,
+    current_user: User = Depends(auth.get_current_user),
+    session: Session = Depends(database.get_session),
+):
+    _list_or_404(list_id, session)
+    d = session.get(ListDomain, domain_id)
+    if not d or d.list_id != list_id:
+        raise HTTPException(status_code=404, detail="Dominio no encontrado en la lista")
+    d.domain = body.domain
+    d.session_cookie = body.session_cookie
+    d.ip = body.ip
+    d.notes = body.notes
+    d.is_active = body.is_active
+    session.add(d)
+    session.commit()
+    session.refresh(d)
+    return {"id": d.id, "domain": d.domain, "session_cookie": d.session_cookie, "ip": d.ip, "notes": d.notes, "is_active": d.is_active}
+
+
+@app.delete("/api/lists/{list_id}/domains/{domain_id}", status_code=204)
+async def lists_delete_domain(
+    list_id: int,
+    domain_id: int,
+    current_user: User = Depends(auth.get_current_user),
+    session: Session = Depends(database.get_session),
+):
+    _list_or_404(list_id, session)
+    d = session.get(ListDomain, domain_id)
+    if not d or d.list_id != list_id:
+        raise HTTPException(status_code=404, detail="Dominio no encontrado en la lista")
+    session.delete(d)
+    session.commit()
+
+
+@app.post("/api/lists/{list_id}/import-csv")
+async def lists_import_csv(
+    list_id: int,
+    body: BatchRequest,
+    current_user: User = Depends(auth.get_current_user),
+    session: Session = Depends(database.get_session),
+):
+    _list_or_404(list_id, session)
+    added = 0
+    errors = []
+    for line in body.csv_content.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = [p.strip() for p in line.split(",")]
+        domain_raw = parts[0] if parts else ""
+        cookie = parts[1] if len(parts) > 1 else ""
+        ip = parts[2] if len(parts) > 2 else ""
+        try:
+            validated = DomainEntryRequest(domain=domain_raw, session_cookie=cookie, ip=ip)
+        except Exception as exc:
+            errors.append({"line": line, "error": str(exc)})
+            continue
+        session.add(ListDomain(
+            list_id=list_id,
+            domain=validated.domain,
+            session_cookie=validated.session_cookie,
+            ip=validated.ip,
+        ))
+        added += 1
+    session.commit()
+    return {"added": added, "errors": errors}
+
+
+@app.get("/api/lists/{list_id}/export-csv")
+async def lists_export_csv(
+    list_id: int,
+    current_user: User = Depends(auth.get_current_user),
+    session: Session = Depends(database.get_session),
+):
+    dl = _list_or_404(list_id, session)
+    domains = session.exec(
+        select(ListDomain).where(ListDomain.list_id == list_id).where(ListDomain.is_active == True)  # noqa: E712
+    ).all()
+    lines = ["# dominio,cookie_sesion,ip_forzada"]
+    for d in domains:
+        lines.append(f"{d.domain},{d.session_cookie},{d.ip}")
+    from fastapi.responses import PlainTextResponse
+    return PlainTextResponse(
+        content="\n".join(lines),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{dl.name}.csv"'},
+    )
+
+
+@app.post("/api/lists/{list_id}/scan")
+@limiter.limit("3/minute")
+async def lists_scan(
+    request: Request,
+    list_id: int,
+    current_user: User = Depends(auth.get_current_user),
+    session: Session = Depends(database.get_session),
+):
+    _list_or_404(list_id, session)
+    domains = session.exec(
+        select(ListDomain).where(ListDomain.list_id == list_id).where(ListDomain.is_active == True)  # noqa: E712
+    ).all()
+    if not domains:
+        raise HTTPException(status_code=400, detail="La lista no tiene dominios activos")
+
+    tasks = [_run_scan(d.domain, d.session_cookie, d.ip) for d in domains]
+    scan_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    results = []
+    for r in scan_results:
+        if isinstance(r, Exception):
+            results.append({"error": str(r)})
+        else:
+            _save_scan(session, r, "list", current_user.id, list_id=list_id)
+            results.append(r)
+
+    return {"list_id": list_id, "total": len(results), "results": results}

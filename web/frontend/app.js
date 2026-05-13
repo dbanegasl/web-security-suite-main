@@ -293,6 +293,17 @@ function renderBatchResults(data, lines) {
   });
 
   const table = document.getElementById("batch-summary-table");
+  renderBatchTable(table, results, lines);
+  batchResults.classList.remove("hidden");
+}
+
+/**
+ * Rellena una <table> con los resultados de un análisis batch.
+ * @param {HTMLTableElement} table - El elemento tabla destino
+ * @param {Array} results - Array de resultados de scan
+ * @param {Array} [lines] - Líneas CSV originales (opcional, para fallback de nombre de dominio)
+ */
+function renderBatchTable(table, results, lines = []) {
   const colCount = TESTS.length + 4;
   let html = "<thead><tr><th>Dominio</th>";
   TESTS.forEach(t => { html += `<th><a href="/wiki.html#t${t}" target="_blank" rel="noopener" class="wiki-th-link" title="TEST-${t}">${t}</a></th>`; });
@@ -350,8 +361,6 @@ function renderBatchResults(data, lines) {
       tog.textContent = detail.classList.contains("hidden") ? "▶" : "▼";
     });
   });
-
-  batchResults.classList.remove("hidden");
 }
 
 document.getElementById("btn-batch-download")?.addEventListener("click", () => {
@@ -612,7 +621,338 @@ document.querySelectorAll(".nav-item").forEach(link => {
     document.querySelectorAll(".nav-item").forEach(l => l.classList.remove("active"));
     document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
     link.classList.add("active");
-    document.getElementById(`view-${target}`)?.classList.add("active");
+    const view = document.getElementById(`view-${target}`);
+    if (view) view.classList.add("active");
+    if (target === "lists") loadListsIndex();
   });
+});
+
+
+// ═══════════════════════════════════════════════════════════════
+// FASE B — LISTAS DE DOMINIOS
+// ═══════════════════════════════════════════════════════════════
+
+let _activeListId = null;
+let _editingDomainId = null;
+let _importCsvContent = null;
+
+// ── Helpers de modal ──────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.remove("hidden"); }
+function closeModal(id) { document.getElementById(id).classList.add("hidden"); }
+
+// ── Índice de listas ──────────────────────────────────────────
+async function loadListsIndex() {
+  const ul = document.getElementById("lists-index");
+  ul.innerHTML = '<li class="muted" style="padding:8px 12px">Cargando…</li>';
+  try {
+    const rows = await apiGet("/api/lists");
+    ul.innerHTML = "";
+    if (!rows.length) {
+      ul.innerHTML = '<li class="muted" style="padding:8px 12px">Sin listas todavía.</li>';
+      return;
+    }
+    rows.forEach(list => {
+      const li = document.createElement("li");
+      li.className = "list-index-item" + (_activeListId === list.id ? " active" : "");
+      li.dataset.id = list.id;
+      li.innerHTML = `
+        <span class="list-index-name">${escapeHtml(list.name)}</span>
+        <span class="list-index-count">${list.domain_count} dominios</span>`;
+      li.addEventListener("click", () => selectList(list.id));
+      ul.appendChild(li);
+    });
+  } catch {
+    ul.innerHTML = '<li class="muted" style="padding:8px 12px">Error al cargar listas.</li>';
+  }
+}
+
+// ── Seleccionar lista ─────────────────────────────────────────
+async function selectList(listId) {
+  _activeListId = listId;
+  document.querySelectorAll(".list-index-item").forEach(li => {
+    li.classList.toggle("active", Number(li.dataset.id) === listId);
+  });
+  document.getElementById("list-empty-state").classList.add("hidden");
+  document.getElementById("list-active").classList.remove("hidden");
+  document.getElementById("list-scan-result").classList.add("hidden");
+
+  try {
+    const data = await apiGet(`/api/lists/${listId}`);
+    document.getElementById("list-title").textContent = data.name;
+    document.getElementById("list-description").textContent = data.description || "";
+    renderListDomains(data.domains);
+  } catch {
+    showListError("Error al cargar la lista.");
+  }
+}
+
+// ── Renderizar tabla de dominios ──────────────────────────────
+function renderListDomains(domains) {
+  const tbody = document.getElementById("list-domains-tbody");
+  document.getElementById("list-domain-count").textContent =
+    `${domains.length} dominio${domains.length !== 1 ? "s" : ""}`;
+  tbody.innerHTML = "";
+  domains.forEach(d => {
+    const tr = document.createElement("tr");
+    tr.dataset.id = d.id;
+    tr.innerHTML = `
+      <td><code>${escapeHtml(d.domain)}</code></td>
+      <td class="muted">${escapeHtml(d.session_cookie) || "—"}</td>
+      <td class="muted">${escapeHtml(d.ip) || "—"}</td>
+      <td class="muted">${escapeHtml(d.notes) || "—"}</td>
+      <td><span class="badge ${d.is_active ? "badge-pass" : "badge-skip"}">${d.is_active ? "Sí" : "No"}</span></td>
+      <td>
+        <button class="btn btn-sm" onclick="openEditDomain(${d.id})">✏</button>
+        <button class="btn btn-sm btn-danger-sm" onclick="deleteDomain(${d.id})">🗑</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function showListError(msg) {
+  console.error(msg);
+}
+
+// ── Nueva lista ───────────────────────────────────────────────
+document.getElementById("btn-new-list").addEventListener("click", () => {
+  document.getElementById("list-form-title").textContent = "Nueva lista";
+  document.getElementById("list-name").value = "";
+  document.getElementById("list-desc-input").value = "";
+  document.getElementById("list-form-error").classList.add("hidden");
+  document.getElementById("form-list").dataset.editId = "";
+  openModal("list-form-modal");
+});
+
+["btn-list-form-close", "btn-list-form-cancel"].forEach(id =>
+  document.getElementById(id).addEventListener("click", () => closeModal("list-form-modal"))
+);
+
+document.getElementById("form-list").addEventListener("submit", async e => {
+  e.preventDefault();
+  const name = document.getElementById("list-name").value.trim();
+  const description = document.getElementById("list-desc-input").value.trim();
+  const editId = document.getElementById("form-list").dataset.editId;
+  const errEl = document.getElementById("list-form-error");
+  errEl.classList.add("hidden");
+
+  try {
+    if (editId) {
+      await apiFetch(`/api/lists/${editId}`, { method: "PUT", body: JSON.stringify({ name, description }) });
+    } else {
+      await apiFetch("/api/lists", { method: "POST", body: JSON.stringify({ name, description }) });
+    }
+    closeModal("list-form-modal");
+    await loadListsIndex();
+    if (editId) await selectList(Number(editId));
+  } catch (err) {
+    errEl.textContent = err.message || "Error al guardar la lista.";
+    errEl.classList.remove("hidden");
+  }
+});
+
+// ── Editar lista ──────────────────────────────────────────────
+document.getElementById("btn-list-edit").addEventListener("click", async () => {
+  if (!_activeListId) return;
+  const data = await apiGet(`/api/lists/${_activeListId}`);
+  document.getElementById("list-form-title").textContent = "Editar lista";
+  document.getElementById("list-name").value = data.name;
+  document.getElementById("list-desc-input").value = data.description || "";
+  document.getElementById("list-form-error").classList.add("hidden");
+  document.getElementById("form-list").dataset.editId = _activeListId;
+  openModal("list-form-modal");
+});
+
+// ── Eliminar lista ────────────────────────────────────────────
+document.getElementById("btn-list-delete").addEventListener("click", async () => {
+  if (!_activeListId) return;
+  const name = document.getElementById("list-title").textContent;
+  if (!confirm(`¿Eliminar la lista "${name}" y todos sus dominios?`)) return;
+  try {
+    await apiFetch(`/api/lists/${_activeListId}`, { method: "DELETE" });
+    _activeListId = null;
+    document.getElementById("list-empty-state").classList.remove("hidden");
+    document.getElementById("list-active").classList.add("hidden");
+    await loadListsIndex();
+  } catch (err) {
+    alert(err.message || "Error al eliminar la lista.");
+  }
+});
+
+// ── Añadir dominio ────────────────────────────────────────────
+document.getElementById("btn-add-domain").addEventListener("click", () => {
+  _editingDomainId = null;
+  document.getElementById("domain-form-title").textContent = "Añadir dominio";
+  ["df-domain", "df-cookie", "df-ip", "df-notes"].forEach(id =>
+    document.getElementById(id).value = ""
+  );
+  document.getElementById("domain-form-error").classList.add("hidden");
+  openModal("domain-form-modal");
+});
+
+["btn-domain-form-close", "btn-domain-form-cancel"].forEach(id =>
+  document.getElementById(id).addEventListener("click", () => closeModal("domain-form-modal"))
+);
+
+document.getElementById("form-domain").addEventListener("submit", async e => {
+  e.preventDefault();
+  const body = {
+    domain: document.getElementById("df-domain").value.trim(),
+    session_cookie: document.getElementById("df-cookie").value.trim(),
+    ip: document.getElementById("df-ip").value.trim(),
+    notes: document.getElementById("df-notes").value.trim(),
+    is_active: true,
+  };
+  const errEl = document.getElementById("domain-form-error");
+  errEl.classList.add("hidden");
+  try {
+    if (_editingDomainId) {
+      await apiFetch(`/api/lists/${_activeListId}/domains/${_editingDomainId}`,
+        { method: "PUT", body: JSON.stringify(body) });
+    } else {
+      await apiFetch(`/api/lists/${_activeListId}/domains`,
+        { method: "POST", body: JSON.stringify(body) });
+    }
+    closeModal("domain-form-modal");
+    await selectList(_activeListId);
+  } catch (err) {
+    errEl.textContent = err.message || "Error al guardar el dominio.";
+    errEl.classList.remove("hidden");
+  }
+});
+
+window.openEditDomain = async function(domainId) {
+  _editingDomainId = domainId;
+  const data = await apiGet(`/api/lists/${_activeListId}`);
+  const d = data.domains.find(x => x.id === domainId);
+  if (!d) return;
+  document.getElementById("domain-form-title").textContent = "Editar dominio";
+  document.getElementById("df-domain").value = d.domain;
+  document.getElementById("df-cookie").value = d.session_cookie;
+  document.getElementById("df-ip").value = d.ip;
+  document.getElementById("df-notes").value = d.notes;
+  document.getElementById("domain-form-error").classList.add("hidden");
+  openModal("domain-form-modal");
+};
+
+window.deleteDomain = async function(domainId) {
+  if (!confirm("¿Eliminar este dominio de la lista?")) return;
+  try {
+    await apiFetch(`/api/lists/${_activeListId}/domains/${domainId}`, { method: "DELETE" });
+    await selectList(_activeListId);
+  } catch (err) {
+    alert(err.message || "Error al eliminar el dominio.");
+  }
+};
+
+// ── Exportar CSV ──────────────────────────────────────────────
+document.getElementById("btn-list-export").addEventListener("click", async () => {
+  if (!_activeListId) return;
+  const token = getToken();
+  const a = document.createElement("a");
+  a.href = `/api/lists/${_activeListId}/export-csv`;
+  // Añadir token como parámetro no es seguro; usamos fetch + blob
+  try {
+    const resp = await fetch(`/api/lists/${_activeListId}/export-csv`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) throw new Error("Error al exportar");
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const name = document.getElementById("list-title").textContent;
+    link.href = url;
+    link.download = `${name}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+// ── Importar CSV ──────────────────────────────────────────────
+document.getElementById("btn-list-import").addEventListener("click", () => {
+  _importCsvContent = null;
+  document.getElementById("import-preview-count").textContent = "";
+  document.getElementById("import-error").classList.add("hidden");
+  document.getElementById("import-file-input").value = "";
+  document.getElementById("btn-import-csv-confirm").disabled = true;
+  openModal("import-csv-modal");
+});
+
+["btn-import-csv-close", "btn-import-csv-cancel"].forEach(id =>
+  document.getElementById(id).addEventListener("click", () => closeModal("import-csv-modal"))
+);
+
+document.getElementById("import-file-input").addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    _importCsvContent = ev.target.result;
+    const lines = _importCsvContent.split("\n").filter(l => l.trim() && !l.startsWith("#"));
+    document.getElementById("import-preview-count").textContent =
+      `${lines.length} dominio${lines.length !== 1 ? "s" : ""} detectado${lines.length !== 1 ? "s" : ""}`;
+    document.getElementById("btn-import-csv-confirm").disabled = lines.length === 0;
+  };
+  reader.readAsText(file);
+});
+
+document.getElementById("btn-import-csv-confirm").addEventListener("click", async () => {
+  if (!_importCsvContent || !_activeListId) return;
+  const errEl = document.getElementById("import-error");
+  errEl.classList.add("hidden");
+  try {
+    const res = await apiPost(`/api/lists/${_activeListId}/import-csv`, { csv_content: _importCsvContent });
+    closeModal("import-csv-modal");
+    await selectList(_activeListId);
+    await loadListsIndex();
+    if (res.errors?.length) {
+      alert(`Importados: ${res.added}. Errores: ${res.errors.length}`);
+    }
+  } catch (err) {
+    errEl.textContent = err.message || "Error al importar CSV.";
+    errEl.classList.remove("hidden");
+  }
+});
+
+// ── Scan desde lista ──────────────────────────────────────────
+document.getElementById("btn-list-scan").addEventListener("click", async () => {
+  if (!_activeListId) return;
+  const progressWrap = document.getElementById("list-scan-progress");
+  const fill = document.getElementById("list-progress-fill");
+  const label = document.getElementById("list-progress-label");
+  const resultDiv = document.getElementById("list-scan-result");
+
+  progressWrap.classList.remove("hidden");
+  resultDiv.classList.add("hidden");
+  fill.style.width = "0%";
+  label.textContent = "Ejecutando scan…";
+
+  // Animación de progreso indeterminado
+  let pct = 0;
+  const ticker = setInterval(() => {
+    pct = Math.min(pct + Math.random() * 8, 90);
+    fill.style.width = `${pct}%`;
+  }, 800);
+
+  try {
+    const data = await apiPost(`/api/lists/${_activeListId}/scan`, {});
+    clearInterval(ticker);
+    fill.style.width = "100%";
+    label.textContent = `Completado — ${data.total} dominio${data.total !== 1 ? "s" : ""}`;
+
+    // Reutilizar renderizador de batch
+    const table = document.getElementById("list-batch-table");
+    renderBatchTable(table, data.results);
+    document.getElementById("list-scan-meta").textContent =
+      `Scan completado: ${new Date().toLocaleString()} — ${data.total} dominios`;
+    resultDiv.classList.remove("hidden");
+
+    setTimeout(() => progressWrap.classList.add("hidden"), 1500);
+  } catch (err) {
+    clearInterval(ticker);
+    fill.style.width = "0%";
+    label.textContent = "Error: " + (err.message || "Fallo al ejecutar el scan");
+  }
 });
 

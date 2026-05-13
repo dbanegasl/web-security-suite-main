@@ -63,6 +63,7 @@
     <ul class="nav-links">
       <li><a href="#" class="nav-item active" data-view="individual">Análisis individual</a></li>
       <li><a href="#" class="nav-item" data-view="batch">Análisis batch</a></li>
+      <li><a href="#" class="nav-item" data-view="lists">📋 Listas de dominios</a></li>
       <li><a href="#" class="nav-item" data-view="history">Historial</a></li>
     </ul>
     <div class="sidebar-separator"></div>
@@ -72,7 +73,7 @@
     <div class="sidebar-footer">
       <span id="sidebar-user" class="sidebar-user"></span>
       <a href="#" id="btn-logout" class="logout-link">Cerrar sesión</a>
-      <div>v3.2 — Fase A</div>
+      <div>v3.3 — Fase B</div>
     </div>
   </nav>
 
@@ -187,6 +188,173 @@
           <table id="batch-summary-table" class="batch-table"></table>
         </div>
         <button class="btn btn-sm" id="btn-batch-download">⬇ Descargar reporte</button>
+      </div>
+    </section>
+
+    <!-- ══ Vista: Listas de dominios ════════════════════════ -->
+    <section id="view-lists" class="view">
+      <div class="lists-layout">
+
+        <!-- Panel izquierdo: listado de listas -->
+        <div class="lists-sidebar">
+          <div class="lists-sidebar-header">
+            <h2>Listas</h2>
+            <button class="btn btn-sm btn-primary" id="btn-new-list">+ Nueva</button>
+          </div>
+          <ul id="lists-index" class="lists-index"></ul>
+        </div>
+
+        <!-- Panel derecho: detalle de la lista seleccionada -->
+        <div class="lists-detail" id="lists-detail">
+
+          <!-- Estado vacío -->
+          <div id="list-empty-state" class="list-empty-state">
+            <p>Selecciona o crea una lista para comenzar.</p>
+          </div>
+
+          <!-- Contenido de lista activa -->
+          <div id="list-active" class="hidden">
+            <div class="list-detail-header">
+              <div>
+                <h2 id="list-title" class="list-title"></h2>
+                <p id="list-description" class="list-desc muted"></p>
+              </div>
+              <div class="list-actions">
+                <button class="btn btn-sm" id="btn-list-edit">✏ Editar</button>
+                <button class="btn btn-sm" id="btn-list-import">⬆ Importar CSV</button>
+                <button class="btn btn-sm" id="btn-list-export">⬇ Exportar CSV</button>
+                <button class="btn btn-sm btn-primary" id="btn-list-scan">▶ Lanzar scan</button>
+                <button class="btn btn-sm btn-danger" id="btn-list-delete">🗑 Eliminar</button>
+              </div>
+            </div>
+
+            <!-- Barra de progreso del scan de lista -->
+            <div id="list-scan-progress" class="hidden">
+              <div class="progress-bar">
+                <div class="progress-fill" id="list-progress-fill"></div>
+                <span class="progress-label" id="list-progress-label">Ejecutando scan...</span>
+              </div>
+            </div>
+
+            <!-- Resultado del último scan de lista -->
+            <div id="list-scan-result" class="hidden">
+              <p class="muted" id="list-scan-meta"></p>
+              <div class="batch-table-wrap">
+                <table id="list-batch-table" class="batch-table"></table>
+              </div>
+            </div>
+
+            <!-- Toolbar dominios -->
+            <div class="list-domains-toolbar">
+              <span id="list-domain-count" class="muted"></span>
+              <button class="btn btn-sm" id="btn-add-domain">+ Añadir dominio</button>
+            </div>
+
+            <!-- Tabla de dominios -->
+            <table class="lists-table" id="list-domains-table">
+              <thead>
+                <tr>
+                  <th>Dominio</th>
+                  <th>Cookie sesión</th>
+                  <th>IP forzada</th>
+                  <th>Notas</th>
+                  <th>Activo</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="list-domains-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal nueva/editar lista -->
+      <div id="list-form-modal" class="modal-overlay hidden">
+        <div class="modal-card" style="max-width:480px">
+          <div class="modal-header">
+            <h2 id="list-form-title">Nueva lista</h2>
+            <button class="modal-close" id="btn-list-form-close">✕</button>
+          </div>
+          <div class="modal-body">
+            <form id="form-list" novalidate>
+              <div class="form-row">
+                <label for="list-name">Nombre <span class="required">*</span></label>
+                <input type="text" id="list-name" maxlength="128" required />
+              </div>
+              <div class="form-row">
+                <label for="list-desc-input">Descripción</label>
+                <input type="text" id="list-desc-input" maxlength="512" />
+              </div>
+              <div id="list-form-error" class="login-error hidden"></div>
+              <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
+                <button type="button" class="btn btn-secondary" id="btn-list-form-cancel">Cancelar</button>
+                <button type="submit" class="btn btn-primary" id="btn-list-form-submit">Guardar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal añadir/editar dominio -->
+      <div id="domain-form-modal" class="modal-overlay hidden">
+        <div class="modal-card" style="max-width:520px">
+          <div class="modal-header">
+            <h2 id="domain-form-title">Añadir dominio</h2>
+            <button class="modal-close" id="btn-domain-form-close">✕</button>
+          </div>
+          <div class="modal-body">
+            <form id="form-domain" novalidate>
+              <div class="form-row">
+                <label for="df-domain">Dominio <span class="required">*</span></label>
+                <input type="text" id="df-domain" placeholder="ejemplo.com" required />
+              </div>
+              <div class="form-row">
+                <label for="df-cookie">Cookie de sesión</label>
+                <input type="text" id="df-cookie" placeholder="sessionid (opcional)" />
+              </div>
+              <div class="form-row">
+                <label for="df-ip">IP forzada</label>
+                <input type="text" id="df-ip" placeholder="192.168.x.x (opcional)" />
+              </div>
+              <div class="form-row">
+                <label for="df-notes">Notas</label>
+                <input type="text" id="df-notes" placeholder="Opcional" maxlength="512" />
+              </div>
+              <div id="domain-form-error" class="login-error hidden"></div>
+              <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
+                <button type="button" class="btn btn-secondary" id="btn-domain-form-cancel">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal importar CSV -->
+      <div id="import-csv-modal" class="modal-overlay hidden">
+        <div class="modal-card" style="max-width:520px">
+          <div class="modal-header">
+            <h2>Importar CSV</h2>
+            <button class="modal-close" id="btn-import-csv-close">✕</button>
+          </div>
+          <div class="modal-body">
+            <p class="muted" style="margin-bottom:12px">Formato: <code>dominio,cookie_sesion,ip_forzada</code></p>
+            <div class="csv-upload-area" id="import-drop-area">
+              <span>Arrastra tu CSV aquí</span>
+              <span>o</span>
+              <label class="btn btn-secondary">
+                Seleccionar archivo
+                <input type="file" id="import-file-input" accept=".csv,.txt" hidden />
+              </label>
+            </div>
+            <p id="import-preview-count" class="muted" style="margin-top:8px"></p>
+            <div id="import-error" class="login-error hidden"></div>
+            <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
+              <button type="button" class="btn btn-secondary" id="btn-import-csv-cancel">Cancelar</button>
+              <button type="button" class="btn btn-primary" id="btn-import-csv-confirm" disabled>Importar</button>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 

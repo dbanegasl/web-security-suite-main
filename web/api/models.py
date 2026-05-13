@@ -18,6 +18,29 @@ class User(SQLModel, table=True):
     last_login: Optional[datetime] = Field(default=None)
 
 
+class DomainList(SQLModel, table=True):
+    __tablename__ = "domain_lists"  # type: ignore[assignment]
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True, max_length=128)
+    description: str = Field(default="", max_length=512)
+    created_by: Optional[int] = Field(default=None, foreign_key="users.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class ListDomain(SQLModel, table=True):
+    __tablename__ = "list_domains"  # type: ignore[assignment]
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    list_id: int = Field(foreign_key="domain_lists.id", index=True)
+    domain: str = Field(max_length=253)
+    session_cookie: str = Field(default="", max_length=128)
+    ip: str = Field(default="", max_length=45)
+    notes: str = Field(default="", max_length=512)
+    is_active: bool = Field(default=True)
+    added_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class ScanHistory(SQLModel, table=True):
     __tablename__ = "scan_history"  # type: ignore[assignment]
 
@@ -28,6 +51,7 @@ class ScanHistory(SQLModel, table=True):
     fail_count: int = Field(default=0)
     warn_count: int = Field(default=0)
     skip_count: int = Field(default=0)
-    scan_mode: str = Field(default="individual")   # "individual" | "batch"
+    scan_mode: str = Field(default="individual")   # "individual" | "batch" | "list"
     results_json: str = Field(default="{}")
     triggered_by: Optional[int] = Field(default=None, foreign_key="users.id")
+    list_id: Optional[int] = Field(default=None, foreign_key="domain_lists.id")

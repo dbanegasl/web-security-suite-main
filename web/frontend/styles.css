@@ -533,3 +533,108 @@ code {
 .compare-table th { font-size: 11px; color: var(--text-muted); background: var(--bg3); }
 .compare-table tr.diff-changed { background: rgba(248,81,73,.04); }
 .compare-table tr.diff-changed td:first-child { border-left: 3px solid var(--red); }
+
+/* ── Fase B: Vista Listas de dominios ───────────────────────── */
+.lists-layout {
+  display: flex;
+  gap: 0;
+  height: calc(100vh - 60px);
+  overflow: hidden;
+}
+.lists-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.lists-sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.lists-sidebar-header h2 { font-size: 14px; }
+.lists-index {
+  list-style: none;
+  overflow-y: auto;
+  flex: 1;
+  padding: 8px 0;
+}
+.list-index-item {
+  padding: 9px 16px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  transition: background .12s;
+  border-left: 3px solid transparent;
+}
+.list-index-item:hover { background: var(--bg2); }
+.list-index-item.active {
+  background: var(--bg2);
+  border-left-color: var(--blue);
+}
+.list-index-name { font-size: 13px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list-index-count { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+
+.lists-detail {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+.list-empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--text-muted);
+}
+.list-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.list-title { font-size: 18px; margin-bottom: 4px; }
+.list-desc { font-size: 13px; }
+.list-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+.list-domains-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 16px 0 10px;
+}
+.lists-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.lists-table th, .lists-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.lists-table th { font-size: 11px; color: var(--text-muted); background: var(--bg3); }
+.lists-table tr:hover td { background: var(--bg2); }
+
+/* Botón danger pequeño */
+.btn-danger { background: var(--red); color: #fff; }
+.btn-danger:hover { opacity: .85; }
+.btn-danger-sm {
+  background: transparent;
+  color: var(--red);
+  border: 1px solid var(--red);
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background .12s;
+}
+.btn-danger-sm:hover { background: rgba(248,81,73,.1); }
