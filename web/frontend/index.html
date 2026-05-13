@@ -182,10 +182,10 @@
 
       <form id="form-scan" class="scan-form" novalidate>
         <div class="mb-3">
-          <label for="domain" class="form-label">Dominio <span class="text-danger">*</span></label>
+          <label for="domain" class="form-label">URL o dominio <span class="text-danger">*</span></label>
           <input type="text" id="domain" name="domain" class="form-control"
-            placeholder="ejemplo.com" autocomplete="off" spellcheck="false" required />
-          <div class="form-text">Sin protocolo. Ej: <code>app.miempresa.com</code></div>
+            placeholder="ejemplo.com  o  ejemplo.com/ruta/app" autocomplete="off" spellcheck="false" required />
+          <div class="form-text">Acepta dominio, ruta o URL completa. Ej: <code>app.example.com</code> &middot; <code>app.example.com/portal/</code></div>
         </div>
         <div class="mb-3">
           <label for="session-cookie" class="form-label">Cookie de sesión</label>
@@ -389,8 +389,8 @@
           <div class="modal-body">
             <form id="form-domain" novalidate>
               <div class="mb-3">
-                <label for="df-domain" class="form-label">Dominio <span class="text-danger">*</span></label>
-                <input type="text" id="df-domain" class="form-control" placeholder="ejemplo.com" required />
+                <label for="df-domain" class="form-label">URL o dominio <span class="text-danger">*</span></label>
+                <input type="text" id="df-domain" class="form-control" placeholder="ejemplo.com  o  ejemplo.com/ruta" required />
               </div>
               <div class="mb-3">
                 <label for="df-cookie" class="form-label">Cookie de sesión</label>
