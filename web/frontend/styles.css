@@ -230,6 +230,16 @@ code {
 }
 .nav-wiki { color: var(--text-muted) !important; font-size: 12px; }
 .nav-wiki:hover { color: var(--text) !important; }
+
+.view-wiki {
+  margin: -32px;
+}
+.wiki-frame {
+  display: block;
+  width: 100%;
+  height: 100vh;
+  border: none;
+}
 .badge {
   display: inline-block;
   padding: 2px 8px;

@@ -499,7 +499,6 @@ session.cookie_secure = 1</pre></div>
 $CFG->cookiesecure = true;
 $CFG->cookiehttponly = true;</pre></div>
       </div>
-      <div class="info-box danger">⚠️ <strong>El fallo más extendido en la infraestructura analizada.</strong> Prácticamente todos los Moodle carecen de este flag. Es la corrección con mayor impacto de seguridad.</div>
     </div>
   </div>
 
@@ -891,9 +890,6 @@ app.use(helmet.frameguard({ action: 'sameorigin' }));</pre></div>
 
       <h4>¿Por qué importa?</h4>
       <p>CSP es la defensa en profundidad más poderosa contra XSS. Define desde qué orígenes puede cargar el navegador scripts, estilos, imágenes, fuentes, etc. Un CSP bien configurado <strong>bloquea la ejecución de scripts inyectados</strong> aunque el atacante logre inyectarlos.</p>
-
-      <h4>El fallo más extendido</h4>
-      <div class="info-box danger">⚠️ CSP está ausente en 27 de los 37 dominios analizados (73%). Es el área con mayor déficit de seguridad en la infraestructura.</div>
 
       <h4>CSP mínimo recomendado para Moodle/PHP</h4>
       <div class="platform-tabs">
