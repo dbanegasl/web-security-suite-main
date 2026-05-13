@@ -400,7 +400,7 @@ btnCompare?.addEventListener("click", async () => {
     const data = await apiGet(`/api/history/compare?a=${_selectedScans[0]}&b=${_selectedScans[1]}`);
     openCompareModal(data);
   } catch (err) {
-    alert("Error al cargar comparativa: " + err.message);
+    showToast("error", "Error al cargar comparativa", err.message);
   }
 });
 
@@ -465,7 +465,7 @@ async function loadHistoryPage(offset, reset) {
           navigateTo("individual");
           renderResults(detail.results);
         } catch (err) {
-          alert("Error al cargar scan: " + err.message);
+          showToast("error", "Error al cargar scan", err.message);
         }
       });
     });
@@ -537,6 +537,10 @@ async function apiFetch(path, options = {}) {
   const token = getToken();
   const headers = { ...(options.headers || {}) };
   if (token) headers["Authorization"] = `Bearer ${token}`;
+  // Si hay body como string JSON y no se especificó Content-Type, agregarlo automáticamente
+  if (typeof options.body === "string" && !headers["Content-Type"]) {
+    headers["Content-Type"] = "application/json";
+  }
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   if (res.status === 401) {
     clearAuth();
@@ -552,6 +556,10 @@ async function apiFetch(path, options = {}) {
     }
     throw new Error(msg || `HTTP ${res.status}`);
   }
+  // 204 No Content y respuestas sin body no tienen JSON
+  if (res.status === 204 || res.headers.get("content-length") === "0") return null;
+  const ct = res.headers.get("content-type") || "";
+  if (!ct.includes("application/json")) return null;
   return res.json();
 }
 
@@ -573,8 +581,77 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
+/**
+ * Muestra una notificación toast no bloqueante.
+ * @param {string} type  - 'success' | 'error' | 'warn' | 'info'
+ * @param {string} title - Título breve
+ * @param {string} [msg] - Detalle opcional (puede tener saltos de línea)
+ * @param {number} [duration=4000] - ms antes de auto-cerrar (0 = manual)
+ */
+function showToast(type, title, msg = "", duration = 4000) {
+  const icons = { success: "✓", error: "✕", warn: "⚠", info: "ℹ" };
+  const container = document.getElementById("toast-container");
+
+  const toast = document.createElement("div");
+  toast.className = `toast is-${type}`;
+
+  const msgHtml = msg
+    ? `<div class="toast-msg">${escapeHtml(msg).replace(/\n/g, "<br>")}</div>`
+    : "";
+
+  toast.innerHTML = `
+    <span class="toast-icon">${icons[type] || "ℹ"}</span>
+    <div class="toast-body">
+      <div class="toast-title">${escapeHtml(title)}</div>
+      ${msgHtml}
+    </div>
+    <button class="toast-close" aria-label="Cerrar">×</button>`;
+
+  const remove = () => {
+    toast.classList.add("toast-out");
+    toast.addEventListener("animationend", () => toast.remove(), { once: true });
+  };
+
+  toast.querySelector(".toast-close").addEventListener("click", remove);
+  container.appendChild(toast);
+
+  if (duration > 0) setTimeout(remove, duration);
+  return toast;
+}
+
 function sanitizeId(str) {
   return str.replace(/[^a-zA-Z0-9_-]/g, "_");
+}
+
+/**
+ * Reemplaza confirm() nativo por un modal no bloqueante.
+ * @param {string} msg    - Pregunta principal
+ * @param {string} [title] - Título del modal
+ * @param {string} [okLabel] - Texto del botón de confirmación
+ * @returns {Promise<boolean>}
+ */
+function showConfirm(msg, title = "Confirmar", okLabel = "Eliminar") {
+  return new Promise(resolve => {
+    const overlay = document.getElementById("confirm-modal");
+    document.getElementById("confirm-modal-title").textContent = title;
+    document.getElementById("confirm-modal-msg").textContent = msg;
+    document.getElementById("confirm-modal-ok").textContent = okLabel;
+    overlay.classList.remove("hidden");
+
+    const close = (result) => {
+      overlay.classList.add("hidden");
+      btnOk.removeEventListener("click", onOk);
+      btnCancel.removeEventListener("click", onCancel);
+      resolve(result);
+    };
+    const btnOk = document.getElementById("confirm-modal-ok");
+    const btnCancel = document.getElementById("confirm-modal-cancel");
+    const onOk = () => close(true);
+    const onCancel = () => close(false);
+    btnOk.addEventListener("click", onOk, { once: true });
+    btnCancel.addEventListener("click", onCancel, { once: true });
+    overlay.addEventListener("click", e => { if (e.target === overlay) close(false); }, { once: true });
+  });
 }
 
 function formatDate(isoStr) {
@@ -740,15 +817,17 @@ document.getElementById("form-list").addEventListener("submit", async e => {
   const errEl = document.getElementById("list-form-error");
   errEl.classList.add("hidden");
 
+  const jsonHeaders = { "Content-Type": "application/json" };
   try {
     if (editId) {
-      await apiFetch(`/api/lists/${editId}`, { method: "PUT", body: JSON.stringify({ name, description }) });
+      await apiFetch(`/api/lists/${editId}`, { method: "PUT", headers: jsonHeaders, body: JSON.stringify({ name, description }) });
     } else {
-      await apiFetch("/api/lists", { method: "POST", body: JSON.stringify({ name, description }) });
+      await apiFetch("/api/lists", { method: "POST", headers: jsonHeaders, body: JSON.stringify({ name, description }) });
     }
     closeModal("list-form-modal");
     await loadListsIndex();
     if (editId) await selectList(Number(editId));
+    showToast("success", editId ? "Lista actualizada" : "Lista creada");
   } catch (err) {
     errEl.textContent = err.message || "Error al guardar la lista.";
     errEl.classList.remove("hidden");
@@ -771,7 +850,7 @@ document.getElementById("btn-list-edit").addEventListener("click", async () => {
 document.getElementById("btn-list-delete").addEventListener("click", async () => {
   if (!_activeListId) return;
   const name = document.getElementById("list-title").textContent;
-  if (!confirm(`¿Eliminar la lista "${name}" y todos sus dominios?`)) return;
+  if (!await showConfirm(`¿Eliminar la lista "${name}" y todos sus dominios? Esta acción no se puede deshacer.`, "Eliminar lista")) return;
   try {
     await apiFetch(`/api/lists/${_activeListId}`, { method: "DELETE" });
     _activeListId = null;
@@ -779,7 +858,7 @@ document.getElementById("btn-list-delete").addEventListener("click", async () =>
     document.getElementById("list-active").classList.add("hidden");
     await loadListsIndex();
   } catch (err) {
-    alert(err.message || "Error al eliminar la lista.");
+    showToast("error", "Error al eliminar la lista", err.message);
   }
 });
 
@@ -809,16 +888,18 @@ document.getElementById("form-domain").addEventListener("submit", async e => {
   };
   const errEl = document.getElementById("domain-form-error");
   errEl.classList.add("hidden");
+  const jsonHeaders = { "Content-Type": "application/json" };
   try {
     if (_editingDomainId) {
       await apiFetch(`/api/lists/${_activeListId}/domains/${_editingDomainId}`,
-        { method: "PUT", body: JSON.stringify(body) });
+        { method: "PUT", headers: jsonHeaders, body: JSON.stringify(body) });
     } else {
       await apiFetch(`/api/lists/${_activeListId}/domains`,
-        { method: "POST", body: JSON.stringify(body) });
+        { method: "POST", headers: jsonHeaders, body: JSON.stringify(body) });
     }
     closeModal("domain-form-modal");
     await selectList(_activeListId);
+    showToast("success", _editingDomainId ? "Dominio actualizado" : "Dominio añadido");
   } catch (err) {
     errEl.textContent = err.message || "Error al guardar el dominio.";
     errEl.classList.remove("hidden");
@@ -840,12 +921,12 @@ window.openEditDomain = async function(domainId) {
 };
 
 window.deleteDomain = async function(domainId) {
-  if (!confirm("¿Eliminar este dominio de la lista?")) return;
+  if (!await showConfirm("¿Eliminar este dominio de la lista?", "Eliminar dominio")) return;
   try {
     await apiFetch(`/api/lists/${_activeListId}/domains/${domainId}`, { method: "DELETE" });
     await selectList(_activeListId);
   } catch (err) {
-    alert(err.message || "Error al eliminar el dominio.");
+    showToast("error", "Error al eliminar el dominio", err.message);
   }
 };
 
@@ -869,8 +950,9 @@ document.getElementById("btn-list-export").addEventListener("click", async () =>
     link.download = `${name}.csv`;
     link.click();
     URL.revokeObjectURL(url);
+    showToast("success", "CSV exportado", `${name}.csv`);
   } catch (err) {
-    alert(err.message);
+    showToast("error", "Error al exportar CSV", err.message);
   }
 });
 
@@ -911,9 +993,12 @@ document.getElementById("btn-import-csv-confirm").addEventListener("click", asyn
     closeModal("import-csv-modal");
     await selectList(_activeListId);
     await loadListsIndex();
-    if (res.errors?.length) {
-      alert(`Importados: ${res.added}. Errores: ${res.errors.length}`);
-    }
+    const toastType = res.errors?.length ? "warn" : "success";
+    const toastTitle = res.errors?.length ? "Importación con advertencias" : "Importación completada";
+    const parts = [`Añadidos: ${res.added}`];
+    if (res.skipped > 0) parts.push(`Omitidos (duplicados): ${res.skipped}`);
+    if (res.errors?.length) parts.push(`Líneas con error: ${res.errors.length}`);
+    showToast(toastType, toastTitle, parts.join("\n"), res.errors?.length ? 0 : 4000);
   } catch (err) {
     errEl.textContent = err.message || "Error al importar CSV.";
     errEl.classList.remove("hidden");

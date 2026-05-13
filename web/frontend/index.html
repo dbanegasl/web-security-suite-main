@@ -377,6 +377,24 @@
 
   </main>
 
+  <div id="toast-container"></div>
+
+  <!-- Modal de confirmación reutilizable -->
+  <div id="confirm-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-card" style="max-width:400px">
+      <div class="modal-header">
+        <h2 id="confirm-modal-title">Confirmar</h2>
+      </div>
+      <div class="modal-body">
+        <p id="confirm-modal-msg" style="color:var(--text-muted);margin-bottom:20px"></p>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button type="button" class="btn btn-secondary" id="confirm-modal-cancel">Cancelar</button>
+          <button type="button" class="btn btn-danger" id="confirm-modal-ok">Eliminar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>

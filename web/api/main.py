@@ -628,7 +628,24 @@ async def lists_import_csv(
     session: Session = Depends(database.get_session),
 ):
     _list_or_404(list_id, session)
+
+    # Cargar dominios existentes para deduplicación
+    # Clave: (domain_lower, cookie_norm, ip_norm)
+    existing = session.exec(
+        select(ListDomain).where(ListDomain.list_id == list_id)
+    ).all()
+
+    def _norm(val: str) -> str:
+        """Normaliza un campo: strip y lowercase; None o vacío → ''"""
+        return (val or "").strip().lower()
+
+    existing_keys: set[tuple[str, str, str]] = {
+        (_norm(d.domain), _norm(d.session_cookie), _norm(d.ip))
+        for d in existing
+    }
+
     added = 0
+    skipped = 0
     errors = []
     for line in body.csv_content.splitlines():
         line = line.strip()
@@ -643,6 +660,11 @@ async def lists_import_csv(
         except Exception as exc:
             errors.append({"line": line, "error": str(exc)})
             continue
+        key = (_norm(validated.domain), _norm(validated.session_cookie), _norm(validated.ip))
+        if key in existing_keys:
+            skipped += 1
+            continue
+        existing_keys.add(key)  # evitar duplicados dentro del mismo CSV
         session.add(ListDomain(
             list_id=list_id,
             domain=validated.domain,
@@ -651,7 +673,7 @@ async def lists_import_csv(
         ))
         added += 1
     session.commit()
-    return {"added": added, "errors": errors}
+    return {"added": added, "skipped": skipped, "errors": errors}
 
 
 @app.get("/api/lists/{list_id}/export-csv")
