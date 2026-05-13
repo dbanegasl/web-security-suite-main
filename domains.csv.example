@@ -1,0 +1,26 @@
+# UNAE Web Security Suite — Archivo de dominios para análisis automatizado
+# Formato: dominio,cookie_sesion,ip_forzada
+#
+#   dominio       : requerido. Puede incluir subruta (ej: servicios.unae.edu.ec/app/)
+#   cookie_sesion : opcional. Nombre de la cookie de sesión para TEST-02 (HttpOnly)
+#   ip_forzada    : opcional. Fuerza resolución DNS a esa IP (útil para servidores internos)
+#
+# Las líneas que empiezan con # son ignoradas. Los espacios alrededor de las comas también.
+# ──────────────────────────────────────────────────────────────────────────────────────────
+
+# Servidores Moodle / EVEA
+evea.unae.edu.ec,MoodleSession,192.168.3.190
+posgrado.unae.edu.ec,MoodleSession,192.168.3.127
+pregrado.unae.edu.ec,MoodleSession,192.168.3.125
+mooc.unae.edu.ec,MoodleSession,192.168.3.126
+
+# Autenticación / SSO
+sso.unae.edu.ec,JSESSIONID,192.168.3.203
+cas.unae.edu.ec,CASTGC,192.168.3.206
+
+# Infraestructura (sin cookie de sesión conocida, solo dominio + IP)
+servicios.unae.edu.ec,,192.168.3.120
+cloud.unae.edu.ec,,192.168.3.54
+
+# Sin IP forzada (usa DNS normal)
+congresos2.unae.edu.ec,,

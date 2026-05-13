@@ -1,0 +1,6 @@
+# Datos sensibles
+domains.csv
+
+# Reportes generados — solo se trackea la carpeta
+reports/*
+!reports/.gitkeep
