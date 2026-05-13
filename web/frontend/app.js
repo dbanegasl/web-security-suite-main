@@ -127,6 +127,68 @@ formScan.addEventListener("submit", async e => {
   }
 });
 
+// ── Botón Nuevo scan ──────────────────────────────────────────────────────────
+document.getElementById("btn-new-scan")?.addEventListener("click", () => {
+  formScan.reset();
+  document.getElementById("cookie-tags").innerHTML = "";
+  document.getElementById("cookie-tags").classList.add("hidden");
+  hideResults();
+  hideError();
+  document.getElementById("domain").focus();
+});
+
+// ── Descubrir cookies disponibles ────────────────────────────────────────────
+document.getElementById("btn-discover-cookies")?.addEventListener("click", async () => {
+  const domain  = document.getElementById("domain").value.trim();
+  const ip      = document.getElementById("ip").value.trim();
+  const tagsEl  = document.getElementById("cookie-tags");
+  const btn     = document.getElementById("btn-discover-cookies");
+
+  if (!domain) {
+    showError("Ingresa el dominio antes de buscar cookies.");
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Buscando…';
+  tagsEl.innerHTML = "";
+  tagsEl.classList.add("hidden");
+
+  try {
+    const params = new URLSearchParams({ domain });
+    if (ip) params.set("ip", ip);
+    const res  = await fetch(`/api/discover-cookies?${params}`, {
+      headers: { "Authorization": `Bearer ${getToken()}` },
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      throw new Error(d.detail || `Error ${res.status}`);
+    }
+    const { cookies } = await res.json();
+
+    if (!cookies.length) {
+      tagsEl.innerHTML = '<span class="cookie-tag-empty">No se encontraron cookies en la raíz del dominio.</span>';
+    } else {
+      tagsEl.innerHTML = cookies.map(name =>
+        `<button type="button" class="cookie-tag" data-name="${escapeHtml(name)}">${escapeHtml(name)}</button>`
+      ).join("");
+      tagsEl.querySelectorAll(".cookie-tag").forEach(tag => {
+        tag.addEventListener("click", () => {
+          document.getElementById("session-cookie").value = tag.dataset.name;
+          tagsEl.querySelectorAll(".cookie-tag").forEach(t => t.classList.remove("active"));
+          tag.classList.add("active");
+        });
+      });
+    }
+    tagsEl.classList.remove("hidden");
+  } catch (err) {
+    showError("Error al obtener cookies: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-plus me-1"></i>Obtener cookies';
+  }
+});
+
 document.getElementById("btn-download-md")?.addEventListener("click", () => {
   const data = resultsDiv._scanData;
   if (!data) return;
@@ -1716,5 +1778,60 @@ document.getElementById("form-new-user")?.addEventListener("submit", async e => 
   } catch (err) {
     errEl.textContent = err.message;
     errEl.classList.remove("hidden");
+  }
+});
+
+// ── Vaciar historial ─────────────────────────────────────────────────────────
+
+document.getElementById("btn-purge-history")?.addEventListener("click", () => {
+  document.getElementById("purge-history-pwd").value = "";
+  document.getElementById("purge-history-error").classList.add("hidden");
+  openModal("purge-history-modal");
+  setTimeout(() => document.getElementById("purge-history-pwd")?.focus(), 80);
+});
+
+document.getElementById("btn-purge-cancel")?.addEventListener("click", () =>
+  closeModal("purge-history-modal")
+);
+
+document.getElementById("btn-purge-confirm")?.addEventListener("click", async () => {
+  const pwd    = document.getElementById("purge-history-pwd").value;
+  const errEl  = document.getElementById("purge-history-error");
+  errEl.classList.add("hidden");
+
+  if (!pwd) {
+    errEl.textContent = "Ingresa tu contraseña para confirmar.";
+    errEl.classList.remove("hidden");
+    return;
+  }
+
+  const btn = document.getElementById("btn-purge-confirm");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Eliminando…';
+
+  try {
+    const res = await fetch("/api/admin/history", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${getToken()}`,
+      },
+      body: JSON.stringify({ password: pwd }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail || `Error ${res.status}`);
+    }
+
+    const data = await res.json();
+    closeModal("purge-history-modal");
+    showToast("success", "Historial vaciado", `${data.deleted} registro${data.deleted !== 1 ? "s" : ""} eliminado${data.deleted !== 1 ? "s" : ""}`);
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.classList.remove("hidden");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-trash-can me-1"></i>Sí, vaciar historial';
   }
 });

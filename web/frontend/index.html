@@ -189,8 +189,14 @@
         </div>
         <div class="mb-3">
           <label for="session-cookie" class="form-label">Cookie de sesión</label>
-          <input type="text" id="session-cookie" name="session_cookie" class="form-control"
-            placeholder="sessionid  (opcional — se autodetecta si se omite)" autocomplete="off" />
+          <div class="input-group">
+            <input type="text" id="session-cookie" name="session_cookie" class="form-control"
+              placeholder="sessionid  (opcional — se autodetecta si se omite)" autocomplete="off" />
+            <button type="button" class="btn btn-outline-secondary" id="btn-discover-cookies" title="Descubrir cookies disponibles en el dominio">
+              <i class="fa-solid fa-magnifying-glass-plus me-1"></i>Obtener cookies
+            </button>
+          </div>
+          <div id="cookie-tags" class="cookie-tags hidden"></div>
         </div>
         <div class="mb-3">
           <label for="ip" class="form-label">IP forzada</label>
@@ -199,6 +205,9 @@
           <div class="form-text">Usa esta IP en lugar de la resolución DNS normal.</div>
         </div>
         <button type="submit" class="btn btn-success" id="btn-scan">▶ Iniciar scan</button>
+        <button type="button" class="btn btn-outline-secondary ms-2" id="btn-new-scan">
+          <i class="fa-solid fa-rotate-right me-1"></i>Nuevo scan
+        </button>
       </form>
 
       <!-- Barra de progreso -->
@@ -537,6 +546,22 @@
           <tbody id="admin-users-tbody"></tbody>
         </table>
       </div>
+
+      <!-- Administración de la plataforma -->
+      <hr class="my-5 border-secondary">
+      <h2 class="h5 fw-semibold mb-1"><i class="fa-solid fa-server me-2 text-warning"></i>Administración de la plataforma</h2>
+      <p class="text-muted small mb-4">Operaciones de mantenimiento sobre los datos de la plataforma.</p>
+
+      <div class="admin-platform-card">
+        <div class="admin-platform-icon text-danger"><i class="fa-solid fa-trash-can-arrow-up fa-2x"></i></div>
+        <div class="flex-grow-1">
+          <div class="fw-semibold">Vaciar historial de escaneos</div>
+          <div class="text-muted small mt-1">Elimina permanentemente todos los registros del historial de escaneos. Esta acción no se puede deshacer.</div>
+        </div>
+        <button class="btn btn-outline-danger btn-sm" id="btn-purge-history">
+          <i class="fa-solid fa-trash-can me-1"></i>Vaciar historial
+        </button>
+      </div>
     </section>
   </main>
 
@@ -553,6 +578,27 @@
         <div class="d-flex gap-2 justify-content-end">
           <button type="button" class="btn btn-outline-secondary btn-sm" id="confirm-modal-cancel">Cancelar</button>
           <button type="button" class="btn btn-danger btn-sm" id="confirm-modal-ok">Eliminar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: resetear contraseña -->
+  <div id="purge-history-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-card" style="max-width:440px">
+      <div class="modal-header">
+        <h2><i class="fa-solid fa-triangle-exclamation text-danger me-2"></i>Vaciar historial</h2>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted mb-3">Esta acción eliminará <strong>permanentemente todos los registros</strong> del historial de escaneos. No se puede deshacer.</p>
+        <p class="text-muted mb-3">Para confirmar, ingresa tu contraseña de administrador:</p>
+        <div id="purge-history-error" class="alert alert-danger py-1 small hidden"></div>
+        <input type="password" id="purge-history-pwd" class="form-control form-control-sm mb-4" placeholder="Tu contraseña" autocomplete="current-password">
+        <div class="d-flex gap-2 justify-content-end">
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-purge-cancel">Cancelar</button>
+          <button type="button" class="btn btn-danger btn-sm" id="btn-purge-confirm">
+            <i class="fa-solid fa-trash-can me-1"></i>Sí, vaciar historial
+          </button>
         </div>
       </div>
     </div>

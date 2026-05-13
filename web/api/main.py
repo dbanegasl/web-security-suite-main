@@ -209,6 +209,48 @@ async def health():
     return {"status": "ok", "scriptExists": SCAN_SCRIPT.exists()}
 
 
+# ── Endpoints: descubrimiento de cookies ─────────────────────────────────────
+@app.get("/api/discover-cookies")
+@limiter.limit("20/minute")
+async def discover_cookies(
+    request: Request,
+    domain: str = Query(..., min_length=1, max_length=253),
+    ip: str = Query("", max_length=15),
+    current_user: User = Depends(auth.get_current_user),
+):
+    """Hace HEAD a https://{domain}/ y devuelve los nombres de cookies Set-Cookie."""
+    import re as _re
+    domain = domain.strip().lower()
+    # Normalizar: quitar protocolo y path
+    domain = _re.sub(r"^https?://", "", domain).split("/")[0]
+    if not _re.match(r"^[a-zA-Z0-9._\-]+$", domain):
+        raise HTTPException(status_code=400, detail="Dominio no válido")
+    if ip and not _re.match(r"^\d{1,3}(\.\d{1,3}){3}$", ip):
+        raise HTTPException(status_code=400, detail="IP no válida")
+
+    resolve_flag = f"--resolve {domain}:443:{ip}" if ip else ""
+    cmd = (
+        f"curl --max-time 8 --connect-timeout 4 -sk -I {resolve_flag} "
+        f"https://{domain}/ | grep -i '^set-cookie' | grep -oP '(?i)set-cookie:\\s*\\K[^=]+'"
+    )
+    loop = asyncio.get_event_loop()
+    try:
+        proc = await asyncio.wait_for(
+            loop.run_in_executor(
+                None,
+                lambda: subprocess.run(
+                    cmd, shell=True, capture_output=True, text=True, timeout=12  # noqa: S602
+                ),
+            ),
+            timeout=14,
+        )
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=408, detail="Timeout al contactar el servidor")
+
+    names = [n.strip() for n in proc.stdout.strip().splitlines() if n.strip()]
+    return {"cookies": names}
+
+
 # ── Endpoints: autenticación ──────────────────────────────────────────────────
 @app.post("/api/auth/login")
 @limiter.limit("10/minute")
@@ -960,6 +1002,34 @@ async def admin_users_delete(
         raise HTTPException(status_code=400, detail="No puedes eliminar tu propia cuenta")
     session.delete(u)
     session.commit()
+
+
+class PurgeHistoryRequest(BaseModel):
+    password: str
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if not v:
+            raise ValueError("La contraseña es obligatoria")
+        return v
+
+
+@app.delete("/api/admin/history", status_code=200)
+async def admin_purge_history(
+    body: PurgeHistoryRequest,
+    admin: User = Depends(_require_admin),
+    session: Session = Depends(database.get_session),
+):
+    """Elimina todo el historial de escaneos. Requiere verificación de contraseña."""
+    if not auth.verify_password(body.password, admin.password_hash):
+        raise HTTPException(status_code=403, detail="Contraseña incorrecta")
+    deleted = session.exec(select(ScanHistory)).all()
+    count = len(deleted)
+    for record in deleted:
+        session.delete(record)
+    session.commit()
+    return {"deleted": count}
 
 
 @app.put("/api/admin/users/{user_id}/reset-password")

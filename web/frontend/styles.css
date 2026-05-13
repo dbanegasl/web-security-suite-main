@@ -863,3 +863,56 @@ code {
   font-family: var(--font-mono, monospace);
   font-size: 11px;
 }
+
+/* ── Admin platform card ─────────────────────────────────── */
+.admin-platform-card {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1rem 1.25rem;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px;
+  max-width: 680px;
+}
+.admin-platform-icon {
+  flex-shrink: 0;
+  width: 44px;
+  text-align: center;
+}
+
+/* ── Cookie tags ─────────────────────────────────────────────────────────── */
+.cookie-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  margin-top: .5rem;
+}
+.cookie-tag {
+  padding: .2rem .65rem;
+  font-size: .78rem;
+  font-family: var(--font-mono, monospace);
+  background: rgba(111, 66, 193, .18);
+  border: 1px solid rgba(111, 66, 193, .45);
+  border-radius: 20px;
+  color: #d0b8ff;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+  line-height: 1.5;
+}
+.cookie-tag:hover {
+  background: rgba(111, 66, 193, .38);
+  border-color: rgba(111, 66, 193, .8);
+  color: #fff;
+}
+.cookie-tag.active {
+  background: rgba(111, 66, 193, .65);
+  border-color: #8a5cf6;
+  color: #fff;
+  font-weight: 600;
+}
+.cookie-tag-empty {
+  font-size: .8rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
