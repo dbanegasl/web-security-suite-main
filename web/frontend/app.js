@@ -2,6 +2,24 @@
    Fase A: Autenticación JWT + historial persistente
 ────────────────────────────────────────────────────────────── */
 
+// ── Versión de la aplicación ─────────────────────────────────
+// Leída desde /version.json (asset estático servido por nginx).
+// Para bumps de versión solo editar ese archivo — no tocar app.js.
+let APP_VERSION = "—";
+let BUILD_DATE  = "—";
+
+fetch("/version.json")
+  .then(r => r.json())
+  .then(({ version = "—", build = "—" }) => {
+    APP_VERSION = version;
+    BUILD_DATE  = build;
+    console.info(
+      `%cWeb Security Suite v${APP_VERSION} | Build: ${BUILD_DATE}`,
+      "color:#a78bfa;font-weight:bold;font-size:13px"
+    );
+  })
+  .catch(() => console.warn("[WSS] version.json no disponible"));
+
 const API_BASE = "";
 const TOKEN_KEY = "wss_token";
 const USER_KEY  = "wss_user";
@@ -44,6 +62,9 @@ function applyUserUI() {
     if (user.role === "admin") adminItem.classList.remove("hidden");
     else adminItem.classList.add("hidden");
   }
+  // Versión en el footer del sidebar
+  const verEl = document.getElementById("app-version");
+  if (verEl) verEl.textContent = `v${APP_VERSION} | Build: ${BUILD_DATE}`;
 }
 
 formLogin.addEventListener("submit", async e => {

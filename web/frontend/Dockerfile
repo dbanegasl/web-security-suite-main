@@ -11,6 +11,7 @@ COPY web/frontend/ /usr/share/nginx/html/
 # El timestamp se genera en tiempo de build → cada rebuild fuerza recarga en el navegador
 RUN BUILD_VER=$(date +%Y%m%d%H%M) && \
     sed -i "s|src=\"app.js\"|src=\"app.js?v=${BUILD_VER}\"|g" /usr/share/nginx/html/index.html && \
-    sed -i "s|href=\"custom.css\"|href=\"custom.css?v=${BUILD_VER}\"|g" /usr/share/nginx/html/index.html
+    sed -i "s|href=\"custom.css\"|href=\"custom.css?v=${BUILD_VER}\"|g" /usr/share/nginx/html/index.html && \
+    sed -i "s|__BUILD_DATE__|${BUILD_VER}|g" /usr/share/nginx/html/version.json
 
 EXPOSE 80
