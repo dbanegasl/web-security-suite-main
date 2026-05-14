@@ -349,6 +349,12 @@
   <a href="#t18">TEST-18 <span class="badge badge-fail">CORS</span></a>
   <a href="#t19">TEST-19 <span class="badge badge-warn">HTTP TRACE</span></a>
   <a href="#t20">TEST-20 <span class="badge badge-warn">Cache-Control</span></a>
+  <div class="section-label">Bloque 6 — Modernización</div>
+  <a href="#t21">TEST-21 <span class="badge badge-warn">Deprecados</span></a>
+  <a href="#t22">TEST-22 <span class="badge badge-warn">COOP</span></a>
+  <a href="#t23">TEST-23 <span class="badge badge-warn">COEP</span></a>
+  <a href="#t24">TEST-24 <span class="badge badge-warn">CORP</span></a>
+  <a href="#t25">TEST-25 <span class="badge badge-warn">X-Permitted-CD</span></a>
 </nav>
 
 <!-- ═══════════════════════════ MAIN ═══════════════════════════ -->
@@ -357,7 +363,7 @@
   <!-- Hero -->
   <div class="hero" id="overview">
     <h1>🔐 Web Security Scanner — Wiki de Tests</h1>
-    <p>Documentación completa de los 20 tests de seguridad ejecutados por el scanner. Incluye qué verifica cada test, por qué importa, resultados posibles y guías de remediación para múltiples plataformas.</p>
+    <p>Documentación completa de los 24 tests de seguridad ejecutados por el scanner. Incluye qué verifica cada test, por qué importa, resultados posibles y guías de remediación para múltiples plataformas.</p>
     <div class="meta">
       <span><strong>Versión:</strong> 3.1</span>
       <span><strong>Tests totales:</strong> 20</span>
@@ -1237,11 +1243,132 @@ res.set('Pragma', 'no-cache');</pre></div>
     </div>
   </div>
 
+  <!-- TEST-21 -->
+  <div class="test-card" id="t21">
+    <div class="test-header" onclick="toggle(this)">
+      <span class="test-id">TEST-21</span>
+      <span class="test-name">Headers deprecados ausentes</span>
+      <span class="badge badge-warn">Modernización</span>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="test-body">
+      <p>Verifica que <code>X-XSS-Protection</code> y <code>Expect-CT</code> no estén presentes. Ambos fueron retirados de los estándares modernos y su presencia indica configuración desactualizada.</p>
+      <div class="info-box warn">⚠️ <strong>X-XSS-Protection</strong> ya no tiene soporte en navegadores modernos y puede ser explotado. <strong>Expect-CT</strong> fue deprecado en favor de Certificate Transparency integrada en TLS.</div>
+      <div class="platform-tabs">
+        <div class="tab-buttons">
+          <button class="tab-btn active" onclick="switchTab(this,'t21','nginx')">nginx</button>
+          <button class="tab-btn" onclick="switchTab(this,'t21','apache')">Apache</button>
+          <button class="tab-btn" onclick="switchTab(this,'t21','php')">PHP</button>
+        </div>
+        <div id="t21-nginx" class="tab-panel active"><pre># Eliminar headers deprecados en nginx
+more_clear_headers X-XSS-Protection;
+more_clear_headers Expect-CT;</pre></div>
+        <div id="t21-apache" class="tab-panel"><pre>Header unset X-XSS-Protection
+Header unset Expect-CT</pre></div>
+        <div id="t21-php" class="tab-panel"><pre>header_remove('X-XSS-Protection');
+header_remove('Expect-CT');</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEST-22 -->
+  <div class="test-card" id="t22">
+    <div class="test-header" onclick="toggle(this)">
+      <span class="test-id">TEST-22</span>
+      <span class="test-name">Cross-Origin-Opener-Policy (COOP)</span>
+      <span class="badge badge-warn">Aislamiento</span>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="test-body">
+      <p>Controla si el documento puede compartir un grupo de contexto de navegación con documentos de origen cruzado. Previene ataques de tipo Spectre y cross-origin window manipulation.</p>
+      <div class="platform-tabs">
+        <div class="tab-buttons">
+          <button class="tab-btn active" onclick="switchTab(this,'t22','nginx')">nginx</button>
+          <button class="tab-btn" onclick="switchTab(this,'t22','apache')">Apache</button>
+          <button class="tab-btn" onclick="switchTab(this,'t22','php')">PHP</button>
+        </div>
+        <div id="t22-nginx" class="tab-panel active"><pre>add_header Cross-Origin-Opener-Policy "same-origin" always;</pre></div>
+        <div id="t22-apache" class="tab-panel"><pre>Header always set Cross-Origin-Opener-Policy "same-origin"</pre></div>
+        <div id="t22-php" class="tab-panel"><pre>header('Cross-Origin-Opener-Policy: same-origin');</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEST-23 -->
+  <div class="test-card" id="t23">
+    <div class="test-header" onclick="toggle(this)">
+      <span class="test-id">TEST-23</span>
+      <span class="test-name">Cross-Origin-Embedder-Policy (COEP)</span>
+      <span class="badge badge-warn">Aislamiento</span>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="test-body">
+      <p>Impide que el documento cargue recursos cross-origin que no hayan otorgado permiso explícito. Requerido junto con COOP para habilitar <code>SharedArrayBuffer</code> y otras APIs de alto rendimiento.</p>
+      <div class="platform-tabs">
+        <div class="tab-buttons">
+          <button class="tab-btn active" onclick="switchTab(this,'t23','nginx')">nginx</button>
+          <button class="tab-btn" onclick="switchTab(this,'t23','apache')">Apache</button>
+          <button class="tab-btn" onclick="switchTab(this,'t23','php')">PHP</button>
+        </div>
+        <div id="t23-nginx" class="tab-panel active"><pre>add_header Cross-Origin-Embedder-Policy "require-corp" always;</pre></div>
+        <div id="t23-apache" class="tab-panel"><pre>Header always set Cross-Origin-Embedder-Policy "require-corp"</pre></div>
+        <div id="t23-php" class="tab-panel"><pre>header('Cross-Origin-Embedder-Policy: require-corp');</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEST-24 -->
+  <div class="test-card" id="t24">
+    <div class="test-header" onclick="toggle(this)">
+      <span class="test-id">TEST-24</span>
+      <span class="test-name">Cross-Origin-Resource-Policy (CORP)</span>
+      <span class="badge badge-warn">Aislamiento</span>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="test-body">
+      <p>Especifica qué orígenes pueden cargar los recursos del servidor. Sin este header, cualquier sitio puede incluir tus recursos (imágenes, scripts) mediante <code>&lt;img&gt;</code>, <code>&lt;script&gt;</code>, etc.</p>
+      <div class="platform-tabs">
+        <div class="tab-buttons">
+          <button class="tab-btn active" onclick="switchTab(this,'t24','nginx')">nginx</button>
+          <button class="tab-btn" onclick="switchTab(this,'t24','apache')">Apache</button>
+          <button class="tab-btn" onclick="switchTab(this,'t24','php')">PHP</button>
+        </div>
+        <div id="t24-nginx" class="tab-panel active"><pre>add_header Cross-Origin-Resource-Policy "same-origin" always;</pre></div>
+        <div id="t24-apache" class="tab-panel"><pre>Header always set Cross-Origin-Resource-Policy "same-origin"</pre></div>
+        <div id="t24-php" class="tab-panel"><pre>header('Cross-Origin-Resource-Policy: same-origin');</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEST-25 -->
+  <div class="test-card" id="t25">
+    <div class="test-header" onclick="toggle(this)">
+      <span class="test-id">TEST-25</span>
+      <span class="test-name">X-Permitted-Cross-Domain-Policies</span>
+      <span class="badge badge-warn">Aislamiento</span>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="test-body">
+      <p>Controla qué archivos de política cross-domain puede leer Adobe Flash, Adobe Reader y Silverlight. Aunque Flash está obsoleto, PDFs interactivos y aplicaciones heredadas aún lo usan. El valor recomendado es <code>none</code> para bloquear todo acceso.</p>
+      <div class="info-box warn">⚠️ Sin este header, aplicaciones Flash/PDF pueden leer recursos de tu dominio si no está bloqueado. Valor <code>all</code> es el más permisivo y debe evitarse.</div>
+      <div class="platform-tabs">
+        <div class="tab-buttons">
+          <button class="tab-btn active" onclick="switchTab(this,'t25','nginx')">nginx</button>
+          <button class="tab-btn" onclick="switchTab(this,'t25','apache')">Apache</button>
+          <button class="tab-btn" onclick="switchTab(this,'t25','php')">PHP</button>
+        </div>
+        <div id="t25-nginx" class="tab-panel active"><pre>add_header X-Permitted-Cross-Domain-Policies "none" always;</pre></div>
+        <div id="t25-apache" class="tab-panel"><pre>Header always set X-Permitted-Cross-Domain-Policies "none"</pre></div>
+        <div id="t25-php" class="tab-panel"><pre>header('X-Permitted-Cross-Domain-Policies: none');</pre></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ══════════════ FOOTER ══════════════ -->
   <footer>
-    Web Security Scanner v3.1 — Wiki de Tests
-    &nbsp;·&nbsp; 20 tests · 5 bloques · 6 plataformas
-    &nbsp;·&nbsp; Generado 2026-05-12
+    Web Security Scanner v3.3 — Wiki de Tests
+    &nbsp;·&nbsp; 25 tests · 6 bloques · 3 plataformas
+    &nbsp;·&nbsp; Actualizado 2026-05-14
   </footer>
 </main>
 

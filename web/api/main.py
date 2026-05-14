@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -134,8 +135,18 @@ def _build_env(domain: str, cookie: str, ip: str) -> dict[str, str]:
     }
 
 
+# Semáforo global: máximo 3 scans simultáneos para evitar saturación de red/CPU
+_SCAN_SEM = asyncio.Semaphore(3)
+
+
 async def _run_scan(domain: str, cookie: str, ip: str) -> dict[str, Any]:
     """Ejecuta scan.sh y devuelve el resultado JSON parseado."""
+    async with _SCAN_SEM:
+        return await _run_scan_inner(domain, cookie, ip)
+
+
+async def _run_scan_inner(domain: str, cookie: str, ip: str) -> dict[str, Any]:
+    """Lógica interna del scan (sin semáforo)."""
     env = _build_env(domain, cookie, ip)
 
     loop = asyncio.get_event_loop()
@@ -739,6 +750,102 @@ async def lists_export_csv(
     )
 
 
+@app.get("/api/lists/{list_id}/scan-stream")
+async def lists_scan_stream(
+    request: Request,
+    list_id: int,
+    token: str = Query(..., description="JWT token"),
+    session: Session = Depends(database.get_session),
+):
+    """
+    Ejecuta el scan de una lista y devuelve resultados via SSE (Server-Sent Events).
+    Cada dominio completado emite un evento JSON inmediatamente.
+    El cliente no necesita esperar a que terminen todos los dominios.
+    """
+    # Autenticar via query param (EventSource no soporta Authorization header)
+    try:
+        current_user = auth.get_current_user_from_token(token, session)
+    except Exception:
+        async def _auth_err():
+            yield "event: error\ndata: {\"detail\": \"No autorizado\"}\n\n"
+        return StreamingResponse(_auth_err(), media_type="text/event-stream")
+
+    dl = session.get(DomainList, list_id)
+    if not dl:
+        async def _notfound():
+            yield "event: error\ndata: {\"detail\": \"Lista no encontrada\"}\n\n"
+        return StreamingResponse(_notfound(), media_type="text/event-stream")
+
+    domains = session.exec(
+        select(ListDomain)
+        .where(ListDomain.list_id == list_id)
+        .where(ListDomain.is_active == True)  # noqa: E712
+    ).all()
+
+    if not domains:
+        async def _empty():
+            yield "event: error\ndata: {\"detail\": \"La lista no tiene dominios activos\"}\n\n"
+        return StreamingResponse(_empty(), media_type="text/event-stream")
+
+    total = len(domains)
+    user_id = current_user.id
+
+    async def _stream():
+        completed = 0
+        yield f"event: start\ndata: {json.dumps({'total': total})}\n\n"
+
+        async def _scan_one(d: ListDomain) -> dict:
+            try:
+                return await _run_scan(d.domain, d.session_cookie, d.ip)
+            except Exception as exc:
+                return {"domain": d.domain, "error": str(exc)}
+
+        import database as _db
+        from sqlmodel import Session as DBSession
+
+        # Crear Tasks cancelables (el semáforo controla la concurrencia real)
+        pending: set[asyncio.Task] = {
+            asyncio.create_task(_scan_one(d)) for d in domains
+        }
+
+        while pending:
+            # Verificar si el cliente se desconectó — cancelar todo y salir
+            if await request.is_disconnected():
+                for t in pending:
+                    t.cancel()
+                return
+
+            # Esperar la próxima tarea que termine (timeout 1s para re-chequear desconexión)
+            done, pending = await asyncio.wait(
+                pending, return_when=asyncio.FIRST_COMPLETED, timeout=1.0
+            )
+
+            for task in done:
+                if task.cancelled():
+                    continue
+                exc = task.exception()
+                result = {"error": str(exc)} if exc else task.result()
+                completed += 1
+
+                if "error" not in result:
+                    with DBSession(_db._engine) as db_sess:
+                        _save_scan(db_sess, result, "list", user_id, list_id=list_id)
+
+                payload = json.dumps({"index": completed, "total": total, "result": result})
+                yield f"event: result\ndata: {payload}\n\n"
+
+        yield f"event: done\ndata: {json.dumps({'total': total, 'completed': completed})}\n\n"
+
+    return StreamingResponse(
+        _stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # deshabilitar buffering en nginx
+        },
+    )
+
+
 @app.post("/api/lists/{list_id}/scan")
 @limiter.limit("3/minute")
 async def lists_scan(
@@ -747,6 +854,7 @@ async def lists_scan(
     current_user: User = Depends(auth.get_current_user),
     session: Session = Depends(database.get_session),
 ):
+    """Endpoint legacy — redirige a scan-stream internamente para compatibilidad."""
     _list_or_404(list_id, session)
     domains = session.exec(
         select(ListDomain).where(ListDomain.list_id == list_id).where(ListDomain.is_active == True)  # noqa: E712
@@ -754,7 +862,13 @@ async def lists_scan(
     if not domains:
         raise HTTPException(status_code=400, detail="La lista no tiene dominios activos")
 
-    tasks = [_run_scan(d.domain, d.session_cookie, d.ip) for d in domains]
+    async def _scan_one(d: ListDomain) -> dict:
+        try:
+            return await _run_scan(d.domain, d.session_cookie, d.ip)
+        except Exception as exc:
+            return {"domain": d.domain, "error": str(exc)}
+
+    tasks = [asyncio.create_task(_scan_one(d)) for d in domains]
     scan_results = await asyncio.gather(*tasks, return_exceptions=True)
 
     results = []

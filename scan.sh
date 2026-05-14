@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# UNAE Web Security Suite — v3.0
+# UNAE Web Security Suite — v3.3
 # Autor: Daniel Banegas
 # Uso interactivo: bash web-security-scan.sh
 # Uso directo:     DOMAIN=cas.unae.edu.ec bash web-security-scan.sh
@@ -51,7 +51,7 @@ if [[ "$_ENV_FORMAT" != "json" ]]; then
   echo -e "${BOLD}${CYAN}"
   echo "  ╔════════════════════════════════════════════════════════╗"
   echo "  ║                                                        ║"
-  echo "  ║   🔐  Web Security Scanner  v3.1                      ║"
+  echo "  ║   🔐  Web Security Scanner  v3.3                      ║"
   echo "  ║   HTTP headers · TLS · Cookies · Info disclosure      ║"
   echo "  ║                                                        ║"
   echo "  ╚════════════════════════════════════════════════════════╝"
@@ -65,7 +65,7 @@ batch_print_table() {
   local DOMAINS=("${BATCH_DOMAINS_LIST[@]}")
   [[ ${#DOMAINS[@]} -eq 0 ]] && return
 
-  local TESTS=(01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20)
+  local TESTS=(01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25)
 
   # Calcular ancho máximo del campo dominio
   local MAX_W=30
@@ -167,6 +167,8 @@ batch_run() {
     fi
 
     # ── Validación servidor silenciosa ──────────────────────
+    # HTTP_CHECK usa DNS público (el proxy/CDN responde HTTPS; la IP forzada es
+    # el backend interno que puede no tener SSL directo en 443).
     HTTP_CHECK=$(curl --max-time 5 -sk -o /dev/null -w "%{http_code}" "$BASE_URL" 2>/dev/null)
     if [[ "$HTTP_CHECK" == "000" || -z "$HTTP_CHECK" ]]; then
       echo -e "${RED}no responde${RESET}"
@@ -314,10 +316,15 @@ generate_report_individual() {
     echo "| 18 | **CORS** sin wildcard | Config. servidor | **Alto** — acceso cross-origin irrestricto |"
     echo "| 19 | **HTTP TRACE** deshabilitado | Config. servidor | Medio — XST (Cross-Site Tracing) |"
     echo "| 20 | **Cache-Control** adecuado | Config. servidor | Medio — datos sensibles en caché |"
+    echo "| 21 | **Headers deprecados** ausentes | Modernización | Bajo — X-XSS-Protection, Expect-CT y Pragma obsoletos |"
+    echo "| 22 | **Cross-Origin-Opener-Policy** (COOP) | Aislamiento | Medio — ataques de ventana cross-origin |"
+    echo "| 23 | **Cross-Origin-Embedder-Policy** (COEP) | Aislamiento | Medio — necesario para SharedArrayBuffer |"
+    echo "| 24 | **Cross-Origin-Resource-Policy** (CORP) | Aislamiento | Medio — recursos cargables desde orígenes externos |"
+    echo "| 25 | **X-Permitted-Cross-Domain-Policies** | Aislamiento | Bajo — acceso de Adobe Flash/PDF a recursos |"
     echo ""
     echo "---"
     echo ""
-    echo "_Generado con Web Security Scanner v3.1 — $(date '+%Y-%m-%d %H:%M:%S')_"
+    echo "_Generado con Web Security Scanner v3.3 — $(date '+%Y-%m-%d %H:%M:%S')_"
   } > "$OUTFILE"
 }
 
@@ -327,7 +334,7 @@ generate_report_individual() {
 generate_report_batch() {
   local OUTFILE="$1"
   local DOMAINS=("${BATCH_DOMAINS_LIST[@]}")
-  local TESTS=(01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20)
+  local TESTS=(01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25)
   {
     echo "# Reporte de Seguridad Batch"
     echo ""
@@ -409,6 +416,8 @@ generate_report_batch() {
       ["13"]="Referrer-Policy" ["14"]="Permissions-Policy" ["15"]="Server header oculto"
       ["16"]="X-Powered-By ausente" ["17"]="X-AspNet-Version ausente" ["18"]="CORS wildcard"
       ["19"]="HTTP TRACE" ["20"]="Cache-Control"
+      ["21"]="Headers deprecados" ["22"]="COOP" ["23"]="COEP" ["24"]="CORP"
+      ["25"]="X-Permitted-Cross-Domain"
     )
     for t in "${TESTS[@]}"; do
       local cnt=0
@@ -444,10 +453,15 @@ generate_report_batch() {
     echo "| 18 | **CORS** sin wildcard | Config. servidor | **Alto** — acceso cross-origin irrestricto |"
     echo "| 19 | **HTTP TRACE** deshabilitado | Config. servidor | Medio — XST (Cross-Site Tracing) |"
     echo "| 20 | **Cache-Control** adecuado | Config. servidor | Medio — datos sensibles en caché |"
+    echo "| 21 | **Headers deprecados** ausentes | Modernización | Bajo — X-XSS-Protection y Expect-CT obsoletos |"
+    echo "| 22 | **Cross-Origin-Opener-Policy** (COOP) | Aislamiento | Medio — ataques de ventana cross-origin |"
+    echo "| 23 | **Cross-Origin-Embedder-Policy** (COEP) | Aislamiento | Medio — necesario para SharedArrayBuffer |"
+    echo "| 24 | **Cross-Origin-Resource-Policy** (CORP) | Aislamiento | Medio — recursos cargables desde orígenes externos |"
+    echo "| 25 | **X-Permitted-Cross-Domain-Policies** | Aislamiento | Bajo — acceso de Adobe Flash/PDF a recursos |"
     echo ""
     echo "---"
     echo ""
-    echo "_Generado con Web Security Scanner v3.1 — $(date '+%Y-%m-%d %H:%M:%S')_"
+    echo "_Generado con Web Security Scanner v3.3 — $(date '+%Y-%m-%d %H:%M:%S')_"
   } > "$OUTFILE"
 }
 
@@ -632,6 +646,7 @@ fi
 [[ "$BATCH_SILENT" != "1" ]] && echo "" || true
 
 # ── Validación 3: servidor responde ──────────────────────────
+# HTTP_CHECK usa DNS público (la IP forzada es el backend que puede no tener SSL).
 [[ "$BATCH_SILENT" != "1" ]] && echo -ne "  Verificando acceso HTTPS a ${BASE_URL}... "
 HTTP_CHECK=$(curl --max-time 5 -sk -o /dev/null -w "%{http_code}" "$BASE_URL" 2>/dev/null)
 if [[ "$HTTP_CHECK" == "000" ]] || [[ -z "$HTTP_CHECK" ]]; then
@@ -647,9 +662,6 @@ fi
 [[ "$BATCH_SILENT" != "1" ]] && echo -e "${GREEN}OK${RESET} (HTTP ${HTTP_CHECK})" || true
 [[ "$BATCH_SILENT" != "1" ]] && echo "" || true
 
-RESOLVE_443="${IP:+--resolve ${DOMAIN}:443:${IP}}"
-RESOLVE_80="${IP:+--resolve ${DOMAIN}:80:${IP}}"
-
 # ── PASO 2: Descubrir cookies ────────────────────────────────
 if [[ "$BATCH_SILENT" != "1" ]]; then
   echo -e "${CYAN}Paso 2/3 — Cookie de sesión${RESET}"
@@ -664,7 +676,9 @@ if [[ -z "$DISCOVERED" ]]; then
     echo -e "  ${YELLOW}No se encontraron cookies en la raíz del dominio.${RESET}"
     echo "  Puede que requiera autenticación previa para generarlas."
   fi
-  SESSION_COOKIE_NAME=""
+  # No resetear SESSION_COOKIE_NAME si fue especificada vía env/parámetro
+  # Solo limpiar si estaba vacía (no se pierde PHPSESSID/JSESSIONID etc.)
+  [[ -z "$_ENV_SESSION" ]] && SESSION_COOKIE_NAME=""
 else
   if [[ "$BATCH_SILENT" != "1" ]]; then
     echo "  Cookies encontradas:"
@@ -857,7 +871,15 @@ CSP=$(echo "$RESPONSE" | grep -i "^content-security-policy:" | tr -d '\r')
 if [[ -z "$CSP" ]]; then
   run_test "12" "Content-Security-Policy" "FAIL" "header ausente"
 elif echo "$CSP" | grep -qi "unsafe-eval"; then
-  run_test "12" "Content-Security-Policy" "WARN" "contiene 'unsafe-eval'"
+  run_test "12" "Content-Security-Policy" "WARN" "contiene 'unsafe-eval' — permite ejecución JS dinámica"
+elif echo "$CSP" | grep -qP "(\\s|;|:)\\*[\\s;]|\\s+https?:[\\s;]"; then
+  run_test "12" "Content-Security-Policy" "WARN" "fuente comodín en CSP — cualquier origen puede cargar recursos"
+elif echo "$CSP" | grep -qi "unsafe-inline"; then
+  run_test "12" "Content-Security-Policy" "WARN" "contiene 'unsafe-inline' — permite JS/CSS inline (vector XSS)"
+elif ! echo "$CSP" | grep -qi "base-uri"; then
+  run_test "12" "Content-Security-Policy" "WARN" "sin 'base-uri' — vulnerable a inyección de <base> tag"
+elif ! echo "$CSP" | grep -qi "form-action"; then
+  run_test "12" "Content-Security-Policy" "WARN" "sin 'form-action' — formularios pueden enviarse a cualquier origen"
 else
   run_test "12" "Content-Security-Policy" "PASS"
 fi
@@ -936,6 +958,54 @@ elif echo "$CACHE" | grep -qiP "no-store|no-cache|private"; then
   run_test "20" "Cache-Control seguro" "PASS" "$CACHE"
 else
   run_test "20" "Cache-Control seguro" "WARN" "$CACHE — revisar si aplica a rutas autenticadas"
+fi
+
+# ════════════════════════════════════════════════════════════
+# BLOQUE 6 — HEADERS MODERNOS Y DEPRECADOS
+# ════════════════════════════════════════════════════════════
+section "HEADERS MODERNOS Y DEPRECADOS"
+
+# TEST-21: Deprecated headers (X-XSS-Protection, Expect-CT, Pragma)
+DEPR_HEADERS=$(echo "$RESPONSE" | grep -iE "^(x-xss-protection|expect-ct|pragma):" | tr -d '\r')
+if [[ -n "$DEPR_HEADERS" ]]; then
+  DEPR_LIST=$(echo "$DEPR_HEADERS" | cut -d: -f1 | tr '\n' ',' | sed 's/,$//')
+  run_test "21" "Headers deprecados ausentes" "WARN" "presentes: ${DEPR_LIST} — retirados de estándares modernos"
+else
+  run_test "21" "Headers deprecados ausentes" "PASS"
+fi
+
+# TEST-22: Cross-Origin-Opener-Policy (COOP)
+COOP=$(echo "$RESPONSE" | grep -i "^cross-origin-opener-policy:" | tr -d '\r')
+if [[ -z "$COOP" ]]; then
+  run_test "22" "Cross-Origin-Opener-Policy (COOP)" "WARN" "ausente — riesgo de cross-origin window attacks"
+else
+  run_test "22" "Cross-Origin-Opener-Policy (COOP)" "PASS" "${COOP#*: }"
+fi
+
+# TEST-23: Cross-Origin-Embedder-Policy (COEP)
+COEP=$(echo "$RESPONSE" | grep -i "^cross-origin-embedder-policy:" | tr -d '\r')
+if [[ -z "$COEP" ]]; then
+  run_test "23" "Cross-Origin-Embedder-Policy (COEP)" "WARN" "ausente — habilitar junto con COOP para aislamiento"
+else
+  run_test "23" "Cross-Origin-Embedder-Policy (COEP)" "PASS" "${COEP#*: }"
+fi
+
+# TEST-24: Cross-Origin-Resource-Policy (CORP)
+CORP=$(echo "$RESPONSE" | grep -i "^cross-origin-resource-policy:" | tr -d '\r')
+if [[ -z "$CORP" ]]; then
+  run_test "24" "Cross-Origin-Resource-Policy (CORP)" "WARN" "ausente — recursos accesibles desde cualquier origen"
+else
+  run_test "24" "Cross-Origin-Resource-Policy (CORP)" "PASS" "${CORP#*: }"
+fi
+
+# TEST-25: X-Permitted-Cross-Domain-Policies
+XPCDP=$(echo "$RESPONSE" | grep -i "^x-permitted-cross-domain-policies:" | tr -d '\r')
+if [[ -z "$XPCDP" ]]; then
+  run_test "25" "X-Permitted-Cross-Domain-Policies" "WARN" "ausente — controla acceso de Adobe Flash/PDF a recursos del dominio"
+elif echo "$XPCDP" | grep -qi ":.*\ball\b"; then
+  run_test "25" "X-Permitted-Cross-Domain-Policies" "WARN" "valor 'all' — demasiado permisivo: ${XPCDP#*: }"
+else
+  run_test "25" "X-Permitted-Cross-Domain-Policies" "PASS" "${XPCDP#*: }"
 fi
 
 # ── Resumen ──────────────────────────────────────────────────

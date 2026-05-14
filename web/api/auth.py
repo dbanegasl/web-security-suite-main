@@ -37,6 +37,25 @@ def create_access_token(user_id: int, username: str, role: str) -> str:
     )
 
 
+def get_current_user_from_token(token: str, session: Session) -> User:
+    """Autenticar por token string (para SSE donde no se puede usar header)."""
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        user_id = int(payload["sub"])
+    except (JWTError, KeyError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido o expirado",
+        )
+    user = session.get(User, user_id)
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Usuario no encontrado o inactivo",
+        )
+    return user
+
+
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(_bearer),
     session: Session = Depends(get_session),

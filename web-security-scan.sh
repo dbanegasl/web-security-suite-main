@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# UNAE Web Security Suite — v3.0
+# UNAE Web Security Suite — v3.3
 # Autor: Daniel Banegas
 # Uso interactivo: bash web-security-scan.sh
 # Uso directo:     DOMAIN=cas.unae.edu.ec bash web-security-scan.sh
@@ -9,6 +9,7 @@
 _ENV_DOMAIN="${DOMAIN:-}"
 _ENV_SESSION="${SESSION_COOKIE_NAME:-}"
 _ENV_IP="${IP:-}"
+_ENV_FORMAT="${OUTPUT_FORMAT:-terminal}"
 
 # ── Batch globals ─────────────────────────────────────────────
 declare -A BATCH_RESULTS
@@ -45,15 +46,17 @@ run_test() {
 section() { [[ "$BATCH_SILENT" != "1" ]] && echo -e "\n${BOLD}${CYAN}▸ $1${RESET}"; }
 
 # ── Header ───────────────────────────────────────────────────
-clear
-echo -e "${BOLD}${CYAN}"
-echo "  ╔════════════════════════════════════════════════════════╗"
-echo "  ║                                                        ║"
-echo "  ║   🔐  Web Security Scanner  v3.1                      ║"
-echo "  ║   HTTP headers · TLS · Cookies · Info disclosure      ║"
-echo "  ║                                                        ║"
-echo "  ╚════════════════════════════════════════════════════════╝"
-echo -e "${RESET}"
+if [[ "$_ENV_FORMAT" != "json" ]]; then
+  clear
+  echo -e "${BOLD}${CYAN}"
+  echo "  ╔════════════════════════════════════════════════════════╗"
+  echo "  ║                                                        ║"
+  echo "  ║   🔐  Web Security Scanner  v3.3                      ║"
+  echo "  ║   HTTP headers · TLS · Cookies · Info disclosure      ║"
+  echo "  ║                                                        ║"
+  echo "  ╚════════════════════════════════════════════════════════╝"
+  echo -e "${RESET}"
+fi
 
 # ════════════════════════════════════════════════════════════════════
 # FUNCIÓN: batch_print_table — imprime la tabla de resultados
@@ -62,7 +65,7 @@ batch_print_table() {
   local DOMAINS=("${BATCH_DOMAINS_LIST[@]}")
   [[ ${#DOMAINS[@]} -eq 0 ]] && return
 
-  local TESTS=(01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20)
+  local TESTS=(01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25)
 
   # Calcular ancho máximo del campo dominio
   local MAX_W=30
@@ -164,6 +167,8 @@ batch_run() {
     fi
 
     # ── Validación servidor silenciosa ──────────────────────
+    # HTTP_CHECK usa DNS público (el proxy/CDN responde HTTPS; la IP forzada es
+    # el backend interno que puede no tener SSL directo en 443).
     HTTP_CHECK=$(curl --max-time 5 -sk -o /dev/null -w "%{http_code}" "$BASE_URL" 2>/dev/null)
     if [[ "$HTTP_CHECK" == "000" || -z "$HTTP_CHECK" ]]; then
       echo -e "${RED}no responde${RESET}"
@@ -178,7 +183,7 @@ batch_run() {
 
     # Auto-detectar cookie si no está definida
     if [[ -z "$SESSION_COOKIE_NAME" ]]; then
-      SESSION_COOKIE_NAME=$(echo "$COOKIES" | grep -oP "set-cookie:\s*\K[^=]+" | head -1)
+      SESSION_COOKIE_NAME=$(echo "$COOKIES" | grep -oP "(?i)set-cookie:\s*\K[^=]+" | head -1)
     fi
 
     BATCH_RESULTS["${_dom}:STATUS"]="OK"
@@ -311,10 +316,15 @@ generate_report_individual() {
     echo "| 18 | **CORS** sin wildcard | Config. servidor | **Alto** — acceso cross-origin irrestricto |"
     echo "| 19 | **HTTP TRACE** deshabilitado | Config. servidor | Medio — XST (Cross-Site Tracing) |"
     echo "| 20 | **Cache-Control** adecuado | Config. servidor | Medio — datos sensibles en caché |"
+    echo "| 21 | **Headers deprecados** ausentes | Modernización | Bajo — X-XSS-Protection, Expect-CT y Pragma obsoletos |"
+    echo "| 22 | **Cross-Origin-Opener-Policy** (COOP) | Aislamiento | Medio — ataques de ventana cross-origin |"
+    echo "| 23 | **Cross-Origin-Embedder-Policy** (COEP) | Aislamiento | Medio — necesario para SharedArrayBuffer |"
+    echo "| 24 | **Cross-Origin-Resource-Policy** (CORP) | Aislamiento | Medio — recursos cargables desde orígenes externos |"
+    echo "| 25 | **X-Permitted-Cross-Domain-Policies** | Aislamiento | Bajo — acceso de Adobe Flash/PDF a recursos |"
     echo ""
     echo "---"
     echo ""
-    echo "_Generado con Web Security Scanner v3.1 — $(date '+%Y-%m-%d %H:%M:%S')_"
+    echo "_Generado con Web Security Scanner v3.3 — $(date '+%Y-%m-%d %H:%M:%S')_"
   } > "$OUTFILE"
 }
 
@@ -324,7 +334,7 @@ generate_report_individual() {
 generate_report_batch() {
   local OUTFILE="$1"
   local DOMAINS=("${BATCH_DOMAINS_LIST[@]}")
-  local TESTS=(01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20)
+  local TESTS=(01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25)
   {
     echo "# Reporte de Seguridad Batch"
     echo ""
@@ -406,6 +416,8 @@ generate_report_batch() {
       ["13"]="Referrer-Policy" ["14"]="Permissions-Policy" ["15"]="Server header oculto"
       ["16"]="X-Powered-By ausente" ["17"]="X-AspNet-Version ausente" ["18"]="CORS wildcard"
       ["19"]="HTTP TRACE" ["20"]="Cache-Control"
+      ["21"]="Headers deprecados" ["22"]="COOP" ["23"]="COEP" ["24"]="CORP"
+      ["25"]="X-Permitted-Cross-Domain"
     )
     for t in "${TESTS[@]}"; do
       local cnt=0
@@ -441,11 +453,52 @@ generate_report_batch() {
     echo "| 18 | **CORS** sin wildcard | Config. servidor | **Alto** — acceso cross-origin irrestricto |"
     echo "| 19 | **HTTP TRACE** deshabilitado | Config. servidor | Medio — XST (Cross-Site Tracing) |"
     echo "| 20 | **Cache-Control** adecuado | Config. servidor | Medio — datos sensibles en caché |"
+    echo "| 21 | **Headers deprecados** ausentes | Modernización | Bajo — X-XSS-Protection y Expect-CT obsoletos |"
+    echo "| 22 | **Cross-Origin-Opener-Policy** (COOP) | Aislamiento | Medio — ataques de ventana cross-origin |"
+    echo "| 23 | **Cross-Origin-Embedder-Policy** (COEP) | Aislamiento | Medio — necesario para SharedArrayBuffer |"
+    echo "| 24 | **Cross-Origin-Resource-Policy** (CORP) | Aislamiento | Medio — recursos cargables desde orígenes externos |"
+    echo "| 25 | **X-Permitted-Cross-Domain-Policies** | Aislamiento | Bajo — acceso de Adobe Flash/PDF a recursos |"
     echo ""
     echo "---"
     echo ""
-    echo "_Generado con Web Security Scanner v3.1 — $(date '+%Y-%m-%d %H:%M:%S')_"
+    echo "_Generado con Web Security Scanner v3.3 — $(date '+%Y-%m-%d %H:%M:%S')_"
   } > "$OUTFILE"
+}
+
+# ════════════════════════════════════════════════════════════════════
+# FUNCIÓN: emit_json — emite resultado estructurado JSON a stdout
+# Usado cuando OUTPUT_FORMAT=json
+# ════════════════════════════════════════════════════════════════════
+emit_json() {
+  local _iso_date
+  _iso_date=$(date -d "$SCAN_DATE" '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \
+              || date '+%Y-%m-%dT%H:%M:%SZ')
+  printf '{\n'
+  printf '  "domain": "%s",\n'   "$SCAN_DOMAIN"
+  printf '  "baseUrl": "%s",\n'  "$BASE_URL"
+  printf '  "startedAt": "%s",\n' "$_iso_date"
+  printf '  "sessionCookie": "%s",\n' "${SESSION_COOKIE_NAME:-}"
+  printf '  "resolvedIp": "%s",\n'    "${IP:-${RESOLVED_IP:-}}"
+  printf '  "summary": { "pass": %d, "fail": %d, "warn": %d, "skip": %d },\n' \
+    "$PASS" "$FAIL" "$WARN" "$SKIP"
+  printf '  "tests": [\n'
+  local _first=1
+  for _id in "${SCAN_ORDER[@]}"; do
+    local _raw="${SCAN_DATA[$_id]}"
+    local _res="${_raw%%|*}"; _raw="${_raw#*|}"
+    local _dsc="${_raw%%|*}"; _raw="${_raw#*|}"
+    local _dtl="${_raw}"
+    # Escape JSON special chars (backslash, quote, newline, carriage return)
+    _dsc="${_dsc//\\/\\\\}"; _dsc="${_dsc//\"/\\\"}"
+    _dsc="${_dsc//$'\n'/\\n}";   _dsc="${_dsc//$'\r'/}"
+    _dtl="${_dtl//\\/\\\\}"; _dtl="${_dtl//\"/\\\"}"
+    _dtl="${_dtl//$'\n'/\\n}";   _dtl="${_dtl//$'\r'/}"
+    [[ $_first -eq 0 ]] && printf ',\n'
+    printf '    { "id": "%s", "name": "%s", "result": "%s", "detail": "%s" }' \
+      "$_id" "$_dsc" "$_res" "$_dtl"
+    _first=0
+  done
+  printf '\n  ]\n}\n'
 }
 
 # ════════════════════════════════════════════════════════════════════
@@ -482,11 +535,11 @@ _CSV_EXAMPLE="${_SCRIPT_DIR}/domains.csv.example"
 if [[ ! -f "$_CSV_PATH" ]]; then
   if [[ -f "$_CSV_EXAMPLE" ]]; then
     cp "$_CSV_EXAMPLE" "$_CSV_PATH"
-    echo -e "  ${CYAN}ℹ  domains.csv creado desde el ejemplo. Edítalo con tus dominios.${RESET}\n"
+    [[ "$_ENV_FORMAT" != "json" ]] && echo -e "  ${CYAN}ℹ  domains.csv creado desde el ejemplo. Edítalo con tus dominios.${RESET}\n"
   else
     printf "# UNAE Web Security Suite — dominios para análisis automatizado\n" > "$_CSV_PATH"
     printf "# Formato: dominio,cookie_sesion,ip_forzada  (últimas 2 opcionales)\n" >> "$_CSV_PATH"
-    echo -e "  ${CYAN}ℹ  domains.csv creado vacío. Agrégale dominios para usar el análisis batch.${RESET}\n"
+    [[ "$_ENV_FORMAT" != "json" ]] && echo -e "  ${CYAN}ℹ  domains.csv creado vacío. Agrégale dominios para usar el análisis batch.${RESET}\n"
   fi
 fi
 
@@ -500,6 +553,7 @@ while true; do
   DOMAIN="$_ENV_DOMAIN"
   SESSION_COOKIE_NAME="$_ENV_SESSION"
   IP="$_ENV_IP"
+  [[ "$_ENV_FORMAT" == "json" ]] && BATCH_SILENT=1
 
   # ── Menú principal (solo modo interactivo) ───────────────────
   if [[ -z "$_ENV_DOMAIN" ]]; then
@@ -539,7 +593,7 @@ while true; do
 
   # ── PASO 1: Dominio ────────────────────────────────────────
   if [[ -n "$DOMAIN" ]]; then
-    echo -e "${CYAN}Dominio:${RESET} $DOMAIN (variable de entorno)"
+    [[ "$BATCH_SILENT" != "1" ]] && echo -e "${CYAN}Dominio:${RESET} $DOMAIN (variable de entorno)"
   else
     echo -e "${CYAN}Paso 1/3 — Dominio a analizar${RESET}"
     echo -e "  Ejemplos: example.com  /  app.miempresa.com  /  10.0.0.1"
@@ -559,65 +613,90 @@ DOMAIN="$HOST"
 BASE_URL="https://${DOMAIN}${BASE_PATH}"
 
 # ── Validación 1: DNS ────────────────────────────────────────
-echo -ne "  Verificando DNS para ${DOMAIN}... "
+[[ "$BATCH_SILENT" != "1" ]] && echo -ne "  Verificando DNS para ${DOMAIN}... "
 DNS_RESULT=$(dig +short "$DOMAIN" 2>/dev/null | grep -oP '^\d+\.\d+\.\d+\.\d+$' | tail -1)
 if [[ -z "$DNS_RESULT" ]]; then
   DNS_RESULT=$(getent hosts "$DOMAIN" 2>/dev/null | awk '{print $1}' | grep -oP '^\d+\.\d+\.\d+\.\d+$' | tail -1)
 fi
 if [[ -z "$DNS_RESULT" ]]; then
+  if [[ "$_ENV_FORMAT" == "json" ]]; then
+    printf '{"error":"DNS_FAIL","domain":"%s","message":"El dominio no resuelve en DNS"}\n' "$DOMAIN"
+    exit 2
+  fi
   echo ""
   echo -e "${RED}❌ ERROR: El dominio '${DOMAIN}' no existe en DNS. Verifica que esté escrito correctamente.${RESET}"
   echo ""; read -rp "  Presiona Enter para volver al menú..." _; echo ""
   continue
 fi
-echo -e "${GREEN}OK${RESET} (${DNS_RESULT})"
+[[ "$BATCH_SILENT" != "1" ]] && echo -e "${GREEN}OK${RESET} (${DNS_RESULT})" || true
 RESOLVED_IP="$DNS_RESULT"
 
 # ── Validación 2: IP privada RFC 1918 ────────────────────────
 if [[ "$RESOLVED_IP" =~ ^10\. ]] || \
    [[ "$RESOLVED_IP" =~ ^172\.(1[6-9]|2[0-9]|3[0-1])\. ]] || \
    [[ "$RESOLVED_IP" =~ ^192\.168\. ]]; then
-  echo ""
-  echo -e "  ${YELLOW}⚠️  ADVERTENCIA: '${DOMAIN}' resuelve a una IP privada (${RESOLVED_IP}).${RESET}"
-  echo -e "      Solo es accesible desde la red interna. Algunos tests pueden fallar."
-  read -rp "      ¿Deseas continuar de todas formas? [s/N]: " CONFIRM
-  [[ ! "$CONFIRM" =~ ^[sS]$ ]] && echo "" && continue
+  if [[ "$_ENV_FORMAT" != "json" ]]; then
+    echo ""
+    echo -e "  ${YELLOW}⚠️  ADVERTENCIA: '${DOMAIN}' resuelve a una IP privada (${RESOLVED_IP}).${RESET}"
+    echo -e "      Solo es accesible desde la red interna. Algunos tests pueden fallar."
+    read -rp "      ¿Deseas continuar de todas formas? [s/N]: " CONFIRM
+    [[ ! "$CONFIRM" =~ ^[sS]$ ]] && echo "" && continue
+  fi
 fi
-echo ""
+[[ "$BATCH_SILENT" != "1" ]] && echo "" || true
 
 # ── Validación 3: servidor responde ──────────────────────────
-echo -ne "  Verificando acceso HTTPS a ${BASE_URL}... "
+# HTTP_CHECK usa DNS público (la IP forzada es el backend que puede no tener SSL).
+[[ "$BATCH_SILENT" != "1" ]] && echo -ne "  Verificando acceso HTTPS a ${BASE_URL}... "
 HTTP_CHECK=$(curl --max-time 5 -sk -o /dev/null -w "%{http_code}" "$BASE_URL" 2>/dev/null)
 if [[ "$HTTP_CHECK" == "000" ]] || [[ -z "$HTTP_CHECK" ]]; then
+  if [[ "$_ENV_FORMAT" == "json" ]]; then
+    printf '{"error":"NO_RESP","domain":"%s","baseUrl":"%s","message":"El servidor no responde"}\n' "$DOMAIN" "$BASE_URL"
+    exit 2
+  fi
   echo ""
   echo -e "${RED}❌ ERROR: El servidor no responde en ${BASE_URL}. No se puede continuar.${RESET}"
   echo ""; read -rp "  Presiona Enter para volver al menú..." _; echo ""
   continue
 fi
-echo -e "${GREEN}OK${RESET} (HTTP ${HTTP_CHECK})"
-echo ""
+[[ "$BATCH_SILENT" != "1" ]] && echo -e "${GREEN}OK${RESET} (HTTP ${HTTP_CHECK})" || true
+[[ "$BATCH_SILENT" != "1" ]] && echo "" || true
 
 # ── PASO 2: Descubrir cookies ────────────────────────────────
-echo -e "${CYAN}Paso 2/3 — Cookie de sesión${RESET}"
-echo "  Descubriendo cookies disponibles en ${BASE_URL} ..."
-echo ""
+if [[ "$BATCH_SILENT" != "1" ]]; then
+  echo -e "${CYAN}Paso 2/3 — Cookie de sesión${RESET}"
+  echo "  Descubriendo cookies disponibles en ${BASE_URL} ..."
+  echo ""
+fi
 
-DISCOVERED=$(curl --max-time 8 --connect-timeout 4 -sk -I "$BASE_URL" | grep -i "^set-cookie" | grep -oP "set-cookie:\s*\K[^=]+")
+DISCOVERED=$(curl --max-time 8 --connect-timeout 4 -sk -I $RESOLVE_443 "$BASE_URL" | grep -i "^set-cookie" | grep -oP "(?i)set-cookie:\s*\K[^=]+")
 
 if [[ -z "$DISCOVERED" ]]; then
-  echo -e "  ${YELLOW}No se encontraron cookies en la raíz del dominio.${RESET}"
-  echo "  Puede que requiera autenticación previa para generarlas."
-  SESSION_COOKIE_NAME=""
+  if [[ "$BATCH_SILENT" != "1" ]]; then
+    echo -e "  ${YELLOW}No se encontraron cookies en la raíz del dominio.${RESET}"
+    echo "  Puede que requiera autenticación previa para generarlas."
+  fi
+  # No resetear SESSION_COOKIE_NAME si fue especificada vía env/parámetro
+  # Solo limpiar si estaba vacía (no se pierde PHPSESSID/JSESSIONID etc.)
+  [[ -z "$_ENV_SESSION" ]] && SESSION_COOKIE_NAME=""
 else
-  echo "  Cookies encontradas:"
-  i=1; declare -a COOKIE_LIST
-  while IFS= read -r name; do
-    echo "    [$i] $name"; COOKIE_LIST+=("$name"); ((i++))
-  done <<< "$DISCOVERED"
-  echo ""
+  if [[ "$BATCH_SILENT" != "1" ]]; then
+    echo "  Cookies encontradas:"
+    i=1; declare -a COOKIE_LIST
+    while IFS= read -r name; do
+      echo "    [$i] $name"; COOKIE_LIST+=("$name"); ((i++))
+    done <<< "$DISCOVERED"
+    echo ""
+  fi
   if [[ -n "$SESSION_COOKIE_NAME" ]]; then
-    echo -e "  Cookie de sesión: ${CYAN}$SESSION_COOKIE_NAME${RESET} (variable de entorno)"
+    [[ "$BATCH_SILENT" != "1" ]] && echo -e "  Cookie de sesión: ${CYAN}$SESSION_COOKIE_NAME${RESET} (variable de entorno)"
+  elif [[ "$BATCH_SILENT" == "1" ]] || [[ "$_ENV_FORMAT" == "json" ]]; then
+    # Modo no-interactivo (batch o API JSON): auto-seleccionar primera cookie detectada
+    SESSION_COOKIE_NAME=$(echo "$DISCOVERED" | head -1)
   else
+    declare -a COOKIE_LIST
+    i=1
+    while IFS= read -r name; do COOKIE_LIST+=("$name"); ((i++)); done <<< "$DISCOVERED"
     echo "  ¿Cuál es la cookie de sesión principal?"
     echo "    [0] Ingresar manualmente"
     read -rp "  Selecciona número o 0: " CHOICE
@@ -628,25 +707,24 @@ else
     fi
   fi
 fi
-echo ""
+[[ "$BATCH_SILENT" != "1" ]] && echo "" || true
 
 # ── PASO 3: IP opcional ──────────────────────────────────────
-if [[ -z "$IP" ]]; then
+if [[ -z "$IP" ]] && [[ "$_ENV_FORMAT" != "json" ]]; then
   echo -e "${CYAN}Paso 3/3 — Resolución DNS (opcional)${RESET}"
   echo "  Deja vacío para usar DNS normal, o ingresa una IP para forzar resolución."
   read -rp "  IP del servidor [Enter para omitir]: " IP
 fi
-echo ""
-
-RESOLVE_443="${IP:+--resolve ${DOMAIN}:443:${IP}}"
-RESOLVE_80="${IP:+--resolve ${DOMAIN}:80:${IP}}"
+[[ "$_ENV_FORMAT" != "json" ]] && echo ""
 
 # ── Cabecera de ejecución ────────────────────────────────────
-echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-printf "  Dominio  : %s\n" "$DOMAIN"
-[[ -n "$IP" ]] && printf "  IP forzada: %s\n" "$IP"
-printf "  Fecha    : %s\n" "$(date '+%Y-%m-%d %H:%M:%S')"
-echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+if [[ "$BATCH_SILENT" != "1" ]]; then
+  echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  printf "  Dominio  : %s\n" "$DOMAIN"
+  [[ -n "$IP" ]] && printf "  IP forzada: %s\n" "$IP"
+  printf "  Fecha    : %s\n" "$(date '+%Y-%m-%d %H:%M:%S')"
+  echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+fi
 
 # ── Obtener respuesta base ────────────────────────────────────
 RESPONSE=$(curl --max-time 8 --connect-timeout 4 -sk -I $RESOLVE_443 "$BASE_URL")
@@ -654,6 +732,10 @@ COOKIES=$(echo "$RESPONSE" | grep -i "^set-cookie")
 
 run_tests
 
+  if [[ "$_ENV_FORMAT" == "json" ]]; then
+    emit_json
+    [[ $FAIL -eq 0 ]] && exit 0 || exit 1
+  fi
   if [[ -n "$_ENV_DOMAIN" ]]; then
     [[ $FAIL -eq 0 ]] && exit 0 || exit 1
   fi
@@ -789,7 +871,15 @@ CSP=$(echo "$RESPONSE" | grep -i "^content-security-policy:" | tr -d '\r')
 if [[ -z "$CSP" ]]; then
   run_test "12" "Content-Security-Policy" "FAIL" "header ausente"
 elif echo "$CSP" | grep -qi "unsafe-eval"; then
-  run_test "12" "Content-Security-Policy" "WARN" "contiene 'unsafe-eval'"
+  run_test "12" "Content-Security-Policy" "WARN" "contiene 'unsafe-eval' — permite ejecución JS dinámica"
+elif echo "$CSP" | grep -qP "(\\s|;|:)\\*[\\s;]|\\s+https?:[\\s;]"; then
+  run_test "12" "Content-Security-Policy" "WARN" "fuente comodín en CSP — cualquier origen puede cargar recursos"
+elif echo "$CSP" | grep -qi "unsafe-inline"; then
+  run_test "12" "Content-Security-Policy" "WARN" "contiene 'unsafe-inline' — permite JS/CSS inline (vector XSS)"
+elif ! echo "$CSP" | grep -qi "base-uri"; then
+  run_test "12" "Content-Security-Policy" "WARN" "sin 'base-uri' — vulnerable a inyección de <base> tag"
+elif ! echo "$CSP" | grep -qi "form-action"; then
+  run_test "12" "Content-Security-Policy" "WARN" "sin 'form-action' — formularios pueden enviarse a cualquier origen"
 else
   run_test "12" "Content-Security-Policy" "PASS"
 fi
@@ -860,13 +950,62 @@ else
 fi
 
 # TEST-20: Cache-Control en respuestas autenticadas
-CACHE=$(echo "$RESPONSE" | grep -i "^cache-control:" | tr -d '\r')
+# Tomamos el primer header (algunos servidores lo envían duplicado)
+CACHE=$(echo "$RESPONSE" | grep -i "^cache-control:" | tr -d '\r' | head -1 | sed 's/^[Cc]ache-[Cc]ontrol:[[:space:]]*//')
 if [[ -z "$CACHE" ]]; then
   run_test "20" "Cache-Control presente" "WARN" "ausente — navegador puede cachear contenido sensible"
 elif echo "$CACHE" | grep -qiP "no-store|no-cache|private"; then
-  run_test "20" "Cache-Control seguro" "PASS" "${CACHE#*: }"
+  run_test "20" "Cache-Control seguro" "PASS" "$CACHE"
 else
-  run_test "20" "Cache-Control seguro" "WARN" "${CACHE#*: } — revisar si aplica a rutas autenticadas"
+  run_test "20" "Cache-Control seguro" "WARN" "$CACHE — revisar si aplica a rutas autenticadas"
+fi
+
+# ════════════════════════════════════════════════════════════
+# BLOQUE 6 — HEADERS MODERNOS Y DEPRECADOS
+# ════════════════════════════════════════════════════════════
+section "HEADERS MODERNOS Y DEPRECADOS"
+
+# TEST-21: Deprecated headers (X-XSS-Protection, Expect-CT, Pragma)
+DEPR_HEADERS=$(echo "$RESPONSE" | grep -iE "^(x-xss-protection|expect-ct|pragma):" | tr -d '\r')
+if [[ -n "$DEPR_HEADERS" ]]; then
+  DEPR_LIST=$(echo "$DEPR_HEADERS" | cut -d: -f1 | tr '\n' ',' | sed 's/,$//')
+  run_test "21" "Headers deprecados ausentes" "WARN" "presentes: ${DEPR_LIST} — retirados de estándares modernos"
+else
+  run_test "21" "Headers deprecados ausentes" "PASS"
+fi
+
+# TEST-22: Cross-Origin-Opener-Policy (COOP)
+COOP=$(echo "$RESPONSE" | grep -i "^cross-origin-opener-policy:" | tr -d '\r')
+if [[ -z "$COOP" ]]; then
+  run_test "22" "Cross-Origin-Opener-Policy (COOP)" "WARN" "ausente — riesgo de cross-origin window attacks"
+else
+  run_test "22" "Cross-Origin-Opener-Policy (COOP)" "PASS" "${COOP#*: }"
+fi
+
+# TEST-23: Cross-Origin-Embedder-Policy (COEP)
+COEP=$(echo "$RESPONSE" | grep -i "^cross-origin-embedder-policy:" | tr -d '\r')
+if [[ -z "$COEP" ]]; then
+  run_test "23" "Cross-Origin-Embedder-Policy (COEP)" "WARN" "ausente — habilitar junto con COOP para aislamiento"
+else
+  run_test "23" "Cross-Origin-Embedder-Policy (COEP)" "PASS" "${COEP#*: }"
+fi
+
+# TEST-24: Cross-Origin-Resource-Policy (CORP)
+CORP=$(echo "$RESPONSE" | grep -i "^cross-origin-resource-policy:" | tr -d '\r')
+if [[ -z "$CORP" ]]; then
+  run_test "24" "Cross-Origin-Resource-Policy (CORP)" "WARN" "ausente — recursos accesibles desde cualquier origen"
+else
+  run_test "24" "Cross-Origin-Resource-Policy (CORP)" "PASS" "${CORP#*: }"
+fi
+
+# TEST-25: X-Permitted-Cross-Domain-Policies
+XPCDP=$(echo "$RESPONSE" | grep -i "^x-permitted-cross-domain-policies:" | tr -d '\r')
+if [[ -z "$XPCDP" ]]; then
+  run_test "25" "X-Permitted-Cross-Domain-Policies" "WARN" "ausente — controla acceso de Adobe Flash/PDF a recursos del dominio"
+elif echo "$XPCDP" | grep -qi ":.*\ball\b"; then
+  run_test "25" "X-Permitted-Cross-Domain-Policies" "WARN" "valor 'all' — demasiado permisivo: ${XPCDP#*: }"
+else
+  run_test "25" "X-Permitted-Cross-Domain-Policies" "PASS" "${XPCDP#*: }"
 fi
 
 # ── Resumen ──────────────────────────────────────────────────

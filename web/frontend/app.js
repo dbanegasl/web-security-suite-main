@@ -382,7 +382,7 @@ function renderBatchResults(data, lines) {
  * @param {Array} results - Array de resultados de scan
  * @param {Array} [lines] - Líneas CSV originales (opcional, para fallback de nombre de dominio)
  */
-const TESTS = Array.from({ length: 20 }, (_, i) => String(i + 1).padStart(2, "0"));
+const TESTS = Array.from({ length: 25 }, (_, i) => String(i + 1).padStart(2, "0"));
 
 /** Metadatos de cada test: bloque, nivel de riesgo y peso para score */
 const TESTS_META = [
@@ -406,6 +406,11 @@ const TESTS_META = [
   { id:"18", name:"CORS sin wildcard",             block:"Config. servidor", risk:"Alto",    weight:8,  riskDesc:"Acceso cross-origin irrestricto" },
   { id:"19", name:"HTTP TRACE deshabilitado",      block:"Config. servidor", risk:"Medio",   weight:5,  riskDesc:"XST (Cross-Site Tracing)" },
   { id:"20", name:"Cache-Control seguro",          block:"Config. servidor", risk:"Medio",   weight:5,  riskDesc:"Datos sensibles en caché del navegador" },
+  { id:"21", name:"Headers deprecados ausentes",   block:"Modernización",    risk:"Bajo",    weight:2,  riskDesc:"X-XSS-Protection y Expect-CT son obsoletos" },
+  { id:"22", name:"COOP (Cross-Origin-Opener)",    block:"Aislamiento",      risk:"Medio",   weight:5,  riskDesc:"Ataques de ventana cross-origin" },
+  { id:"23", name:"COEP (Cross-Origin-Embedder)",  block:"Aislamiento",      risk:"Medio",   weight:5,  riskDesc:"Necesario para aislamiento de contexto" },
+  { id:"24", name:"CORP (Cross-Origin-Resource)",  block:"Aislamiento",      risk:"Medio",   weight:5,  riskDesc:"Recursos cargables desde orígenes externos" },
+  { id:"25", name:"X-Permitted-Cross-Domain",      block:"Aislamiento",      risk:"Bajo",    weight:2,  riskDesc:"Acceso de Flash/PDF a recursos del dominio" },
 ];
 
 /**
@@ -1373,46 +1378,74 @@ document.getElementById("btn-import-csv-confirm").addEventListener("click", asyn
   }
 });
 
-// ── Scan desde lista ──────────────────────────────────────────
-document.getElementById("btn-list-scan").addEventListener("click", async () => {
+// ── Scan desde lista (SSE) ────────────────────────────────────────────────────
+document.getElementById("btn-list-scan").addEventListener("click", () => {
   if (!_activeListId) return;
   const progressWrap = document.getElementById("list-scan-progress");
-  const fill = document.getElementById("list-progress-fill");
-  const label = document.getElementById("list-progress-label");
-  const resultDiv = document.getElementById("list-scan-result");
+  const fill         = document.getElementById("list-progress-fill");
+  const label        = document.getElementById("list-progress-label");
+  const resultDiv    = document.getElementById("list-scan-result");
 
   progressWrap.classList.remove("hidden");
   resultDiv.classList.add("hidden");
   fill.style.width = "0%";
-  label.textContent = "Ejecutando scan…";
+  label.textContent = "Iniciando scan…";
 
-  // Animación de progreso indeterminado
-  let pct = 0;
-  const ticker = setInterval(() => {
-    pct = Math.min(pct + Math.random() * 8, 90);
+  const token = localStorage.getItem("wss_token");
+  const url = `/api/lists/${_activeListId}/scan-stream?token=${encodeURIComponent(token)}`;
+  const es = new EventSource(url);
+
+  const allResults = [];
+  let total = 0;
+
+  es.addEventListener("start", e => {
+    const d = JSON.parse(e.data);
+    total = d.total;
+    label.textContent = `Escaneando 0 / ${total}…`;
+    fill.style.width = "2%";
+  });
+
+  es.addEventListener("result", e => {
+    const d = JSON.parse(e.data);
+    allResults.push(d.result);
+
+    const pct = Math.round((d.index / d.total) * 100);
     fill.style.width = `${pct}%`;
-  }, 800);
+    label.textContent = `Escaneando ${d.index} / ${d.total} — ${d.result.domain || ""}`;
 
-  try {
-    const data = await apiPost(`/api/lists/${_activeListId}/scan`, {});
-    clearInterval(ticker);
-    fill.style.width = "100%";
-    label.textContent = `Completado — ${data.total} dominio${data.total !== 1 ? "s" : ""}`;
-
-    // Reutilizar renderizador de batch
+    // Renderizar tabla progresivamente
     const table = document.getElementById("list-batch-table");
-    table._listScanData = data;   // guardado para el reporte MD
-    renderBatchTable(table, data.results);
-    document.getElementById("list-scan-meta").textContent =
-      `Scan completado: ${new Date().toLocaleString()} — ${data.total} dominios`;
+    table._listScanData = { results: allResults };
+    renderBatchTable(table, allResults);
     resultDiv.classList.remove("hidden");
+  });
 
+  es.addEventListener("done", e => {
+    const d = JSON.parse(e.data);
+    fill.style.width = "100%";
+    label.textContent = `Completado — ${d.completed} dominio${d.completed !== 1 ? "s" : ""}`;
+    document.getElementById("list-scan-meta").textContent =
+      `Scan completado: ${new Date().toLocaleString()} — ${d.completed} dominios`;
     setTimeout(() => progressWrap.classList.add("hidden"), 1500);
-  } catch (err) {
-    clearInterval(ticker);
+    es.close();
+  });
+
+  es.addEventListener("error", e => {
+    let msg = "Error de conexión";
+    try { msg = JSON.parse(e.data).detail; } catch (_) {}
     fill.style.width = "0%";
-    label.textContent = "Error: " + (err.message || "Fallo al ejecutar el scan");
-  }
+    label.textContent = "Error: " + msg;
+    es.close();
+  });
+
+  // Fallback: si EventSource cierra sin evento done
+  es.onerror = () => {
+    if (fill.style.width !== "100%") {
+      fill.style.width = "0%";
+      label.textContent = "Error: conexión interrumpida";
+    }
+    es.close();
+  };
 });
 
 document.getElementById("btn-list-download-md")?.addEventListener("click", () => {
