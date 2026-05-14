@@ -57,6 +57,8 @@ Interfaz opcional que expone el script vía HTTP. Solo tocar si la tarea involuc
 
 - **API** (`web/api/main.py`): FastAPI, endpoints `/api/scan`, `/api/batch`, `/api/history`. Llama al script Bash en subprocess.
 - **Frontend** (`web/frontend/`): SPA vanilla JS + Bootstrap 5.3 Bootswatch Vapor (dark). Navegación por `data-nav` → `navigateTo()` en `app.js`.
+- **Red Docker**: ambos servicios en red bridge `internal`. El nginx del frontend hace `proxy_pass http://api:8001` por DNS interno. El contenedor API alcanza IPs privadas de la subred del host vía NAT bridge — suficiente para escanear servidores internos en la misma red local.
+- **Proxy externo**: el nginx del host enruta a `host:FRONTEND_PORT` (default 8080). Usa `sub_filter 'const API_BASE = ""' 'const API_BASE = "/ruta"'` para desplegar en un subpath sin tocar el código fuente.
 - **CSS variables clave**: `--wss-pass` (verde `#3fb950`), `--wss-fail` (rojo `#f85149`), `--wss-warn` (amarillo `#d29922`), `--wss-skip` (magenta `#bc8cff`). Estilos custom en `custom.css` (no tocar `styles.css`).
 - **Versión**: `web/frontend/version.json` — seguir las reglas de `.github/instructions/version-bump.instructions.md` al modificarlo.
 - **Levantar**: `cd web && docker compose up --build`
@@ -119,6 +121,7 @@ Generados por `generate_report_individual()` y `generate_report_batch()`. Se gua
 
 - Especificación de tests (criterios, snippets bash): [docs/tests-reference.md](docs/tests-reference.md)
 - Guía de uso y modos de ejecución: [docs/usage-guide.md](docs/usage-guide.md)
+- Despliegue detrás de un proxy nginx (subpath, sub_filter): [docs/deploy-nginx-proxy.md](docs/deploy-nginx-proxy.md)
 - Formato CSV para batch: ver [domains.csv.example](domains.csv.example) (`dominio,cookie_sesion,ip_forzada`)
 
 ## Pitfalls frecuentes

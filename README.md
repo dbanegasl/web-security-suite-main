@@ -190,6 +190,7 @@ web-security-suite/
 └── docs/
     ├── usage-guide.md             # Guía detallada de uso, modos, ejemplos y correcciones
     ├── tests-reference.md         # Especificación técnica (PRD) de cada test con snippets bash
+    ├── deploy-nginx-proxy.md      # Guía de despliegue detrás de un proxy nginx (subpath)
     └── planificacion-interfaz-web.md  # Análisis y planificación de la interfaz web
 ```
 
@@ -199,6 +200,7 @@ web-security-suite/
 
 - [Guía de uso](docs/usage-guide.md) — modos de ejecución (CLI, no interactivo, Docker), ejemplos por dominio, interpretación de resultados, correcciones comunes, CI/CD
 - [Referencia de tests](docs/tests-reference.md) — especificación técnica de los 25 tests con bash snippets individuales y criterios de aceptación
+- [Despliegue con proxy nginx](docs/deploy-nginx-proxy.md) — configuración para exponer la app en subpath (`/security/`) detrás de un proxy existente
 - [Interfaz web — planificación e implementación](docs/planificacion-interfaz-web.md) — análisis de viabilidad, arquitectura del stack Docker y estado de fases
 
 ---
