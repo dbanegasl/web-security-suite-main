@@ -1,7 +1,7 @@
 ---
 name: exportar-csv
 description: "Genera o actualiza domains.csv para web-security-suite. Úsala cuando necesites añadir dominios al análisis batch, detectar cookies de sesión automáticamente o actualizar IPs de servidores."
-argument-hint: "Lista de dominios separados por coma o espacio (ej: cas.unae.edu.ec, evea.unae.edu.ec)"
+argument-hint: "Lista de dominios separados por coma o espacio (ej: ejemplo.com, lms.ejemplo.com)"
 ---
 
 # Skill: exportar-csv

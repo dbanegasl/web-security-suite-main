@@ -1,11 +1,11 @@
 # web-security-suite — Agent Instructions
 
-Suite de auditoría de seguridad HTTP para dominios web. Un solo script Bash (`web-security-scan.sh`) con **25 tests organizados en 6 bloques**. Complementado por una interfaz web Docker (FastAPI + SPA nginx).
+Suite de auditoría de seguridad HTTP para dominios web. Un solo script Bash (`scan-cli.sh`) con **25 tests organizados en 6 bloques**. Complementado por una interfaz web Docker (FastAPI + SPA nginx).
 
 ## Estructura
 
 ```
-web-security-scan.sh   # Script principal — único archivo ejecutable
+scan-cli.sh            # Script CLI interactivo — ejecución en terminal
 domains.csv            # Dominios para análisis batch (gitignored; usar domains.csv.example como base)
 reports/               # Reportes Markdown generados (contenido gitignored, carpeta trackeada)
 docs/
@@ -42,13 +42,13 @@ Sin dependencias externas — solo `curl`, `openssl`, `dig`/`getent` (Bash ≥ 4
 
 ```bash
 # Modo interactivo
-bash web-security-scan.sh
+bash scan-cli.sh
 
 # Modo no interactivo (CI/CD, cron)
-DOMAIN=dominio.ejemplo.ec SESSION_COOKIE_NAME=sessionid bash web-security-scan.sh
+DOMAIN=dominio.ejemplo.ec SESSION_COOKIE_NAME=sessionid bash scan-cli.sh
 
 # Con IP forzada (servidores internos/staging)
-DOMAIN=dominio.ejemplo.ec SESSION_COOKIE_NAME=sessionid IP=192.168.x.x bash web-security-scan.sh
+DOMAIN=dominio.ejemplo.ec SESSION_COOKIE_NAME=sessionid IP=192.168.x.x bash scan-cli.sh
 ```
 
 ## Stack web (`web/`)
@@ -66,7 +66,7 @@ Interfaz opcional que expone el script vía HTTP. Solo tocar si la tarea involuc
 ## Regla: al añadir o modificar un test
 
 Actualizar **todos** estos archivos en la misma operación:
-1. `web-security-scan.sh` — el test en sí
+1. `scan-cli.sh` — el test en sí
 2. `docs/tests-reference.md` — especificación técnica
 3. `docs/security-tests-wiki.html` — wiki (contadores en hero y footer)
 4. `README.md` — tabla de bloques y contadores

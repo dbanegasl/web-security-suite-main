@@ -1,10 +1,10 @@
 ---
-description: "Añade un nuevo test de seguridad a web-security-scan.sh siguiendo las convenciones del proyecto"
+description: "Añade un nuevo test de seguridad a scan-cli.sh siguiendo las convenciones del proyecto"
 argument-hint: "Describe el test: qué cabecera/comportamiento HTTP verificar"
 agent: "agent"
 ---
 
-Voy a añadir un nuevo test de seguridad al script `web-security-scan.sh`. Sigue exactamente las convenciones del proyecto definidas en [AGENTS.md](../../AGENTS.md).
+Voy a añadir un nuevo test de seguridad al script `scan-cli.sh`. Sigue exactamente las convenciones del proyecto definidas en [AGENTS.md](../../AGENTS.md).
 
 ## Pasos
 
@@ -30,7 +30,7 @@ Voy a añadir un nuevo test de seguridad al script `web-security-scan.sh`. Sigue
    - Sección con nombre `### TEST-XX — <descripción>`
    - Campos: qué verifica, criterio de fallo, snippet bash independiente.
 
-5. **Verifica** que el script sigue siendo ejecutable con `bash -n web-security-scan.sh`.
+5. **Verifica** que el script sigue siendo ejecutable con `bash -n scan-cli.sh`.
 
 ## Restricciones
 

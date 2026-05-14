@@ -22,7 +22,7 @@ Internet
    │  proxy_pass http://api:8001  (DNS Docker interno)
    ▼
 [api container — FastAPI :8001]
-   │  bash web-security-scan.sh
+   │  bash scan-cli.sh
    ▼
 Dominios escaneados (internet + red interna)
 ```

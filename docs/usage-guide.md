@@ -1,6 +1,6 @@
 # Guía de uso — web-security-suite
 
-Guía operativa del script `web-security-scan.sh` (v3.1). Para la especificación técnica de cada test, ver [tests-reference.md](tests-reference.md).
+Guía operativa del script `scan-cli.sh` (v3.3). Para la especificación técnica de cada test, ver [tests-reference.md](tests-reference.md).
 
 ---
 
@@ -31,7 +31,7 @@ Si cualquier análisis falla o el usuario cancela, el script regresa al menú en
 ### Modo interactivo (wizard)
 
 ```bash
-bash web-security-scan.sh
+bash scan-cli.sh
 ```
 
 Selecciona **[1]** en el menú. El wizard solicita el dominio, valida su existencia y accesibilidad, descubre cookies y opcionalmente acepta una IP para forzar resolucón DNS.
@@ -39,13 +39,13 @@ Selecciona **[1]** en el menú. El wizard solicita el dominio, valida su existen
 **Paso 1 — Dominio:**
 ```
 Paso 1/3 — Dominio a analizar
-  Ejemplos: ssoserver.unae.edu.ec  /  cas.unae.edu.ec
+  Ejemplos: app.ejemplo.com  /  ejemplo.com
   Ingresa el dominio:
 ```
 
 El dominio pasa por cuatro validaciones automáticas:
 
-1. **Separación host/path** — si se ingresa una URL completa (ej: `servicios.unae.edu.ec/tracker/`), el script separa el host del path. Los tests DNS y TLS se realizan contra el host; los tests HTTP contra la URL completa.
+1. **Separación host/path** — si se ingresa una URL completa (ej: `servicios.ejemplo.com/tracker/`), el script separa el host del path. Los tests DNS y TLS se realizan contra el host; los tests HTTP contra la URL completa.
 2. **DNS** — verifica que el dominio resuelva a una IP válida (`dig` + fallback a `getent hosts`). Aborta si no resuelve.
 3. **IP privada** — si la IP resuelta es RFC 1918 (`10.x`, `172.16-31.x`, `192.168.x`), muestra advertencia y pide confirmación para continuar.
 4. **Accesibilidad HTTPS** — verifica que el servidor responda en `https://dominio/`. Aborta si no hay respuesta.
@@ -53,11 +53,11 @@ El dominio pasa por cuatro validaciones automáticas:
 **Paso 2 — Cookie de sesión:**
 ```
 Paso 2/3 — Cookie de sesión
-  Descubriendo cookies disponibles en https://ssoserver.unae.edu.ec/ ...
+  Descubriendo cookies disponibles en https://sso.ejemplo.com/ ...
 
   Cookies encontradas:
     [1] XSRF-TOKEN
-    [2] ssoserver_unae_session
+    [2] app_session
 
   ¿Cuál es la cookie de sesión principal?
     [0] Ingresar manualmente
@@ -83,10 +83,10 @@ Formato: `dominio,cookie_sesion,ip_forzada` — las dos últimas columnas son op
 
 ```csv
 # Comentarios con #, espacios ignorados
-evea.unae.edu.ec,MoodleSession,192.168.3.190
-cas.unae.edu.ec,CASTGC,192.168.3.206
-servicios.unae.edu.ec,,192.168.3.120
-congresos2.unae.edu.ec,,
+lms.ejemplo.com,MoodleSession,192.168.1.10
+cas.ejemplo.com,CASTGC,192.168.1.11
+servicios.ejemplo.com,,192.168.1.12
+app2.ejemplo.com,,
 ```
 
 Al clonar el repositorio, `domains.csv.example` sirve de plantilla. El script crea `domains.csv` automáticamente en el primer arranque (copiando el ejemplo si existe). El archivo `domains.csv` está en `.gitignore` para no exponer datos de infraestructura.
@@ -96,9 +96,9 @@ Al clonar el repositorio, `domains.csv.example` sirve de plantilla. El script cr
 El script procesa cada dominio aplicando las mismas validaciones DNS/HTTPS del modo individual (de forma silenciosa) y muestra una línea de progreso:
 
 ```
-  [ 1] evea.unae.edu.ec                     OK  (9P 4F 3W 4S)
-  [ 2] cas.unae.edu.ec                      OK  (17P 0F 3W 0S)
-  [ 3] tracker.unae.edu.ec                  DNS no resuelve
+  [ 1] lms.ejemplo.com                     OK  (9P 4F 3W 4S)
+  [ 2] app.ejemplo.com                      OK  (17P 0F 3W 0S)
+  [ 3] tracker.ejemplo.com                  DNS no resuelve
 ```
 
 Al terminar, imprime la tabla comparativa:
@@ -108,9 +108,9 @@ Al terminar, imprime la tabla comparativa:
 
   DOMINIO                          01 02 03 04 05 06 07 ... 20    OK   FL   WN
   ──────────────────────────────────────────────────────────────────────
-  evea.unae.edu.ec                  P  F  F  P  P  F  P ...  P     9    4    3
-  cas.unae.edu.ec                   P  P  P  P  P  P  P ...  P    17    0    3
-  tracker.unae.edu.ec               DNS no resuelve
+  lms.ejemplo.com                  P  F  F  P  P  F  P ...  P     9    4    3
+  cas.ejemplo.com                   P  P  P  P  P  P  P ...  P    17    0    3
+  tracker.ejemplo.com               DNS no resuelve
 
   Leyenda:  P=PASS  F=FAIL  W=WARN  S=SKIP
 ```
@@ -123,18 +123,18 @@ Ideal para CI/CD, cron jobs o ejecución en lote. Si `DOMAIN` está definido, el
 
 ```bash
 # Mínimo — solo dominio (TEST-02 queda en SKIP sin SESSION_COOKIE_NAME)
-DOMAIN=cas.unae.edu.ec bash web-security-scan.sh
+DOMAIN=app.ejemplo.com bash scan-cli.sh
 
 # Completo — dominio + cookie de sesión
-DOMAIN=ssoserver.unae.edu.ec \
-  SESSION_COOKIE_NAME=ssoserver_unae_session \
-  bash web-security-scan.sh
+DOMAIN=sso.ejemplo.com \
+  SESSION_COOKIE_NAME=app_session \
+  bash scan-cli.sh
 
 # Con IP forzada (red interna / staging sin DNS)
-DOMAIN=ssoserver.unae.edu.ec \
-  SESSION_COOKIE_NAME=ssoserver_unae_session \
-  IP=192.168.3.203 \
-  bash web-security-scan.sh
+DOMAIN=sso.ejemplo.com \
+  SESSION_COOKIE_NAME=app_session \
+  IP=192.168.1.10 \
+  bash scan-cli.sh
 ```
 
 ### Variables de entorno
@@ -147,26 +147,27 @@ DOMAIN=ssoserver.unae.edu.ec \
 
 ---
 
-## Ejemplos por dominio UNAE
+## Ejemplos por stack
 
 ```bash
-# ssoserver — Laravel
-DOMAIN=ssoserver.unae.edu.ec SESSION_COOKIE_NAME=ssoserver_unae_session \
-  bash web-security-scan.sh
+# Laravel / PHP-FPM
+DOMAIN=sso.ejemplo.com SESSION_COOKIE_NAME=app_session \
+  bash scan-cli.sh
 
-# cas — Java/Tomcat
-DOMAIN=cas.unae.edu.ec SESSION_COOKIE_NAME=JSESSIONID \
-  bash web-security-scan.sh
+# Java / Tomcat (CAS, Keycloak, etc.)
+DOMAIN=app.ejemplo.com SESSION_COOKIE_NAME=JSESSIONID \
+  bash scan-cli.sh
 
-# admisiones / soporte — Django
-DOMAIN=admisiones.unae.edu.ec SESSION_COOKIE_NAME=sessionid \
-  bash web-security-scan.sh
+# Django / Python
+DOMAIN=admisiones.ejemplo.com SESSION_COOKIE_NAME=sessionid \
+  bash scan-cli.sh
 
-DOMAIN=soporte.unae.edu.ec SESSION_COOKIE_NAME=sessionid \
-  bash web-security-scan.sh
+# PHP genérico
+DOMAIN=servicios.ejemplo.com SESSION_COOKIE_NAME=PHPSESSID \
+  bash scan-cli.sh
 
 # Dominio nuevo — wizard para descubrir cookies
-DOMAIN=nuevo.unae.edu.ec bash web-security-scan.sh
+DOMAIN=nuevo.ejemplo.com bash scan-cli.sh
 ```
 
 ---
@@ -176,7 +177,7 @@ DOMAIN=nuevo.unae.edu.ec bash web-security-scan.sh
 ```
 RESUMEN: 19 PASS  0 FAIL  1 WARN  5 SKIP  /  25 tests
 
-⚠️  SCORECARD: SIN FALLOS CRÍTICOS, 1 advertencia(s) — ssoserver.unae.edu.ec
+⚠️  SCORECARD: SIN FALLOS CRÍTICOS, 1 advertencia(s) — app.ejemplo.com
 ```
 
 | Mensaje final | Condición |
@@ -337,7 +338,7 @@ El formulario acepta los mismos parámetros que el CLI:
 
 | Campo | Equivalente CLI | Descripción |
 |---|---|---|
-| Dominio | `DOMAIN` | Sin `https://`; se admite path (ej: `servicios.unae.edu.ec/app/`) |
+| Dominio | `DOMAIN` | Sin `https://`; se admite path (ej: `servicios.ejemplo.com/app/`) |
 | Cookie de sesión | `SESSION_COOKIE_NAME` | Nombre de la cookie (no su valor); opcional |
 | IP forzada | `IP` | IP del servidor para `--resolve`; opcional |
 
@@ -356,11 +357,11 @@ Para auditar dominios con IPs privadas (`192.168.x.x`, `10.x.x.x`) el contenedor
 ### GitHub Actions
 
 ```yaml
-- name: UNAE Web Security Tests
+- name: Web Security Tests
   run: |
     DOMAIN=${{ vars.TARGET_DOMAIN }} \
     SESSION_COOKIE_NAME=${{ vars.SESSION_COOKIE_NAME }} \
-    bash web-security-scan.sh
+    bash scan-cli.sh
 ```
 
 ### GitLab CI
@@ -369,10 +370,10 @@ Para auditar dominios con IPs privadas (`192.168.x.x`, `10.x.x.x`) el contenedor
 security-tests:
   stage: test
   script:
-    - DOMAIN=$TARGET_DOMAIN SESSION_COOKIE_NAME=$SESSION_COOKIE bash web-security-scan.sh
+    - DOMAIN=$TARGET_DOMAIN SESSION_COOKIE_NAME=$SESSION_COOKIE bash scan-cli.sh
   variables:
-    TARGET_DOMAIN: ssoserver.unae.edu.ec
-    SESSION_COOKIE: ssoserver_unae_session
+    TARGET_DOMAIN: app.ejemplo.com
+    SESSION_COOKIE: app_session
 ```
 
 > El script retorna **exit code 1** si hay al menos un FAIL, lo que detiene el pipeline correctamente.

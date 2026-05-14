@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # ============================================================
-# UNAE Web Security Suite — v3.3
+# Web Security Suite — v3.3
 # Autor: Daniel Banegas
-# Uso interactivo: bash web-security-scan.sh
-# Uso directo:     DOMAIN=cas.unae.edu.ec bash web-security-scan.sh
+# Uso interactivo: bash scan-cli.sh
+# Uso directo:     DOMAIN=app.ejemplo.com bash scan-cli.sh
 # ============================================================
 
 _ENV_DOMAIN="${DOMAIN:-}"
@@ -537,7 +537,7 @@ if [[ ! -f "$_CSV_PATH" ]]; then
     cp "$_CSV_EXAMPLE" "$_CSV_PATH"
     [[ "$_ENV_FORMAT" != "json" ]] && echo -e "  ${CYAN}ℹ  domains.csv creado desde el ejemplo. Edítalo con tus dominios.${RESET}\n"
   else
-    printf "# UNAE Web Security Suite — dominios para análisis automatizado\n" > "$_CSV_PATH"
+    printf "# Web Security Suite — dominios para análisis automatizado\n" > "$_CSV_PATH"
     printf "# Formato: dominio,cookie_sesion,ip_forzada  (últimas 2 opcionales)\n" >> "$_CSV_PATH"
     [[ "$_ENV_FORMAT" != "json" ]] && echo -e "  ${CYAN}ℹ  domains.csv creado vacío. Agrégale dominios para usar el análisis batch.${RESET}\n"
   fi

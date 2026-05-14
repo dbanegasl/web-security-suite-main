@@ -17,7 +17,7 @@ Cuando se te pida actualizar la versión, analiza los cambios descritos o el
 - Se añade un endpoint nuevo sin romper los existentes
 - Nueva vista o sección funcional en el frontend
 - Se añaden nuevos tests de seguridad (TEST-21 en adelante)
-- Nuevo modo de operación en `web-security-scan.sh` o `scan.sh`
+- Nuevo modo de operación en `scan-cli.sh` o `scan.sh`
 - Nueva funcionalidad en el panel de administración o en listas de dominios
 
 ## PATCH (x.y.Z) — cuando:

@@ -30,7 +30,7 @@ Aplica estas reglas en orden de prioridad (la primera que aplique gana):
 - Endpoint nuevo añadido sin romper los existentes
 - Nueva vista o sección funcional en el frontend
 - Nuevo test de seguridad (TEST-21+)
-- Nuevo modo de operación en `scan.sh` o `web-security-scan.sh`
+- Nuevo modo de operación en `scan.sh` o `scan-cli.sh`
 - Nueva funcionalidad en panel de admin o listas de dominios
 
 **PATCH** en cualquier otro caso:

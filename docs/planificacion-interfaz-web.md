@@ -5,7 +5,7 @@
 
 ## Pregunta
 
-Evaluar si el proyecto actual, basado en `web-security-scan.sh`, puede escalar a una interfaz web y ejecutarse completamente desde el navegador usando solo HTML y JavaScript.
+Evaluar si el proyecto actual, basado en `scan-cli.sh`, puede escalar a una interfaz web y ejecutarse completamente desde el navegador usando solo HTML y JavaScript.
 
 ## Respuesta corta
 
@@ -121,19 +121,19 @@ Riesgos a controlar:
 
 Es la evolucion mas rapida.
 
-El backend no reescribe todo. Ejecuta `web-security-scan.sh` en modo no interactivo con variables de entorno:
+El backend no reescribe todo. Ejecuta `scan-cli.sh` en modo no interactivo con variables de entorno:
 
 ```bash
 DOMAIN=dominio.ejemplo.ec \
 SESSION_COOKIE_NAME=sessionid \
 IP=192.168.x.x \
-bash web-security-scan.sh
+bash scan-cli.sh
 ```
 
 Para que esto sea robusto, convendria agregar al script un modo de salida JSON:
 
 ```bash
-OUTPUT_FORMAT=json DOMAIN=example.com bash web-security-scan.sh
+OUTPUT_FORMAT=json DOMAIN=example.com bash scan-cli.sh
 ```
 
 Hoy el script imprime salida coloreada para terminal y genera Markdown. Para una web conviene que el contrato principal sea JSON estructurado:
@@ -192,7 +192,7 @@ La logica actual del Bash puede convertirse en una matriz de tests con entradas/
 La ruta mas conveniente seria por fases:
 
 1. ✅ **Separar el motor del script en una salida estructurada.**
-   - `scan.sh` — copia de `web-security-scan.sh` con modo `OUTPUT_FORMAT=json`.
+   - `scan.sh` — copia de `scan-cli.sh` con modo `OUTPUT_FORMAT=json`.
    - `emit_json()` emite JSON limpio a stdout; todo output de terminal suprimido con `BATCH_SILENT=1`.
 
 2. ✅ **Crear una API pequena.**
@@ -207,7 +207,7 @@ La ruta mas conveniente seria por fases:
    - `web/docker-compose.yml` — servicios `api` (FastAPI en Debian bookworm-slim) y `frontend` (nginx:alpine).
    - nginx sirve el SPA y hace proxy reverso de `/api/` al backend — un único puerto expuesto.
    - `web/.env.example` con variables `FRONTEND_PORT`, `FRONTEND_ORIGIN`, `SCAN_TIMEOUT_SECONDS`.
-   - Stack validado contra dominios UNAE: `cas.unae.edu.ec`, `duotics.com`, `ssoserver.unae.edu.ec`.
+   - Stack validado contra dominios: `app.ejemplo.com`, `duotics.com`, `sso.ejemplo.com`.
 
 5. ⏳ **Endurecer seguridad.** *(pendiente)*
    - Autenticacion.
@@ -370,7 +370,7 @@ Si expones el scanner como servicio web, hay que tratarlo como una herramienta s
 Recomendaciones:
 
 - Autenticacion obligatoria.
-- Lista blanca de dominios permitidos, por ejemplo `*.unae.edu.ec`.
+- Lista blanca de dominios permitidos, por ejemplo `*.ejemplo.com`.
 - Bloqueo o control explicito de rangos privados si no es una instalacion interna autorizada.
 - Rate limiting.
 - Timeouts estrictos.

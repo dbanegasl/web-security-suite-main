@@ -1,6 +1,6 @@
 ---
 description: "Analiza un reporte Markdown de reports/ y genera un resumen ejecutivo con prioridades de remediación"
-argument-hint: "Ruta al reporte (ej: reports/20260512-162312-evea.unae.edu.ec.md) o 'último' para el más reciente"
+argument-hint: "Ruta al reporte (ej: reports/20260512-162312-lms.ejemplo.com.md) o 'último' para el más reciente"
 agent: "agent"
 ---
 

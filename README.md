@@ -2,7 +2,7 @@
 
 Suite de pruebas de seguridad HTTP para auditoría de dominios web. Ejecuta **25 tests** organizados en 6 bloques, detectando las vulnerabilidades más comunes que afectan a scorecards de seguridad (OWASP Top 10 basics, Security Headers).
 
-**Versión:** 3.1 · **Autor:** Daniel Banegas · **Organización:** UNAE TICS
+**Versión:** 3.1 · **Autor:** Daniel Banegas · **Organización:** DUOTICS
 
 ---
 
@@ -33,21 +33,21 @@ Suite de pruebas de seguridad HTTP para auditoría de dominios web. Ejecuta **25
 
 ```bash
 # Modo interactivo — menú principal
-bash web-security-scan.sh
+bash scan-cli.sh
 
 # Modo directo — dominio + cookie de sesión identificada
-DOMAIN=ssoserver.unae.edu.ec \
-  SESSION_COOKIE_NAME=ssoserver_unae_session \
-  bash web-security-scan.sh
+DOMAIN=sso.ejemplo.com \
+  SESSION_COOKIE_NAME=app_session \
+  bash scan-cli.sh
 
 # Con IP forzada (entorno interno / staging)
-DOMAIN=ssoserver.unae.edu.ec \
-  SESSION_COOKIE_NAME=ssoserver_unae_session \
-  IP=192.168.3.203 \
-  bash web-security-scan.sh
+DOMAIN=sso.ejemplo.com \
+  SESSION_COOKIE_NAME=app_session \
+  IP=192.168.1.10 \
+  bash scan-cli.sh
 
 # Batch desde CSV (modo no interactivo)
-bash web-security-scan.sh   # → opción [2] en el menú
+bash scan-cli.sh   # → opción [2] en el menú
 ```
 
 ### Variables de entorno
@@ -96,7 +96,7 @@ navegador → nginx :FRONTEND_PORT ─┬─ /api/ → FastAPI :8000 (interno)
 
 - **nginx** sirve el frontend y hace proxy reverso de `/api/` al backend — un único puerto expuesto al host.
 - **FastAPI** (`web/api/main.py`) ejecuta `scan.sh` como subprocess con `OUTPUT_FORMAT=json` y devuelve JSON estructurado.
-- **scan.sh** es el motor de `web-security-scan.sh` con soporte de salida JSON y modo batch silencioso.
+- **scan.sh** es el motor de `scan-cli.sh` con soporte de salida JSON y modo batch silencioso.
 
 ### Funcionalidades de la interfaz
 
@@ -127,7 +127,7 @@ navegador → nginx :FRONTEND_PORT ─┬─ /api/ → FastAPI :8000 (interno)
 ```
 RESUMEN: 19 PASS  0 FAIL  1 WARN  5 SKIP  /  25 tests
 
-⚠️  SECURITY SCAN: SIN FALLOS CRÍTICOS, 1 advertencia(s) — ssoserver.unae.edu.ec
+⚠️  SECURITY SCAN: SIN FALLOS CRÍTICOS, 1 advertencia(s) — sso.ejemplo.com
 ```
 
 ---
@@ -145,15 +145,15 @@ RESUMEN: 19 PASS  0 FAIL  1 WARN  5 SKIP  /  25 tests
 
 ---
 
-## Cookie de sesión por dominio (referencia UNAE)
+## Cookie de sesión por dominio (referencia por stack)
 
-| Dominio | `SESSION_COOKIE_NAME` | Stack |
+| Dominio de ejemplo | `SESSION_COOKIE_NAME` | Stack |
 |---|---|---|
-| `ssoserver.unae.edu.ec` | `ssoserver_unae_session` | Laravel / PHP-FPM |
-| `admisiones.unae.edu.ec` | `sessionid` | Django / Python |
-| `soporte.unae.edu.ec` | `sessionid` | Django / Python |
-| `cas.unae.edu.ec` | `JSESSIONID` | Java / Tomcat |
-| `servicios.unae.edu.ec` | `PHPSESSID` | PHP (confirmar con curl) |
+| `sso.ejemplo.com` | `app_session` | Laravel / PHP-FPM |
+| `admisiones.ejemplo.com` | `sessionid` | Django / Python |
+| `soporte.ejemplo.com` | `sessionid` | Django / Python |
+| `cas.ejemplo.com` | `JSESSIONID` | Java / Tomcat |
+| `servicios.ejemplo.com` | `PHPSESSID` | PHP (confirmar con curl) |
 
 > Para descubrir la cookie de un dominio nuevo:
 > ```bash
@@ -167,7 +167,7 @@ RESUMEN: 19 PASS  0 FAIL  1 WARN  5 SKIP  /  25 tests
 ```
 web-security-suite/
 ├── README.md                      # Este archivo
-├── web-security-scan.sh           # Script principal (v3.1)
+├── scan-cli.sh                    # Script CLI interactivo (v3.3)
 ├── scan.sh                        # Motor de escaneo con salida JSON (usado por la API)
 ├── domains.csv.example            # Plantilla de dominios para análisis batch
 ├── domains.csv                    # Tu lista de dominios (gitignored — copiar del .example)
@@ -205,4 +205,4 @@ web-security-suite/
 
 ---
 
-*Generado con asistencia de GitHub Copilot — UNAE TICS 2026.*
+*Generado con asistencia de GitHub Copilot — DUOTICS 2026.*

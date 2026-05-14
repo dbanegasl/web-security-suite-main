@@ -341,4 +341,4 @@ Cada fase es **desplegable y utilizable de forma independiente**. No es necesari
 
 ---
 
-*Planificado con asistencia de GitHub Copilot — UNAE TICS 2026.*
+*Planificado con asistencia de GitHub Copilot — DUOTICS 2026.*

@@ -1,6 +1,6 @@
 # Referencia de tests — web-security-suite
 
-Especificación técnica (PRD) de los 25 tests incluidos en `web-security-scan.sh` (v3.1). Cada test incluye descripción, criterio de resultado y snippet bash ejecutable de forma independiente.
+Especificación técnica (PRD) de los 25 tests incluidos en `scan-cli.sh` (v3.1). Cada test incluye descripción, criterio de resultado y snippet bash ejecutable de forma independiente.
 
 > Los snippets asumen ejecución individual. En el script principal, los tests se invocan mediante `run_tests()` con soporte tanto para modo individual (con salida detallada) como para modo batch (silencioso, resultados almacenados en `BATCH_RESULTS`).
 
@@ -16,7 +16,7 @@ Especificación técnica (PRD) de los 25 tests incluidos en `web-security-scan.s
 **Falla si:** Alguna cookie no contiene `; secure` en el header `Set-Cookie`.
 
 ```bash
-DOMAIN="${DOMAIN:-ssoserver.unae.edu.ec}"
+DOMAIN="${DOMAIN:-sso.ejemplo.com}"
 RESOLVE="${IP:+--resolve ${DOMAIN}:443:${IP}}"
 COOKIES=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -i "^set-cookie")
 FAIL=0
@@ -38,8 +38,8 @@ done <<< "$COOKIES"
 **Falla si:** La cookie de sesión no contiene `; httponly`.
 
 ```bash
-DOMAIN="${DOMAIN:-ssoserver.unae.edu.ec}"
-SESSION_COOKIE_NAME="${SESSION_COOKIE_NAME:-ssoserver_unae_session}"
+DOMAIN="${DOMAIN:-sso.ejemplo.com}"
+SESSION_COOKIE_NAME="${SESSION_COOKIE_NAME:-app_session}"
 RESOLVE="${IP:+--resolve ${DOMAIN}:443:${IP}}"
 SESSION_LINE=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -i "^set-cookie" | grep -i "$SESSION_COOKIE_NAME")
 if [[ -z "$SESSION_LINE" ]]; then
@@ -60,7 +60,7 @@ fi
 **Falla si:** Alguna cookie no tiene `SameSite` o tiene `SameSite=None`.
 
 ```bash
-DOMAIN="${DOMAIN:-ssoserver.unae.edu.ec}"
+DOMAIN="${DOMAIN:-sso.ejemplo.com}"
 RESOLVE="${IP:+--resolve ${DOMAIN}:443:${IP}}"
 COOKIES=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -i "^set-cookie")
 FAIL=0
@@ -82,7 +82,7 @@ done <<< "$COOKIES"
 **Advierte** si alguna cookie no especifica `Path` (WARN, no FAIL crítico).
 
 ```bash
-DOMAIN="${DOMAIN:-ssoserver.unae.edu.ec}"
+DOMAIN="${DOMAIN:-sso.ejemplo.com}"
 RESOLVE="${IP:+--resolve ${DOMAIN}:443:${IP}}"
 COOKIES=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -i "^set-cookie")
 while IFS= read -r line; do
@@ -103,7 +103,7 @@ done <<< "$COOKIES"
 **Falla si:** HTTP responde código distinto de 301/302, o `Location` no apunta a `https://`.
 
 ```bash
-DOMAIN="${DOMAIN:-ssoserver.unae.edu.ec}"
+DOMAIN="${DOMAIN:-sso.ejemplo.com}"
 RESOLVE="${IP:+--resolve ${DOMAIN}:80:${IP}}"
 RESPONSE=$(curl -sk -I $RESOLVE "http://${DOMAIN}/")
 HTTP_CODE=$(echo "$RESPONSE" | grep -oP "HTTP/\S+ \K\d+")
@@ -122,7 +122,7 @@ echo "  Location    : $LOCATION"
 **FAIL** si el header está ausente. **WARN** si `max-age` < 31536000.
 
 ```bash
-DOMAIN="${DOMAIN:-ssoserver.unae.edu.ec}"
+DOMAIN="${DOMAIN:-sso.ejemplo.com}"
 RESOLVE="${IP:+--resolve ${DOMAIN}:443:${IP}}"
 HSTS=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -i "strict-transport-security" | tr -d '\r')
 MAX_AGE=$(echo "$HSTS" | grep -oP "max-age=\K\d+")
@@ -140,7 +140,7 @@ else echo "RESULTADO: ⚠️  WARN — max-age=${MAX_AGE} < 31536000"; fi
 **Falla si:** El servidor acepta TLS 1.0.
 
 ```bash
-DOMAIN="${DOMAIN:-ssoserver.unae.edu.ec}"
+DOMAIN="${DOMAIN:-sso.ejemplo.com}"
 RESOLVE="${IP:+--resolve ${DOMAIN}:443:${IP}}"
 curl -sk --tlsv1.0 --tls-max 1.0 $RESOLVE "https://${DOMAIN}/" -o /dev/null 2>/dev/null \
   && echo "❌ FAIL — servidor acepta TLS 1.0" \
@@ -155,7 +155,7 @@ curl -sk --tlsv1.0 --tls-max 1.0 $RESOLVE "https://${DOMAIN}/" -o /dev/null 2>/d
 **Falla si:** El servidor acepta TLS 1.1.
 
 ```bash
-DOMAIN="${DOMAIN:-ssoserver.unae.edu.ec}"
+DOMAIN="${DOMAIN:-sso.ejemplo.com}"
 RESOLVE="${IP:+--resolve ${DOMAIN}:443:${IP}}"
 curl -sk --tlsv1.1 --tls-max 1.1 $RESOLVE "https://${DOMAIN}/" -o /dev/null 2>/dev/null \
   && echo "❌ FAIL — servidor acepta TLS 1.1" \
@@ -170,7 +170,7 @@ curl -sk --tlsv1.1 --tls-max 1.1 $RESOLVE "https://${DOMAIN}/" -o /dev/null 2>/d
 **FAIL** si expira en ≤ 7 días. **WARN** si expira en ≤ 30 días. **PASS** si > 30 días.
 
 ```bash
-DOMAIN="${DOMAIN:-ssoserver.unae.edu.ec}"
+DOMAIN="${DOMAIN:-sso.ejemplo.com}"
 OPENSSL_CONNECT="${IP:+-connect ${IP}:443}"
 EXPIRY=$(echo | openssl s_client ${OPENSSL_CONNECT:--connect ${DOMAIN}:443} \
   -servername "${DOMAIN}" 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
@@ -193,7 +193,7 @@ else echo "✅ PASS"; fi
 **ZAP rule:** 10020
 
 ```bash
-DOMAIN="${DOMAIN:-ssoserver.unae.edu.ec}"
+DOMAIN="${DOMAIN:-sso.ejemplo.com}"
 RESOLVE="${IP:+--resolve ${DOMAIN}:443:${IP}}"
 XFO=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -i "^x-frame-options:" | tr -d '\r')
 [[ -n "$XFO" ]] && echo "✅ PASS — ${XFO#*: }" || echo "❌ FAIL — X-Frame-Options ausente"
@@ -207,7 +207,7 @@ XFO=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -i "^x-frame-options:" | 
 **Falla si:** El header `X-Content-Type-Options` está ausente.
 
 ```bash
-DOMAIN="${DOMAIN:-ssoserver.unae.edu.ec}"
+DOMAIN="${DOMAIN:-sso.ejemplo.com}"
 RESOLVE="${IP:+--resolve ${DOMAIN}:443:${IP}}"
 XCTO=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -i "^x-content-type-options:" | tr -d '\r')
 [[ -n "$XCTO" ]] && echo "✅ PASS" || echo "❌ FAIL — X-Content-Type-Options ausente"
@@ -222,7 +222,7 @@ XCTO=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -i "^x-content-type-opti
 **ZAP rule:** 10038
 
 ```bash
-DOMAIN="${DOMAIN:-ssoserver.unae.edu.ec}"
+DOMAIN="${DOMAIN:-sso.ejemplo.com}"
 RESOLVE="${IP:+--resolve ${DOMAIN}:443:${IP}}"
 CSP=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -i "^content-security-policy:" | tr -d '\r')
 if [[ -z "$CSP" ]]; then echo "❌ FAIL — CSP ausente"
@@ -238,7 +238,7 @@ else echo "✅ PASS"; fi
 **Advierte** si el header está ausente (WARN, no FAIL crítico).
 
 ```bash
-DOMAIN="${DOMAIN:-ssoserver.unae.edu.ec}"
+DOMAIN="${DOMAIN:-sso.ejemplo.com}"
 RESOLVE="${IP:+--resolve ${DOMAIN}:443:${IP}}"
 RP=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -i "^referrer-policy:" | tr -d '\r')
 [[ -n "$RP" ]] && echo "✅ PASS — ${RP#*: }" || echo "⚠️  WARN — Referrer-Policy ausente"
@@ -252,7 +252,7 @@ RP=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -i "^referrer-policy:" | t
 **Advierte** si el header está ausente (WARN, no FAIL crítico).
 
 ```bash
-DOMAIN="${DOMAIN:-ssoserver.unae.edu.ec}"
+DOMAIN="${DOMAIN:-sso.ejemplo.com}"
 RESOLVE="${IP:+--resolve ${DOMAIN}:443:${IP}}"
 PP=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -i "^permissions-policy:" | tr -d '\r')
 [[ -n "$PP" ]] && echo "✅ PASS" || echo "⚠️  WARN — Permissions-Policy ausente (recomendado)"
@@ -269,7 +269,7 @@ PP=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -i "^permissions-policy:" 
 **ZAP rule:** 10096
 
 ```bash
-DOMAIN="${DOMAIN:-ssoserver.unae.edu.ec}"
+DOMAIN="${DOMAIN:-sso.ejemplo.com}"
 RESOLVE="${IP:+--resolve ${DOMAIN}:443:${IP}}"
 SERVER=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -i "^server:" | tr -d '\r')
 echo "  Server: ${SERVER:-ausente}"
@@ -284,7 +284,7 @@ echo "$SERVER" | grep -qiP "[\d\.]{3,}" && echo "❌ FAIL — revela versión" |
 **Falla si:** El header está presente.
 
 ```bash
-DOMAIN="${DOMAIN:-ssoserver.unae.edu.ec}"
+DOMAIN="${DOMAIN:-sso.ejemplo.com}"
 RESOLVE="${IP:+--resolve ${DOMAIN}:443:${IP}}"
 XPB=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -i "^x-powered-by:" | tr -d '\r')
 [[ -z "$XPB" ]] && echo "✅ PASS — X-Powered-By ausente" || echo "❌ FAIL — ${XPB#*: }"
@@ -298,7 +298,7 @@ XPB=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -i "^x-powered-by:" | tr 
 **Aplica principalmente a:** Servidores IIS / ASP.NET. En nginx/PHP siempre debería ser PASS.
 
 ```bash
-DOMAIN="${DOMAIN:-ssoserver.unae.edu.ec}"
+DOMAIN="${DOMAIN:-sso.ejemplo.com}"
 RESOLVE="${IP:+--resolve ${DOMAIN}:443:${IP}}"
 XASNET=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -iE "^x-aspnet(mvc)?-version:" | tr -d '\r')
 [[ -z "$XASNET" ]] && echo "✅ PASS" || echo "❌ FAIL — ${XASNET#*: }"
@@ -314,7 +314,7 @@ XASNET=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -iE "^x-aspnet(mvc)?-v
 **PASS** si CORS no está expuesto en raíz o especifica origen explícito. **FAIL** si usa `*`.
 
 ```bash
-DOMAIN="${DOMAIN:-ssoserver.unae.edu.ec}"
+DOMAIN="${DOMAIN:-sso.ejemplo.com}"
 RESOLVE="${IP:+--resolve ${DOMAIN}:443:${IP}}"
 CORS=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -i "^access-control-allow-origin:" | tr -d '\r')
 if [[ -z "$CORS" ]]; then echo "✅ PASS — CORS no expuesto en raíz"
@@ -330,7 +330,7 @@ else echo "✅ PASS — ${CORS#*: }"; fi
 **FAIL** si el servidor responde `200 OK`. **PASS** si responde 405/403/404.
 
 ```bash
-DOMAIN="${DOMAIN:-ssoserver.unae.edu.ec}"
+DOMAIN="${DOMAIN:-sso.ejemplo.com}"
 RESOLVE="${IP:+--resolve ${DOMAIN}:443:${IP}}"
 TRACE_CODE=$(curl -sk -o /dev/null -w "%{http_code}" $RESOLVE -X TRACE "https://${DOMAIN}/")
 echo "  TRACE response: $TRACE_CODE"
@@ -348,7 +348,7 @@ else echo "⚠️  WARN — respuesta inesperada: $TRACE_CODE"; fi
 **ZAP rule:** 10015
 
 ```bash
-DOMAIN="${DOMAIN:-ssoserver.unae.edu.ec}"
+DOMAIN="${DOMAIN:-sso.ejemplo.com}"
 RESOLVE="${IP:+--resolve ${DOMAIN}:443:${IP}}"
 CACHE=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -i "^cache-control:" | tr -d '\r')
 echo "  Cache-Control: ${CACHE:-ausente}"
@@ -399,4 +399,4 @@ else echo "⚠️  WARN — revisar si aplica a rutas autenticadas"; fi
 
 ---
 
-*Documento generado con asistencia de GitHub Copilot — UNAE TICS 2026 · v3.1.*
+*Documento generado con asistencia de GitHub Copilot — DUOTICS 2026 · v3.1.*
