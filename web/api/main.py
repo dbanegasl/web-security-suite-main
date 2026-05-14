@@ -51,6 +51,12 @@ app.add_middleware(
 # ── Startup: DB + admin inicial ────────────────────────────────────────────────
 @app.on_event("startup")
 def on_startup() -> None:
+    if auth.JWT_SECRET == "insecure-default-change-before-production":
+        print(
+            "WARNING: JWT_SECRET no configurado. "
+            "El servidor usa una clave pública conocida. "
+            "Configura JWT_SECRET en producción antes de exponer esta aplicación."
+        )
     database.create_db_and_tables()
     with Session(database._engine) as session:
         if not session.exec(select(User)).first():
@@ -371,6 +377,9 @@ async def history_compare(
     rec_b = session.get(ScanHistory, b)
     if not rec_a or not rec_b:
         raise HTTPException(status_code=404, detail="Scan no encontrado")
+    if current_user.role != "admin":
+        if rec_a.triggered_by != current_user.id or rec_b.triggered_by != current_user.id:
+            raise HTTPException(status_code=403, detail="No tienes permiso para comparar estos scans")
 
     data_a = json.loads(rec_a.results_json)
     data_b = json.loads(rec_b.results_json)
@@ -415,6 +424,8 @@ async def history_detail(
     record = session.get(ScanHistory, scan_id)
     if not record:
         raise HTTPException(status_code=404, detail="Scan no encontrado")
+    if current_user.role != "admin" and record.triggered_by != current_user.id:
+        raise HTTPException(status_code=403, detail="No tienes permiso para ver este scan")
     return {
         "id": record.id,
         "domain": record.domain,
@@ -437,6 +448,8 @@ async def history_list(
     session: Session = Depends(database.get_session),
 ):
     base = select(ScanHistory)
+    if current_user.role != "admin":
+        base = base.where(ScanHistory.triggered_by == current_user.id)
     if domain:
         base = base.where(col(ScanHistory.domain).contains(domain))
 
@@ -751,10 +764,11 @@ async def lists_export_csv(
     for d in domains:
         lines.append(f"{d.domain},{d.session_cookie},{d.ip}")
     from fastapi.responses import PlainTextResponse
+    safe_name = dl.name.replace('"', "'").replace('\r', '').replace('\n', '')
     return PlainTextResponse(
         content="\n".join(lines),
         media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="{dl.name}.csv"'},
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}.csv"'},
     )
 
 
@@ -907,12 +921,14 @@ async def history_evolution(
     session: Session = Depends(database.get_session),
 ):
     since = datetime.now(timezone.utc) - timedelta(days=days)
-    records = session.exec(
+    stmt = (
         select(ScanHistory)
         .where(ScanHistory.domain == domain)
         .where(ScanHistory.scanned_at >= since)
-        .order_by(col(ScanHistory.scanned_at).asc())
-    ).all()
+    )
+    if current_user.role != "admin":
+        stmt = stmt.where(ScanHistory.triggered_by == current_user.id)
+    records = session.exec(stmt.order_by(col(ScanHistory.scanned_at).asc())).all()
 
     tests_ts: dict[str, dict] = {}
     for rec in records:
