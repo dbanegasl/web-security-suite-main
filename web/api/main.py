@@ -10,7 +10,7 @@ import json
 import os
 import re
 import subprocess
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -239,18 +239,19 @@ async def discover_cookies(
     if ip and not _re.match(r"^\d{1,3}(\.\d{1,3}){3}$", ip):
         raise HTTPException(status_code=400, detail="IP no válida")
 
-    resolve_flag = f"--resolve {domain}:443:{ip}" if ip else ""
-    cmd = (
-        f"curl --max-time 8 --connect-timeout 4 -sk -I {resolve_flag} "
-        f"https://{domain}/ | grep -i '^set-cookie' | grep -oP '(?i)set-cookie:\\s*\\K[^=]+'"
-    )
+    curl_args = ["curl", "--max-time", "8", "--connect-timeout", "4", "-sk", "-I"]
+    if ip:
+        curl_args += ["--resolve", f"{domain}:443:{ip}"]
+    curl_args.append(f"https://{domain}/")
+
+    import re as _re2
     loop = asyncio.get_event_loop()
     try:
         proc = await asyncio.wait_for(
             loop.run_in_executor(
                 None,
-                lambda: subprocess.run(
-                    cmd, shell=True, capture_output=True, text=True, timeout=12  # noqa: S602
+                lambda: subprocess.run(  # noqa: S603 — lista de args, sin shell
+                    curl_args, capture_output=True, text=True, timeout=12
                 ),
             ),
             timeout=14,
@@ -258,7 +259,11 @@ async def discover_cookies(
     except asyncio.TimeoutError:
         raise HTTPException(status_code=408, detail="Timeout al contactar el servidor")
 
-    names = [n.strip() for n in proc.stdout.strip().splitlines() if n.strip()]
+    names = []
+    for line in proc.stdout.splitlines():
+        m = _re2.match(r"(?i)set-cookie:\s*([^=;,\s]+)", line.strip())
+        if m:
+            names.append(m.group(1))
     return {"cookies": names}
 
 
@@ -276,7 +281,7 @@ async def login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Credenciales incorrectas",
         )
-    user.last_login = datetime.utcnow()
+    user.last_login = datetime.now(timezone.utc)
     session.add(user)
     session.commit()
     token = auth.create_access_token(user.id, user.username, user.role)
@@ -515,10 +520,12 @@ class DomainEntryRequest(BaseModel):
         return v
 
 
-def _list_or_404(list_id: int, session: Session) -> DomainList:
+def _list_or_404(list_id: int, session: Session, current_user: Optional[User] = None) -> DomainList:
     dl = session.get(DomainList, list_id)
     if not dl:
         raise HTTPException(status_code=404, detail="Lista no encontrada")
+    if current_user is not None and current_user.role != "admin" and dl.created_by != current_user.id:
+        raise HTTPException(status_code=403, detail="No tienes permiso para acceder a esta lista")
     return dl
 
 
@@ -527,7 +534,10 @@ async def lists_index(
     current_user: User = Depends(auth.get_current_user),
     session: Session = Depends(database.get_session),
 ):
-    rows = session.exec(select(DomainList).order_by(col(DomainList.created_at).desc())).all()
+    query = select(DomainList).order_by(col(DomainList.created_at).desc())
+    if current_user.role != "admin":
+        query = query.where(DomainList.created_by == current_user.id)
+    rows = session.exec(query).all()
     return [
         {
             "id": r.id,
@@ -561,7 +571,7 @@ async def lists_get(
     current_user: User = Depends(auth.get_current_user),
     session: Session = Depends(database.get_session),
 ):
-    dl = _list_or_404(list_id, session)
+    dl = _list_or_404(list_id, session, current_user)
     domains = session.exec(select(ListDomain).where(ListDomain.list_id == list_id)).all()
     return {
         "id": dl.id,
@@ -590,7 +600,7 @@ async def lists_update(
     current_user: User = Depends(auth.get_current_user),
     session: Session = Depends(database.get_session),
 ):
-    dl = _list_or_404(list_id, session)
+    dl = _list_or_404(list_id, session, current_user)
     dl.name = body.name
     dl.description = body.description
     session.add(dl)
@@ -605,7 +615,7 @@ async def lists_delete(
     current_user: User = Depends(auth.get_current_user),
     session: Session = Depends(database.get_session),
 ):
-    dl = _list_or_404(list_id, session)
+    dl = _list_or_404(list_id, session, current_user)
     # Eliminar dominios asociados primero
     for d in session.exec(select(ListDomain).where(ListDomain.list_id == list_id)).all():
         session.delete(d)
@@ -620,7 +630,7 @@ async def lists_add_domain(
     current_user: User = Depends(auth.get_current_user),
     session: Session = Depends(database.get_session),
 ):
-    _list_or_404(list_id, session)
+    _list_or_404(list_id, session, current_user)
     d = ListDomain(
         list_id=list_id,
         domain=body.domain,
@@ -643,7 +653,7 @@ async def lists_update_domain(
     current_user: User = Depends(auth.get_current_user),
     session: Session = Depends(database.get_session),
 ):
-    _list_or_404(list_id, session)
+    _list_or_404(list_id, session, current_user)
     d = session.get(ListDomain, domain_id)
     if not d or d.list_id != list_id:
         raise HTTPException(status_code=404, detail="Dominio no encontrado en la lista")
@@ -665,7 +675,7 @@ async def lists_delete_domain(
     current_user: User = Depends(auth.get_current_user),
     session: Session = Depends(database.get_session),
 ):
-    _list_or_404(list_id, session)
+    _list_or_404(list_id, session, current_user)
     d = session.get(ListDomain, domain_id)
     if not d or d.list_id != list_id:
         raise HTTPException(status_code=404, detail="Dominio no encontrado en la lista")
@@ -680,7 +690,7 @@ async def lists_import_csv(
     current_user: User = Depends(auth.get_current_user),
     session: Session = Depends(database.get_session),
 ):
-    _list_or_404(list_id, session)
+    _list_or_404(list_id, session, current_user)
 
     # Cargar dominios existentes para deduplicación
     # Clave: (domain_lower, cookie_norm, ip_norm)
@@ -735,7 +745,7 @@ async def lists_export_csv(
     current_user: User = Depends(auth.get_current_user),
     session: Session = Depends(database.get_session),
 ):
-    dl = _list_or_404(list_id, session)
+    dl = _list_or_404(list_id, session, current_user)
     domains = session.exec(
         select(ListDomain).where(ListDomain.list_id == list_id).where(ListDomain.is_active == True)  # noqa: E712
     ).all()
@@ -775,6 +785,10 @@ async def lists_scan_stream(
         async def _notfound():
             yield "event: error\ndata: {\"detail\": \"Lista no encontrada\"}\n\n"
         return StreamingResponse(_notfound(), media_type="text/event-stream")
+    if current_user.role != "admin" and dl.created_by != current_user.id:
+        async def _forbidden():
+            yield "event: error\ndata: {\"detail\": \"No tienes permiso para acceder a esta lista\"}\n\n"
+        return StreamingResponse(_forbidden(), media_type="text/event-stream")
 
     domains = session.exec(
         select(ListDomain)
@@ -855,7 +869,7 @@ async def lists_scan(
     session: Session = Depends(database.get_session),
 ):
     """Endpoint legacy — redirige a scan-stream internamente para compatibilidad."""
-    _list_or_404(list_id, session)
+    _list_or_404(list_id, session, current_user)
     domains = session.exec(
         select(ListDomain).where(ListDomain.list_id == list_id).where(ListDomain.is_active == True)  # noqa: E712
     ).all()
@@ -893,7 +907,7 @@ async def history_evolution(
     current_user: User = Depends(auth.get_current_user),
     session: Session = Depends(database.get_session),
 ):
-    since = datetime.utcnow() - timedelta(days=days)
+    since = datetime.now(timezone.utc) - timedelta(days=days)
     records = session.exec(
         select(ScanHistory)
         .where(ScanHistory.domain == domain)
@@ -928,7 +942,7 @@ async def lists_summary(
     current_user: User = Depends(auth.get_current_user),
     session: Session = Depends(database.get_session),
 ):
-    dl = _list_or_404(list_id, session)
+    dl = _list_or_404(list_id, session, current_user)
     domains = session.exec(
         select(ListDomain)
         .where(ListDomain.list_id == list_id)
