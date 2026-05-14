@@ -1104,7 +1104,7 @@ document.querySelectorAll(".sidebar-nav .nav-item").forEach(link => {
 });
 
 // Clicks en tarjetas del home
-document.querySelectorAll(".home-card[data-nav]").forEach(card => {
+document.querySelectorAll(".home-action-card[data-nav]").forEach(card => {
   card.addEventListener("click", () => navigateTo(card.dataset.nav));
 });
 

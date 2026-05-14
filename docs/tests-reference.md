@@ -1,6 +1,6 @@
 # Referencia de tests — web-security-suite
 
-Especificación técnica (PRD) de los 20 tests incluidos en `web-security-scan.sh` (v3.1). Cada test incluye descripción, criterio de resultado y snippet bash ejecutable de forma independiente.
+Especificación técnica (PRD) de los 25 tests incluidos en `web-security-scan.sh` (v3.1). Cada test incluye descripción, criterio de resultado y snippet bash ejecutable de forma independiente.
 
 > Los snippets asumen ejecución individual. En el script principal, los tests se invocan mediante `run_tests()` con soporte tanto para modo individual (con salida detallada) como para modo batch (silencioso, resultados almacenados en `BATCH_RESULTS`).
 

@@ -1,6 +1,6 @@
 # web-security-suite
 
-Suite de pruebas de seguridad HTTP para auditoría de dominios web. Ejecuta **20 tests** organizados en 5 bloques, detectando las vulnerabilidades más comunes que afectan a scorecards de seguridad (OWASP Top 10 basics, Security Headers).
+Suite de pruebas de seguridad HTTP para auditoría de dominios web. Ejecuta **25 tests** organizados en 6 bloques, detectando las vulnerabilidades más comunes que afectan a scorecards de seguridad (OWASP Top 10 basics, Security Headers).
 
 **Versión:** 3.1 · **Autor:** Daniel Banegas · **Organización:** UNAE TICS
 
@@ -62,7 +62,7 @@ bash web-security-scan.sh   # → opción [2] en el menú
 
 ## Interfaz web (Docker)
 
-La suite incluye una interfaz web completa que expone los mismos 20 tests desde el navegador mediante un stack Docker (FastAPI + nginx + SPA).
+La suite incluye una interfaz web completa que expone los mismos 25 tests desde el navegador mediante un stack Docker (FastAPI + nginx + SPA).
 
 ### Inicio rápido
 
@@ -125,7 +125,7 @@ navegador → nginx :FRONTEND_PORT ─┬─ /api/ → FastAPI :8000 (interno)
 **Ejemplo de salida:**
 
 ```
-RESUMEN: 19 PASS  0 FAIL  1 WARN  0 SKIP  /  20 tests
+RESUMEN: 19 PASS  0 FAIL  1 WARN  5 SKIP  /  25 tests
 
 ⚠️  SECURITY SCAN: SIN FALLOS CRÍTICOS, 1 advertencia(s) — ssoserver.unae.edu.ec
 ```
@@ -140,7 +140,8 @@ RESUMEN: 19 PASS  0 FAIL  1 WARN  0 SKIP  /  20 tests
 | **2 — Transporte / TLS** | TEST-05 a TEST-09 | HTTP→HTTPS, HSTS, TLS 1.0/1.1, cert expiry |
 | **3 — Cabeceras HTTP** | TEST-10 a TEST-14 | X-Frame-Options, XCTO, CSP, Referrer-Policy, Permissions-Policy |
 | **4 — Fuga de información** | TEST-15 a TEST-17 | Server version, X-Powered-By, X-AspNet headers |
-| **5 — Config servidor** | TEST-18 a TEST-20 | CORS wildcard, HTTP TRACE, Cache-Control |
+| **5 — Config. servidor** | TEST-18 a TEST-20 | CORS wildcard, HTTP TRACE, Cache-Control |
+| **6 — Headers modernos** | TEST-21 a TEST-25 | Headers deprecados, COOP, COEP, CORP, X-Permitted-Cross-Domain-Policies |
 
 ---
 
@@ -197,7 +198,7 @@ web-security-suite/
 ## Documentación
 
 - [Guía de uso](docs/usage-guide.md) — modos de ejecución (CLI, no interactivo, Docker), ejemplos por dominio, interpretación de resultados, correcciones comunes, CI/CD
-- [Referencia de tests](docs/tests-reference.md) — especificación técnica de los 20 tests con bash snippets individuales y criterios de aceptación
+- [Referencia de tests](docs/tests-reference.md) — especificación técnica de los 25 tests con bash snippets individuales y criterios de aceptación
 - [Interfaz web — planificación e implementación](docs/planificacion-interfaz-web.md) — análisis de viabilidad, arquitectura del stack Docker y estado de fases
 
 ---

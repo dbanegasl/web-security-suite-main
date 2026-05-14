@@ -174,7 +174,7 @@ DOMAIN=nuevo.unae.edu.ec bash web-security-scan.sh
 ## Interpretación del resumen final
 
 ```
-RESUMEN: 19 PASS  0 FAIL  1 WARN  0 SKIP  /  20 tests
+RESUMEN: 19 PASS  0 FAIL  1 WARN  5 SKIP  /  25 tests
 
 ⚠️  SCORECARD: SIN FALLOS CRÍTICOS, 1 advertencia(s) — ssoserver.unae.edu.ec
 ```
@@ -283,7 +283,7 @@ if ($request_method = TRACE) { return 405; }
 
 ## Interfaz web (Docker)
 
-La suite incluye un stack Docker completo con frontend web SPA y API FastAPI que expone los mismos 20 tests desde el navegador.
+La suite incluye un stack Docker completo con frontend web SPA y API FastAPI que expone los mismos 25 tests desde el navegador.
 
 ### Levantar el stack
 
@@ -343,7 +343,7 @@ El formulario acepta los mismos parámetros que el CLI:
 
 ### Análisis batch desde la web
 
-Se carga el mismo `domains.csv` que usa el CLI (arrastrar o seleccionar). El endpoint `/api/batch` procesa los dominios en secuencia y devuelve los 20 tests de cada uno en JSON.
+Se carga el mismo `domains.csv` que usa el CLI (arrastrar o seleccionar). El endpoint `/api/batch` procesa los dominios en secuencia y devuelve los 25 tests de cada uno en JSON.
 
 ### Dominios internos desde Docker
 
