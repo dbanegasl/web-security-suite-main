@@ -1656,7 +1656,7 @@ function renderListEvolutionMatrix(data) {
       const r = d.tests[id];
       if (!r) { html += `<td class="text-center text-muted small">—</td>`; return; }
       const cls = r === "PASS" ? "cell-P" : r === "FAIL" ? "cell-F" : r === "WARN" ? "cell-W" : r === "SKIP" ? "cell-S" : "";
-      html += `<td class="text-center ${cls}"><span class="badge badge-${r}" style="font-size:10px">${r}</span></td>`;
+      html += `<td class="text-center ${cls}"><span class="badge badge-${escapeHtml(r)}" style="font-size:10px">${escapeHtml(r)}</span></td>`;
     });
     html += `</tr>`;
   });
