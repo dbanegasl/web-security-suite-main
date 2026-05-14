@@ -21,7 +21,7 @@ from pydantic import BaseModel, field_validator
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
-from sqlmodel import Session, col, func, select
+from sqlmodel import Session, col, delete as sql_delete, func, select
 
 import auth
 import database
@@ -546,19 +546,22 @@ async def lists_index(
     current_user: User = Depends(auth.get_current_user),
     session: Session = Depends(database.get_session),
 ):
-    query = select(DomainList).order_by(col(DomainList.created_at).desc())
+    stmt = (
+        select(DomainList, func.count(ListDomain.id).label("domain_count"))
+        .outerjoin(ListDomain, ListDomain.list_id == DomainList.id)
+        .group_by(DomainList.id)
+        .order_by(col(DomainList.created_at).desc())
+    )
     if current_user.role != "admin":
-        query = query.where(DomainList.created_by == current_user.id)
-    rows = session.exec(query).all()
+        stmt = stmt.where(DomainList.created_by == current_user.id)
+    rows = session.exec(stmt).all()
     return [
         {
-            "id": r.id,
-            "name": r.name,
-            "description": r.description,
-            "created_at": r.created_at.isoformat(),
-            "domain_count": session.exec(
-                select(func.count()).where(ListDomain.list_id == r.id)
-            ).one(),
+            "id": r.DomainList.id,
+            "name": r.DomainList.name,
+            "description": r.DomainList.description,
+            "created_at": r.DomainList.created_at.isoformat(),
+            "domain_count": r.domain_count,
         }
         for r in rows
     ]
@@ -1168,10 +1171,8 @@ async def admin_purge_history(
     """Elimina todo el historial de escaneos. Requiere verificación de contraseña."""
     if not auth.verify_password(body.password, admin.password_hash):
         raise HTTPException(status_code=403, detail="Contraseña incorrecta")
-    deleted = session.exec(select(ScanHistory)).all()
-    count = len(deleted)
-    for record in deleted:
-        session.delete(record)
+    count = session.exec(select(func.count()).select_from(ScanHistory)).one()
+    session.exec(sql_delete(ScanHistory))
     session.commit()
     return {"deleted": count}
 
