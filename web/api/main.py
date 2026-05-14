@@ -10,12 +10,12 @@ import json
 import os
 import re
 import subprocess
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import PlainTextResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -155,7 +155,7 @@ async def _run_scan_inner(domain: str, cookie: str, ip: str) -> dict[str, Any]:
     """Lógica interna del scan (sin semáforo)."""
     env = _build_env(domain, cookie, ip)
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     try:
         result: subprocess.CompletedProcess = await asyncio.wait_for(
             loop.run_in_executor(
@@ -239,7 +239,7 @@ async def discover_cookies(
     domain = domain.strip().lower()
     # Normalizar: quitar protocolo y path
     domain = re.sub(r"^https?://", "", domain).split("/")[0]
-    if not re.match(r"^[a-zA-Z0-9._\-]+$", domain):
+    if not _DOMAIN_RE.match(domain):
         raise HTTPException(status_code=400, detail="Dominio no válido")
     if ip and not _IP_RE.match(ip):
         raise HTTPException(status_code=400, detail="IP no válida")
@@ -249,7 +249,7 @@ async def discover_cookies(
         curl_args += ["--resolve", f"{domain}:443:{ip}"]
     curl_args.append(f"https://{domain}/")
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     try:
         proc = await asyncio.wait_for(
             loop.run_in_executor(
@@ -767,7 +767,6 @@ async def lists_export_csv(
     lines = ["# dominio,cookie_sesion,ip_forzada"]
     for d in domains:
         lines.append(f"{d.domain},{d.session_cookie},{d.ip}")
-    from fastapi.responses import PlainTextResponse
     safe_name = dl.name.replace('"', "'").replace('\r', '').replace('\n', '')
     return PlainTextResponse(
         content="\n".join(lines),
@@ -914,8 +913,6 @@ async def lists_scan(
 
 
 # ── Endpoints: Fase C — Evolución temporal ────────────────────────────────────
-from datetime import timedelta  # noqa: E402 — import al final para no reorganizar
-
 
 @app.get("/api/history/evolution/{domain}")
 async def history_evolution(

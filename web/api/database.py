@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from sqlalchemy import text as sa_text
 from sqlmodel import SQLModel, Session, create_engine
 
 DB_PATH = os.getenv("DB_PATH", "/app/data/wss.db")
@@ -31,13 +32,9 @@ def _migrate_add_columns() -> None:
     with _engine.connect() as conn:
         for table, column, col_def in migrations:
             # Verificar si la columna ya existe
-            existing = [row[1] for row in conn.execute(
-                __import__('sqlalchemy').text(f"PRAGMA table_info({table})")
-            )]
+            existing = [row[1] for row in conn.execute(sa_text(f"PRAGMA table_info({table})"))]
             if column not in existing:
-                conn.execute(__import__('sqlalchemy').text(
-                    f"ALTER TABLE {table} ADD COLUMN {column} {col_def}"
-                ))
+                conn.execute(sa_text(f"ALTER TABLE {table} ADD COLUMN {column} {col_def}"))
                 conn.commit()
 
 

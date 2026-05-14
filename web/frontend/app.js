@@ -1335,8 +1335,6 @@ window.deleteDomain = async function(domainId) {
 document.getElementById("btn-list-export").addEventListener("click", async () => {
   if (!_activeListId) return;
   const token = getToken();
-  const a = document.createElement("a");
-  a.href = `${API_BASE}/api/lists/${_activeListId}/export-csv`;
   // Añadir token como parámetro no es seguro; usamos fetch + blob
   try {
     const resp = await fetch(`${API_BASE}/api/lists/${_activeListId}/export-csv`, {
