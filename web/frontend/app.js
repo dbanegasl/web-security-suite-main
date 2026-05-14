@@ -2,13 +2,15 @@
    Fase A: Autenticación JWT + historial persistente
 ────────────────────────────────────────────────────────────── */
 
+const API_BASE = "";
+
 // ── Versión de la aplicación ─────────────────────────────────
 // Leída desde /version.json (asset estático servido por nginx).
 // Para bumps de versión solo editar ese archivo — no tocar app.js.
 let APP_VERSION = "—";
 let BUILD_DATE  = "—";
 
-fetch("/version.json")
+fetch(`${API_BASE}/version.json`)
   .then(r => r.json())
   .then(({ version = "—", build = "—" }) => {
     APP_VERSION = version;
@@ -20,7 +22,6 @@ fetch("/version.json")
   })
   .catch(() => console.warn("[WSS] version.json no disponible"));
 
-const API_BASE = "";
 const TOKEN_KEY = "wss_token";
 const USER_KEY  = "wss_user";
 
@@ -178,7 +179,7 @@ document.getElementById("btn-discover-cookies")?.addEventListener("click", async
   try {
     const params = new URLSearchParams({ domain });
     if (ip) params.set("ip", ip);
-    const res  = await fetch(`/api/discover-cookies?${params}`, {
+    const res  = await fetch(`${API_BASE}/api/discover-cookies?${params}`, {
       headers: { "Authorization": `Bearer ${getToken()}` },
     });
     if (!res.ok) {
@@ -875,7 +876,7 @@ function buildMarkdownReport(data) {
   md += `| Campo | Valor |\n|-------|-------|\n`;
   md += `| **Fecha** | ${now} |\n`;
   md += `| **URL base** | ${data.baseUrl || `https://${data.domain}/`} |\n`;
-  md += `| **Generado con** | Web Security Suite v3.3 |\n\n`;
+  md += `| **Generado con** | Web Security Suite v${APP_VERSION} |\n\n`;
   md += `---\n\n`;
 
   // Score
@@ -952,7 +953,7 @@ function buildBatchMarkdownReport(results, title = "Análisis Batch") {
   md += `| Campo | Valor |\n|-------|-------|\n`;
   md += `| **Fecha** | ${now} |\n`;
   md += `| **Dominios analizados** | ${results.length} |\n`;
-  md += `| **Generado con** | Web Security Suite v3.3 |\n\n`;
+  md += `| **Generado con** | Web Security Suite v${APP_VERSION} |\n\n`;
   md += `---\n\n`;
 
   // Tabla resumen con score y estado
@@ -1337,7 +1338,7 @@ document.getElementById("btn-list-export").addEventListener("click", async () =>
   a.href = `/api/lists/${_activeListId}/export-csv`;
   // Añadir token como parámetro no es seguro; usamos fetch + blob
   try {
-    const resp = await fetch(`/api/lists/${_activeListId}/export-csv`, {
+    const resp = await fetch(`${API_BASE}/api/lists/${_activeListId}/export-csv`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!resp.ok) throw new Error("Error al exportar");
@@ -1869,7 +1870,7 @@ document.getElementById("btn-purge-confirm")?.addEventListener("click", async ()
   btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Eliminando…';
 
   try {
-    const res = await fetch("/api/admin/history", {
+    const res = await fetch(`${API_BASE}/api/admin/history`, {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
