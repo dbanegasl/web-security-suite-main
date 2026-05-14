@@ -283,7 +283,7 @@ function renderResults(data) {
       <td>${escapeHtml(t.id)}</td>
       <td>
         ${escapeHtml(t.name)}
-        <a href="/wiki.html#t${t.id}" target="_blank" rel="noopener" class="wiki-link" title="Ver en wiki">📖</a>
+        <a href="${API_BASE}/wiki.html#t${t.id}" target="_blank" rel="noopener" class="wiki-link" title="Ver en wiki">📖</a>
       </td>
       <td><span class="badge badge-${t.result}">${t.result}</span></td>
       <td class="muted">${escapeHtml(t.detail || "—")}</td>
@@ -474,7 +474,7 @@ function mdReferenceTable() {
 function renderBatchTable(table, results, lines = []) {
   const colCount = TESTS.length + 4;
   let html = "<thead><tr><th>Dominio</th>";
-  TESTS.forEach(t => { html += `<th><a href="/wiki.html#t${t}" target="_blank" rel="noopener" class="wiki-th-link" title="TEST-${t}">${t}</a></th>`; });
+  TESTS.forEach(t => { html += `<th><a href="${API_BASE}/wiki.html#t${t}" target="_blank" rel="noopener" class="wiki-th-link" title="TEST-${t}">${t}</a></th>`; });
   html += "<th>OK</th><th>FL</th><th>WN</th></tr></thead><tbody>";
 
   results.forEach((r, idx) => {
@@ -1335,7 +1335,7 @@ document.getElementById("btn-list-export").addEventListener("click", async () =>
   if (!_activeListId) return;
   const token = getToken();
   const a = document.createElement("a");
-  a.href = `/api/lists/${_activeListId}/export-csv`;
+  a.href = `${API_BASE}/api/lists/${_activeListId}/export-csv`;
   // Añadir token como parámetro no es seguro; usamos fetch + blob
   try {
     const resp = await fetch(`${API_BASE}/api/lists/${_activeListId}/export-csv`, {
@@ -1419,7 +1419,7 @@ document.getElementById("btn-list-scan").addEventListener("click", () => {
   label.textContent = "Iniciando scan…";
 
   const token = localStorage.getItem("wss_token");
-  const url = `/api/lists/${_activeListId}/scan-stream?token=${encodeURIComponent(token)}`;
+  const url = `${API_BASE}/api/lists/${_activeListId}/scan-stream?token=${encodeURIComponent(token)}`;
   const es = new EventSource(url);
 
   const allResults = [];
