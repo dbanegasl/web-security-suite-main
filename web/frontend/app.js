@@ -681,9 +681,14 @@ async function apiFetch(path, options = {}) {
   }
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   if (res.status === 401) {
-    clearAuth();
-    showLogin();
-    throw new Error("Sesión expirada. Por favor inicia sesión de nuevo.");
+    // Solo redirigir al login si había un token activo (sesión expirada).
+    // Si no había token (ej.: intento de login fallido), dejar que caiga
+    // al bloque !res.ok para mostrar el mensaje real de la API.
+    if (token) {
+      clearAuth();
+      showLogin();
+      throw new Error("Sesión expirada. Por favor inicia sesión de nuevo.");
+    }
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
