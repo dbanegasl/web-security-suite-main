@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlmodel import Field, SQLModel
@@ -14,7 +14,7 @@ class User(SQLModel, table=True):
     password_hash: str
     role: str = Field(default="analyst")   # "admin" | "analyst"
     is_active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     last_login: Optional[datetime] = Field(default=None)
 
 
@@ -25,7 +25,7 @@ class DomainList(SQLModel, table=True):
     name: str = Field(index=True, max_length=128)
     description: str = Field(default="", max_length=512)
     created_by: Optional[int] = Field(default=None, foreign_key="users.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class ListDomain(SQLModel, table=True):
@@ -38,7 +38,7 @@ class ListDomain(SQLModel, table=True):
     ip: str = Field(default="", max_length=45)
     notes: str = Field(default="", max_length=512)
     is_active: bool = Field(default=True)
-    added_at: datetime = Field(default_factory=datetime.utcnow)
+    added_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class ScanHistory(SQLModel, table=True):
@@ -46,7 +46,7 @@ class ScanHistory(SQLModel, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     domain: str = Field(index=True)
-    scanned_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    scanned_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), index=True)
     pass_count: int = Field(default=0)
     fail_count: int = Field(default=0)
     warn_count: int = Field(default=0)

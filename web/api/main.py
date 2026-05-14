@@ -230,13 +230,12 @@ async def discover_cookies(
     current_user: User = Depends(auth.get_current_user),
 ):
     """Hace HEAD a https://{domain}/ y devuelve los nombres de cookies Set-Cookie."""
-    import re as _re
     domain = domain.strip().lower()
     # Normalizar: quitar protocolo y path
-    domain = _re.sub(r"^https?://", "", domain).split("/")[0]
-    if not _re.match(r"^[a-zA-Z0-9._\-]+$", domain):
+    domain = re.sub(r"^https?://", "", domain).split("/")[0]
+    if not re.match(r"^[a-zA-Z0-9._\-]+$", domain):
         raise HTTPException(status_code=400, detail="Dominio no válido")
-    if ip and not _re.match(r"^\d{1,3}(\.\d{1,3}){3}$", ip):
+    if ip and not _IP_RE.match(ip):
         raise HTTPException(status_code=400, detail="IP no válida")
 
     curl_args = ["curl", "--max-time", "8", "--connect-timeout", "4", "-sk", "-I"]
@@ -244,7 +243,6 @@ async def discover_cookies(
         curl_args += ["--resolve", f"{domain}:443:{ip}"]
     curl_args.append(f"https://{domain}/")
 
-    import re as _re2
     loop = asyncio.get_event_loop()
     try:
         proc = await asyncio.wait_for(
@@ -261,7 +259,7 @@ async def discover_cookies(
 
     names = []
     for line in proc.stdout.splitlines():
-        m = _re2.match(r"(?i)set-cookie:\s*([^=;,\s]+)", line.strip())
+        m = re.match(r"(?i)set-cookie:\s*([^=;,\s]+)", line.strip())
         if m:
             names.append(m.group(1))
     return {"cookies": names}
@@ -761,6 +759,7 @@ async def lists_export_csv(
 
 
 @app.get("/api/lists/{list_id}/scan-stream")
+@limiter.limit("3/minute")
 async def lists_scan_stream(
     request: Request,
     list_id: int,
