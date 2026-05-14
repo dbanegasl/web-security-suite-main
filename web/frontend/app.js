@@ -83,7 +83,7 @@ formLogin.addEventListener("submit", async e => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
     });
-    saveAuth(data.access_token, { username: data.username, role: data.role });
+    saveAuth(data.access_token, { id: data.id, username: data.username, role: data.role });
     applyUserUI();
     hideLogin();
     navigateTo("home");
@@ -283,9 +283,9 @@ function renderResults(data) {
       <td>${escapeHtml(t.id)}</td>
       <td>
         ${escapeHtml(t.name)}
-        <a href="${API_BASE}/wiki.html#t${t.id}" target="_blank" rel="noopener" class="wiki-link" title="Ver en wiki">📖</a>
+        <a href="${API_BASE}/wiki.html#t${encodeURIComponent(String(t.id))}" target="_blank" rel="noopener" class="wiki-link" title="Ver en wiki">📖</a>
       </td>
-      <td><span class="badge badge-${t.result}">${t.result}</span></td>
+      <td><span class="badge badge-${escapeHtml(t.result)}">${escapeHtml(t.result)}</span></td>
       <td class="muted">${escapeHtml(t.detail || "—")}</td>
     `;
     tbody.appendChild(tr);
@@ -372,6 +372,7 @@ btnBatchRun?.addEventListener("click", async () => {
     batchDomList.innerHTML = `<p class="text-danger">❌ ${escapeHtml(err.message)}</p>`;
   } finally {
     btnBatchRun.disabled = false;
+    batchProgress.classList.add("hidden");
   }
 });
 
@@ -677,12 +678,12 @@ function openCompareModal(data) {
     const arrow = !d.changed ? "—"
       : d.result_b === "PASS" ? '<span class="cell-P">↑ PASS</span>'
       : d.result_b === "FAIL" ? '<span class="cell-F">↓ FAIL</span>'
-      : `<span class="cell-W">~ ${d.result_b}</span>`;
+      : `<span class="cell-W">~ ${escapeHtml(d.result_b)}</span>`;
     return `<tr class="${d.changed ? "diff-changed" : ""}">
       <td>${escapeHtml(d.id)}</td>
       <td>${escapeHtml(d.name)}</td>
-      <td><span class="badge badge-${d.result_a}">${d.result_a}</span></td>
-      <td><span class="badge badge-${d.result_b}">${d.result_b}</span></td>
+      <td><span class="badge badge-${escapeHtml(d.result_a)}">${escapeHtml(d.result_a)}</span></td>
+      <td><span class="badge badge-${escapeHtml(d.result_b)}">${escapeHtml(d.result_b)}</span></td>
       <td>${arrow}</td>
     </tr>`;
   }).join("");
@@ -1582,7 +1583,7 @@ function renderEvolutionMatrix(data) {
       const r = byDate[d];
       if (!r) { html += `<td class="text-center text-muted">—</td>`; return; }
       const cls = r === "PASS" ? "cell-P" : r === "FAIL" ? "cell-F" : r === "WARN" ? "cell-W" : r === "SKIP" ? "cell-S" : "";
-      html += `<td class="text-center ${cls}"><span class="badge badge-${r}">${r}</span></td>`;
+      html += `<td class="text-center ${cls}"><span class="badge badge-${escapeHtml(r)}">${escapeHtml(r)}</span></td>`;
     });
     html += `</tr>`;
   });

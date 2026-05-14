@@ -292,6 +292,7 @@ async def login(
     return {
         "access_token": token,
         "token_type": "bearer",
+        "id": user.id,
         "username": user.username,
         "role": user.role,
     }
