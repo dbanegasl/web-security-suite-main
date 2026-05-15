@@ -896,3 +896,18 @@ body { overflow-x: hidden; }
 .hb-teal    { background: rgba(38,166,154,.06); }
 .hb-teal    .hb-num, .hb-teal    .hb-icon { color: #26a69a; }
 .hb-teal:hover { border-color: rgba(38,166,154,.30); }
+
+/* ── Tema Brite (light) — overrides ──────────────────────────── */
+[data-bs-theme="light"] .sidebar {
+  border-right: 2px solid #000;
+}
+[data-bs-theme="light"] .app-topbar {
+  border-bottom: 2px solid #000;
+}
+[data-bs-theme="light"] .nav-item.active {
+  background: #a2e436 !important;
+  color: #000 !important;
+}
+[data-bs-theme="light"] .nav-item.active i {
+  color: #000 !important;
+}

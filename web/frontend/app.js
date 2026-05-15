@@ -24,6 +24,45 @@ fetch(`${API_BASE}/version.json`)
 
 const TOKEN_KEY = "wss_token";
 const USER_KEY  = "wss_user";
+const THEME_KEY = "wss-theme";
+
+// ══════════════════════════════════════════════════════════════
+// TEMA
+// ══════════════════════════════════════════════════════════════
+const THEMES = {
+  vapor: {
+    href:      "https://cdn.jsdelivr.net/npm/bootswatch@5.3.8/dist/vapor/bootstrap.min.css",
+    bsTheme:   "dark",
+    btnLabel:  "☀️ BRITE",
+    next:      "brite",
+  },
+  brite: {
+    href:      "https://cdn.jsdelivr.net/npm/bootswatch@5.3.8/dist/brite/bootstrap.min.css",
+    bsTheme:   "light",
+    btnLabel:  "🌙 VAPOR",
+    next:      "vapor",
+  },
+};
+
+function setTheme(name) {
+  const cfg = THEMES[name] || THEMES.vapor;
+  document.getElementById("theme-css").href = cfg.href;
+  document.documentElement.setAttribute("data-bs-theme", cfg.bsTheme);
+  const btn = document.getElementById("btn-theme-toggle");
+  if (btn) btn.textContent = cfg.btnLabel;
+  localStorage.setItem(THEME_KEY, name);
+}
+
+function toggleTheme() {
+  const current = localStorage.getItem(THEME_KEY) || "vapor";
+  setTheme(THEMES[current]?.next || "brite");
+}
+
+// Aplicar tema guardado antes de que el DOM sea visible (evita flash)
+(function initTheme() {
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved && THEMES[saved]) setTheme(saved);
+})();
 
 // ══════════════════════════════════════════════════════════════
 // AUTENTICACIÓN
