@@ -13,10 +13,18 @@
 </head>
 <body>
 
-  <!-- ══ Topbar mobile (visible solo en <992px) ════════════════ -->
-  <header class="topbar-mobile">
-    <button id="btn-sidebar-toggle" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-bars"></i></button>
-    <span class="fw-semibold"><i class="fa-solid fa-shield-halved me-1"></i>Web Security Suite</span>
+  <!-- ══ Topbar universal ═════════════════════════════════════ -->
+  <header class="app-topbar">
+    <button id="btn-sidebar-toggle" class="btn btn-outline-secondary btn-sm d-lg-none" aria-label="Menú"><i class="fa-solid fa-bars"></i></button>
+    <span id="topbar-section-title" class="topbar-title">Inicio</span>
+    <div class="topbar-user ms-auto d-flex align-items-center gap-2">
+      <div id="topbar-avatar" class="topbar-avatar"></div>
+      <span id="topbar-username" class="topbar-username d-none d-sm-inline"></span>
+      <span id="topbar-role" class="badge topbar-role-badge"></span>
+      <a href="#" id="btn-logout" class="topbar-logout" title="Cerrar sesión" aria-label="Cerrar sesión">
+        <i class="fa-solid fa-right-from-bracket"></i>
+      </a>
+    </div>
   </header>
 
   <!-- ── Backdrop sidebar mobile ──────────────────────────────── -->
@@ -90,14 +98,15 @@
       <li><a href="#" class="nav-item" data-view="wiki" style="font-size:12px"><i class="fa-solid fa-book-open fa-fw me-2"></i>Wiki de tests</a></li>
     </ul>
     <div class="sidebar-footer">
-      <span id="sidebar-user" class="d-block mb-1"></span>
-      <a href="#" id="btn-logout"><i class="fa-solid fa-right-from-bracket me-1"></i>Cerrar sesión</a>
-      <div class="mt-1" id="app-version"></div>
-      <div class="mt-1">
-        <a href="https://github.com/dbanegasl" target="_blank" rel="noopener"
-           style="font-size:11px;color:var(--bs-secondary-color);text-decoration:none;opacity:.7;">
-          <i class="fa-brands fa-github me-1"></i>dbanegasl
+      <div id="app-version"></div>
+      <div class="mt-1" style="display:flex;align-items:center;gap:6px;">
+        <a href="https://github.com/dbanegasl/web-security-suite-main" target="_blank" rel="noopener"
+           style="font-size:10px;color:var(--bs-secondary-color);text-decoration:none;opacity:.7;font-weight:600;letter-spacing:.06em;">
+          <i class="fa-brands fa-github me-1"></i>GITHUB
         </a>
+        <span style="font-size:9px;color:var(--bs-secondary-color);opacity:.4;">·</span>
+        <a href="https://duotics.com" target="_blank" rel="noopener"
+           style="font-size:10px;color:var(--bs-secondary-color);text-decoration:none;opacity:.7;letter-spacing:.06em;font-weight:600;">DUOTICS</a>
       </div>
     </div>
   </nav>

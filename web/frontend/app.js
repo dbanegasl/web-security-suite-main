@@ -31,8 +31,8 @@ const USER_KEY  = "wss_user";
 const loginScreen  = document.getElementById("login-screen");
 const formLogin    = document.getElementById("form-login");
 const loginError   = document.getElementById("login-error");
-const btnLogout    = document.getElementById("btn-logout");
-const sidebarUser  = document.getElementById("sidebar-user");
+const btnLogout      = document.getElementById("btn-logout");
+const topbarUsername = document.getElementById("topbar-username");
 
 function getToken()  { return localStorage.getItem(TOKEN_KEY); }
 function getUser()   { return JSON.parse(localStorage.getItem(USER_KEY) || "null"); }
@@ -56,7 +56,17 @@ function hideLogin() {
 function applyUserUI() {
   const user = getUser();
   if (!user) return;
-  sidebarUser.textContent = `👤 ${user.username}`;
+  // Avatar con iniciales
+  const avatarEl = document.getElementById("topbar-avatar");
+  if (avatarEl) avatarEl.textContent = user.username.slice(0, 2).toUpperCase();
+  // Nombre de usuario
+  if (topbarUsername) topbarUsername.textContent = user.username;
+  // Badge de rol
+  const roleEl = document.getElementById("topbar-role");
+  if (roleEl) {
+    roleEl.textContent = user.role === "admin" ? "admin" : "viewer";
+    roleEl.className = "badge topbar-role-badge " + (user.role === "admin" ? "bg-primary" : "bg-secondary");
+  }
   // Mostrar enlace de admin solo si el rol es admin
   const adminItem = document.getElementById("nav-admin-item");
   if (adminItem) {
@@ -1053,6 +1063,17 @@ function buildBatchMarkdownReport(results, title = "Análisis Batch") {
 const scanHistory = [];
 
 // ── Navegación centralizada con hash routing ─────────────────
+const VIEW_TITLES = {
+  home:       "Inicio",
+  individual: "Análisis individual",
+  batch:      "Análisis batch",
+  lists:      "Análisis listas",
+  history:    "Historial",
+  evolution:  "Evolución",
+  admin:      "Administración",
+  wiki:       "Wiki de tests"
+};
+
 const VALID_VIEWS = new Set(["home","individual","batch","lists","history","evolution","admin","wiki"]);
 
 function navigateTo(target, { pushHash = true } = {}) {
@@ -1060,6 +1081,9 @@ function navigateTo(target, { pushHash = true } = {}) {
   const user = getUser();
   // Proteger vista admin: redirigir a home si no es admin
   if (target === "admin" && user?.role !== "admin") target = "home";
+  // Actualizar título de sección en topbar
+  const titleEl = document.getElementById("topbar-section-title");
+  if (titleEl) titleEl.textContent = VIEW_TITLES[target] || target;
   // Actualizar hash sin disparar hashchange de nuevo
   if (pushHash && location.hash !== `#${target}`) {
     history.pushState(null, "", `#${target}`);
