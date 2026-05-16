@@ -34,7 +34,8 @@ from wss.core.scanner import scan as _wss_scan
 from wss.reporters.json_reporter import generate as _json_generate
 
 # ── Configuración ──────────────────────────────────────────────────────────────
-SCAN_TIMEOUT = int(os.getenv("SCAN_TIMEOUT_SECONDS", "120"))
+SCAN_TIMEOUT = int(os.getenv("SCAN_TIMEOUT_SECONDS", "180"))
+IP_PROBE_TIMEOUT = float(os.getenv("IP_PROBE_TIMEOUT", "3.0"))
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:8080")
 FIRST_ADMIN_USER = os.getenv("APP_FIRST_ADMIN_USER", "admin")
 FIRST_ADMIN_PASS = os.getenv("APP_FIRST_ADMIN_PASSWORD", "")
@@ -149,8 +150,22 @@ def _build_scan_context(domain: str, cookie: str, ip: str) -> ScanContext:
     )
 
 
-# Semáforo global: máximo 3 scans simultáneos para evitar saturación de red/CPU
-_SCAN_SEM = asyncio.Semaphore(3)
+# Semáforo global: máximo 5 scans simultáneos para evitar saturación de red/CPU
+_SCAN_SEM = asyncio.Semaphore(5)
+
+
+async def _probe_ip_reachable(ip: str, port: int = 443) -> bool:
+    """TCP probe rápido: True si ip:port acepta conexión antes de IP_PROBE_TIMEOUT."""
+    try:
+        _, writer = await asyncio.wait_for(
+            asyncio.open_connection(ip, port),
+            timeout=IP_PROBE_TIMEOUT,
+        )
+        writer.close()
+        await writer.wait_closed()
+        return True
+    except Exception:
+        return False
 
 
 async def _run_scan(domain: str, cookie: str, ip: str) -> dict[str, Any]:
@@ -160,8 +175,16 @@ async def _run_scan(domain: str, cookie: str, ip: str) -> dict[str, Any]:
 
 
 async def _run_scan_inner(domain: str, cookie: str, ip: str) -> dict[str, Any]:
-    """Lógica interna del scan usando wss core directamente (sin subprocess)."""
-    ctx = _build_scan_context(domain, cookie, ip)
+    """Lógica interna del scan usando wss core directamente (sin subprocess).
+
+    Si hay IP forzada pero no es alcanzable (TCP probe en IP_PROBE_TIMEOUT seg),
+    continúa sin IP forzada usando resolución DNS pública.
+    """
+    effective_ip = ip
+    if ip and not await _probe_ip_reachable(ip):
+        effective_ip = ""  # fallback a DNS público
+
+    ctx = _build_scan_context(domain, cookie, effective_ip)
     try:
         results = await asyncio.wait_for(_wss_scan(ctx), timeout=SCAN_TIMEOUT)
     except asyncio.TimeoutError:
@@ -173,7 +196,7 @@ async def _run_scan_inner(domain: str, cookie: str, ip: str) -> dict[str, Any]:
 
     data: dict[str, Any] = json.loads(
         _json_generate(results, domain=domain, base_url=ctx.base_url,
-                       ip=ip or None, scanned_at=datetime.now())
+                       ip=effective_ip or None, scanned_at=datetime.now())
     )
     data["exitCode"] = 0 if not any(r.status.value == "FAIL" for r in results) else 1
     return data
@@ -512,7 +535,7 @@ async def batch(
     session: Session = Depends(database.get_session),
 ):
     """
-    Ejecuta el scan en paralelo para múltiples dominios enviados como CSV.
+    Ejecuta el scan para múltiples dominios (concurrencia controlada por _SCAN_SEM).
     Formato CSV: dominio,cookie_sesion,ip_forzada  (columnas 2 y 3 opcionales)
     """
     results = []
@@ -544,6 +567,98 @@ async def batch(
             results.append(r)
 
     return {"total": len(results), "results": results}
+
+
+@app.post("/api/batch-stream")
+@limiter.limit("3/minute")
+async def batch_stream(
+    request: Request,
+    body: BatchRequest,
+    current_user: User = Depends(auth.get_current_user),
+    session: Session = Depends(database.get_session),
+):
+    """
+    Ejecuta batch scan con SSE: emite resultados dominio a dominio en tiempo real.
+    El cliente no espera a que terminen todos; recibe cada resultado al instante.
+    """
+    domain_list: list[tuple[str, str, str]] = []
+    parse_errors: list[dict] = []
+
+    for line in body.csv_content.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = [p.strip() for p in line.split(",")]
+        domain = parts[0] if len(parts) > 0 else ""
+        cookie = parts[1] if len(parts) > 1 else ""
+        ip     = parts[2] if len(parts) > 2 else ""
+        try:
+            validated = ScanRequest(domain=domain, session_cookie=cookie, ip=ip)
+            domain_list.append((validated.domain, validated.session_cookie, validated.ip))
+        except Exception as exc:
+            parse_errors.append({"domain": domain, "error": str(exc)})
+
+    total   = len(domain_list) + len(parse_errors)
+    user_id = current_user.id
+
+    async def _stream():
+        completed = 0
+        yield f"event: start\ndata: {json.dumps({'total': total})}\n\n"
+
+        # Errores de validación: emitir inmediatamente
+        for err_item in parse_errors:
+            completed += 1
+            payload = json.dumps({"index": completed, "total": total, "result": err_item})
+            yield f"event: result\ndata: {payload}\n\n"
+
+        if not domain_list:
+            yield f"event: done\ndata: {json.dumps({'total': total, 'completed': completed})}\n\n"
+            return
+
+        async def _scan_one(dom: str, cook: str, ip_str: str) -> dict:
+            try:
+                return await _run_scan(dom, cook, ip_str)
+            except Exception as exc:
+                return {"domain": dom, "error": str(exc)}
+
+        import database as _db
+        from sqlmodel import Session as DBSession
+
+        pending: set[asyncio.Task] = {
+            asyncio.create_task(_scan_one(d, c, i)) for d, c, i in domain_list
+        }
+
+        while pending:
+            if await request.is_disconnected():
+                for t in pending:
+                    t.cancel()
+                return
+
+            done, pending = await asyncio.wait(
+                pending, return_when=asyncio.FIRST_COMPLETED, timeout=1.0
+            )
+
+            for task in done:
+                if task.cancelled():
+                    continue
+                exc = task.exception()
+                result = {"error": str(exc)} if exc else task.result()
+                completed += 1
+
+                if "error" not in result:
+                    with DBSession(_db._engine) as db_sess:
+                        _save_scan(db_sess, result, "batch", user_id)
+
+                payload = json.dumps({"index": completed, "total": total, "result": result})
+                yield f"event: result\ndata: {payload}\n\n"
+
+        yield f"event: done\ndata: {json.dumps({'total': total, 'completed': completed})}\n\n"
+
+    return StreamingResponse(
+        _stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 # ── Endpoints: historial ──────────────────────────────────────────────────────

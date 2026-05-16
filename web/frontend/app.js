@@ -420,6 +420,8 @@ const btnBatchRun   = document.getElementById("btn-batch-run");
 const batchProgress = document.getElementById("batch-progress");
 const batchDomList  = document.getElementById("batch-domain-list");
 const batchResults  = document.getElementById("batch-results");
+const batchFill     = document.getElementById("batch-progress-fill");
+const batchLabel    = document.getElementById("batch-progress-label");
 
 let _csvContent = "";
 
@@ -461,6 +463,8 @@ btnBatchRun?.addEventListener("click", async () => {
   batchProgress.classList.remove("hidden");
   batchResults.classList.add("hidden");
   batchDomList.innerHTML = "";
+  if (batchFill)  { batchFill.style.width = "0%"; batchFill.classList.add("progress-bar-animated"); }
+  if (batchLabel) { batchLabel.textContent = "Iniciando…"; }
 
   const lines = _csvContent.split("\n").map(l => l.trim()).filter(l => l && !l.startsWith("#"));
   lines.forEach(line => {
@@ -473,39 +477,90 @@ btnBatchRun?.addEventListener("click", async () => {
     batchDomList.appendChild(row);
   });
 
+  const token = localStorage.getItem("wss_token");
+  const allResults = [];
+
   try {
-    const data = await apiPost("/api/batch", { csv_content: _csvContent });
-    renderBatchResults(data, lines);
+    const response = await fetch(`${API_BASE}/api/batch-stream`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({ csv_content: _csvContent }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`HTTP ${response.status}: ${text.slice(0, 200)}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+
+    // Parsear chunks SSE del stream
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const parts = buf.split("\n\n");
+      buf = parts.pop() ?? "";
+
+      for (const raw of parts) {
+        if (!raw.trim()) continue;
+        let eventName = "message";
+        let dataStr = "";
+        for (const ln of raw.split("\n")) {
+          if (ln.startsWith("event: ")) eventName = ln.slice(7).trim();
+          else if (ln.startsWith("data: ")) dataStr = ln.slice(6);
+        }
+        if (!dataStr) continue;
+        const d = JSON.parse(dataStr);
+
+        if (eventName === "start") {
+          if (batchFill)  batchFill.style.width = "2%";
+          if (batchLabel) batchLabel.textContent = `Escaneando 0 / ${d.total}…`;
+
+        } else if (eventName === "result") {
+          allResults.push(d.result);
+          const r      = d.result;
+          const domain = r.domain || "?";
+          const row    = document.getElementById(`brow-${sanitizeId(domain)}`);
+          if (row) {
+            const lbl = row.querySelector(".status-label");
+            if (r.error) {
+              lbl.textContent = `⚠ ${r.error}`;
+              lbl.style.color = "var(--wss-fail, #f85149)";
+            } else {
+              const s = r.summary;
+              lbl.textContent = `✅ ${s.pass}P  ❌ ${s.fail}F  ⚠ ${s.warn}W  ⏭ ${s.skip}S`;
+              lbl.style.color = "";
+            }
+          }
+          const pct = Math.max(2, Math.round((d.index / d.total) * 100));
+          if (batchFill)  batchFill.style.width = `${pct}%`;
+          if (batchLabel) batchLabel.textContent = `Escaneando ${d.index} / ${d.total} — ${escapeHtml(domain)}`;
+
+          const table = document.getElementById("batch-summary-table");
+          table._batchResults = allResults;
+          renderBatchTable(table, allResults, lines);
+          batchResults.classList.remove("hidden");
+
+        } else if (eventName === "done") {
+          if (batchFill)  { batchFill.style.width = "100%"; batchFill.classList.remove("progress-bar-animated"); }
+          if (batchLabel) batchLabel.textContent = `Completado — ${d.completed} dominio${d.completed !== 1 ? "s" : ""}`;
+        }
+      }
+    }
+
   } catch (err) {
     batchDomList.innerHTML = `<p class="text-danger">❌ ${escapeHtml(err.message)}</p>`;
   } finally {
     btnBatchRun.disabled = false;
-    batchProgress.classList.add("hidden");
+    setTimeout(() => batchProgress.classList.add("hidden"), 2000);
   }
 });
-
-function renderBatchResults(data, lines) {
-  const results = data.results;
-
-  results.forEach((r, idx) => {
-    const domain = r.domain || lines[idx]?.split(",")[0] || "?";
-    const row = document.getElementById(`brow-${sanitizeId(domain)}`);
-    if (!row) return;
-    if (r.error) {
-      row.querySelector(".status-label").textContent = `⚠ ${r.error}`;
-      row.querySelector(".status-label").style.color = "var(--red)";
-      return;
-    }
-    const s = r.summary;
-    row.querySelector(".status-label").textContent =
-      `✅ ${s.pass}P  ❌ ${s.fail}F  ⚠ ${s.warn}W  ⏭ ${s.skip}S`;
-  });
-
-  const table = document.getElementById("batch-summary-table");
-  table._batchResults = results;   // guardado para el reporte MD
-  renderBatchTable(table, results, lines);
-  batchResults.classList.remove("hidden");
-}
 
 /**
  * Rellena una <table> con los resultados de un análisis batch.
@@ -513,35 +568,68 @@ function renderBatchResults(data, lines) {
  * @param {Array} results - Array de resultados de scan
  * @param {Array} [lines] - Líneas CSV originales (opcional, para fallback de nombre de dominio)
  */
-const TESTS = Array.from({ length: 25 }, (_, i) => String(i + 1).padStart(2, "0"));
+const TESTS = Array.from({ length: 55 }, (_, i) => String(i + 1).padStart(2, "0"));
 
 /** Metadatos de cada test: bloque, nivel de riesgo y peso para score */
 const TESTS_META = [
-  { id:"01", name:"Cookie: Secure",               block:"Cookies",          risk:"Medio",   weight:5,  riskDesc:"Cookie enviada en claro por HTTP" },
-  { id:"02", name:"Cookie: HttpOnly",              block:"Cookies",          risk:"Alto",    weight:8,  riskDesc:"Robo de sesión via XSS" },
-  { id:"03", name:"Cookie: SameSite=Lax|Strict",  block:"Cookies",          risk:"Medio",   weight:5,  riskDesc:"CSRF cross-site" },
-  { id:"04", name:"Cookie: Path definido",         block:"Cookies",          risk:"Bajo",    weight:2,  riskDesc:"Scope de cookie sin restringir" },
-  { id:"05", name:"HTTP → HTTPS redirect",         block:"Transporte",       risk:"Medio",   weight:5,  riskDesc:"Tráfico en claro posible" },
-  { id:"06", name:"HSTS Strict-Transport-Security",block:"Transporte",       risk:"Alto",    weight:8,  riskDesc:"SSL stripping attack" },
-  { id:"07", name:"TLS 1.0 deshabilitado",         block:"Transporte",       risk:"Alto",    weight:8,  riskDesc:"Protocolo roto (POODLE/BEAST)" },
-  { id:"08", name:"TLS 1.1 deshabilitado",         block:"Transporte",       risk:"Medio",   weight:5,  riskDesc:"Protocolo obsoleto" },
-  { id:"09", name:"Certificado SSL vigente",       block:"Transporte",       risk:"Crítico", weight:10, riskDesc:"Conexión insegura si expira" },
-  { id:"10", name:"X-Frame-Options",               block:"Cabeceras HTTP",   risk:"Alto",    weight:8,  riskDesc:"Clickjacking via iframes maliciosos" },
-  { id:"11", name:"X-Content-Type-Options: nosniff",block:"Cabeceras HTTP",  risk:"Medio",   weight:5,  riskDesc:"MIME confusion attack" },
-  { id:"12", name:"Content-Security-Policy (CSP)", block:"Cabeceras HTTP",   risk:"Alto",    weight:8,  riskDesc:"XSS sin restricción de scripts" },
-  { id:"13", name:"Referrer-Policy",               block:"Cabeceras HTTP",   risk:"Bajo",    weight:2,  riskDesc:"Fuga de URLs a terceros" },
-  { id:"14", name:"Permissions-Policy",            block:"Cabeceras HTTP",   risk:"Bajo",    weight:2,  riskDesc:"Acceso sin control a APIs del navegador" },
-  { id:"15", name:"Server header oculto",          block:"Fuga de info",     risk:"Medio",   weight:5,  riskDesc:"Revela versión del servidor" },
-  { id:"16", name:"X-Powered-By ausente",          block:"Fuga de info",     risk:"Medio",   weight:5,  riskDesc:"Revela stack tecnológico (PHP, etc.)" },
-  { id:"17", name:"X-AspNet-Version ausente",      block:"Fuga de info",     risk:"Medio",   weight:5,  riskDesc:"Revela versión de .NET" },
-  { id:"18", name:"CORS sin wildcard",             block:"Config. servidor", risk:"Alto",    weight:8,  riskDesc:"Acceso cross-origin irrestricto" },
-  { id:"19", name:"HTTP TRACE deshabilitado",      block:"Config. servidor", risk:"Medio",   weight:5,  riskDesc:"XST (Cross-Site Tracing)" },
-  { id:"20", name:"Cache-Control seguro",          block:"Config. servidor", risk:"Medio",   weight:5,  riskDesc:"Datos sensibles en caché del navegador" },
-  { id:"21", name:"Headers deprecados ausentes",   block:"Modernización",    risk:"Bajo",    weight:2,  riskDesc:"X-XSS-Protection y Expect-CT son obsoletos" },
-  { id:"22", name:"COOP (Cross-Origin-Opener)",    block:"Aislamiento",      risk:"Medio",   weight:5,  riskDesc:"Ataques de ventana cross-origin" },
-  { id:"23", name:"COEP (Cross-Origin-Embedder)",  block:"Aislamiento",      risk:"Medio",   weight:5,  riskDesc:"Necesario para aislamiento de contexto" },
-  { id:"24", name:"CORP (Cross-Origin-Resource)",  block:"Aislamiento",      risk:"Medio",   weight:5,  riskDesc:"Recursos cargables desde orígenes externos" },
-  { id:"25", name:"X-Permitted-Cross-Domain",      block:"Aislamiento",      risk:"Bajo",    weight:2,  riskDesc:"Acceso de Flash/PDF a recursos del dominio" },
+  { id:"01", name:"Cookie: Secure",               block:"Cookies",              risk:"Medio",   weight:5,  riskDesc:"Cookie enviada en claro por HTTP" },
+  { id:"02", name:"Cookie: HttpOnly",              block:"Cookies",              risk:"Alto",    weight:8,  riskDesc:"Robo de sesión via XSS" },
+  { id:"03", name:"Cookie: SameSite=Lax|Strict",  block:"Cookies",              risk:"Medio",   weight:5,  riskDesc:"CSRF cross-site" },
+  { id:"04", name:"Cookie: Path definido",         block:"Cookies",              risk:"Bajo",    weight:2,  riskDesc:"Scope de cookie sin restringir" },
+  { id:"05", name:"HTTP → HTTPS redirect",         block:"Transporte",           risk:"Medio",   weight:5,  riskDesc:"Tráfico en claro posible" },
+  { id:"06", name:"HSTS Strict-Transport-Security",block:"Transporte",           risk:"Alto",    weight:8,  riskDesc:"SSL stripping attack" },
+  { id:"07", name:"TLS 1.0 deshabilitado",         block:"Transporte",           risk:"Alto",    weight:8,  riskDesc:"Protocolo roto (POODLE/BEAST)" },
+  { id:"08", name:"TLS 1.1 deshabilitado",         block:"Transporte",           risk:"Medio",   weight:5,  riskDesc:"Protocolo obsoleto" },
+  { id:"09", name:"Certificado SSL vigente",       block:"Transporte",           risk:"Crítico", weight:10, riskDesc:"Conexión insegura si expira" },
+  { id:"10", name:"X-Frame-Options",               block:"Cabeceras HTTP",       risk:"Alto",    weight:8,  riskDesc:"Clickjacking via iframes maliciosos" },
+  { id:"11", name:"X-Content-Type-Options: nosniff",block:"Cabeceras HTTP",      risk:"Medio",   weight:5,  riskDesc:"MIME confusion attack" },
+  { id:"12", name:"Content-Security-Policy (CSP)", block:"Cabeceras HTTP",       risk:"Alto",    weight:8,  riskDesc:"XSS sin restricción de scripts" },
+  { id:"13", name:"Referrer-Policy",               block:"Cabeceras HTTP",       risk:"Bajo",    weight:2,  riskDesc:"Fuga de URLs a terceros" },
+  { id:"14", name:"Permissions-Policy",            block:"Cabeceras HTTP",       risk:"Bajo",    weight:2,  riskDesc:"Acceso sin control a APIs del navegador" },
+  { id:"15", name:"Server header oculto",          block:"Fuga de info",         risk:"Medio",   weight:5,  riskDesc:"Revela versión del servidor" },
+  { id:"16", name:"X-Powered-By ausente",          block:"Fuga de info",         risk:"Medio",   weight:5,  riskDesc:"Revela stack tecnológico (PHP, etc.)" },
+  { id:"17", name:"X-AspNet-Version ausente",      block:"Fuga de info",         risk:"Medio",   weight:5,  riskDesc:"Revela versión de .NET" },
+  { id:"18", name:"CORS sin wildcard",             block:"Config. servidor",     risk:"Alto",    weight:8,  riskDesc:"Acceso cross-origin irrestricto" },
+  { id:"19", name:"HTTP TRACE deshabilitado",      block:"Config. servidor",     risk:"Medio",   weight:5,  riskDesc:"XST (Cross-Site Tracing)" },
+  { id:"20", name:"Cache-Control seguro",          block:"Config. servidor",     risk:"Medio",   weight:5,  riskDesc:"Datos sensibles en caché del navegador" },
+  { id:"21", name:"Headers deprecados ausentes",   block:"Modernización",        risk:"Bajo",    weight:2,  riskDesc:"X-XSS-Protection y Expect-CT son obsoletos" },
+  { id:"22", name:"COOP (Cross-Origin-Opener)",    block:"Aislamiento",          risk:"Medio",   weight:5,  riskDesc:"Ataques de ventana cross-origin" },
+  { id:"23", name:"COEP (Cross-Origin-Embedder)",  block:"Aislamiento",          risk:"Medio",   weight:5,  riskDesc:"Necesario para aislamiento de contexto" },
+  { id:"24", name:"CORP (Cross-Origin-Resource)",  block:"Aislamiento",          risk:"Medio",   weight:5,  riskDesc:"Recursos cargables desde orígenes externos" },
+  { id:"25", name:"X-Permitted-Cross-Domain",      block:"Aislamiento",          risk:"Bajo",    weight:2,  riskDesc:"Acceso de Flash/PDF a recursos del dominio" },
+  // Bloque 7 — Archivos y rutas expuestas
+  { id:"26", name:"Archivos .env no expuestos",             block:"Archivos y rutas",  risk:"Crítico", weight:10, riskDesc:"Variables de entorno, credenciales y secrets expuestos" },
+  { id:"27", name:"Repositorio .git no expuesto",           block:"Archivos y rutas",  risk:"Crítico", weight:10, riskDesc:"Código fuente y secrets accesibles públicamente" },
+  { id:"28", name:"Repositorios SVN/HG no expuestos",       block:"Archivos y rutas",  risk:"Alto",    weight:8,  riskDesc:"Historial de versiones y código fuente expuesto" },
+  { id:"29", name:"Volcados SQL no expuestos",              block:"Archivos y rutas",  risk:"Crítico", weight:10, riskDesc:"Datos de base de datos accesibles públicamente" },
+  { id:"30", name:"Archivos de backup no expuestos",        block:"Archivos y rutas",  risk:"Alto",    weight:8,  riskDesc:"Archivos con información sensible accesibles" },
+  { id:"31", name:"Página phpinfo no expuesta",             block:"Archivos y rutas",  risk:"Alto",    weight:8,  riskDesc:"Stack tecnológico y configuración del servidor expuestos" },
+  { id:"32", name:"security.txt presente (RFC 9116)",       block:"Archivos y rutas",  risk:"Bajo",    weight:2,  riskDesc:"Sin canal oficial para reporte de vulnerabilidades" },
+  { id:"33", name:"Páginas de estado no expuestas",         block:"Archivos y rutas",  risk:"Alto",    weight:8,  riskDesc:"Información interna de la aplicación expuesta" },
+  { id:"34", name:"Paneles de admin protegidos",            block:"Archivos y rutas",  risk:"Alto",    weight:8,  riskDesc:"Paneles de administración accesibles sin autenticación" },
+  { id:"35", name:"Archivos de config no expuestos",        block:"Archivos y rutas",  risk:"Crítico", weight:10, riskDesc:"Credenciales y configuración de la app expuestas" },
+  { id:"36", name:"Manifiestos de dependencias no expuestos",block:"Archivos y rutas", risk:"Medio",   weight:5,  riskDesc:"Stack tecnológico y versiones con vulns expuestas" },
+  { id:"37", name:"crossdomain.xml sin wildcard",           block:"Archivos y rutas",  risk:"Alto",    weight:8,  riskDesc:"Acceso cross-domain sin restricción de orígenes" },
+  { id:"38", name:"Documentación de API no expuesta",       block:"Archivos y rutas",  risk:"Medio",   weight:5,  riskDesc:"Endpoints y estructura de la API expuestos" },
+  { id:"39", name:"Spring Actuator no expuesto",            block:"Archivos y rutas",  risk:"Alto",    weight:8,  riskDesc:"Endpoints de gestión de Spring Boot accesibles" },
+  { id:"40", name:"Archivo .DS_Store no expuesto",          block:"Archivos y rutas",  risk:"Medio",   weight:5,  riskDesc:"Estructura de directorios del servidor expuesta" },
+  // Bloque 8 — DNS, Email y Dominio
+  { id:"41", name:"Registro SPF configurado",               block:"DNS y Email",       risk:"Alto",    weight:8,  riskDesc:"Spoofing de correo desde el dominio posible" },
+  { id:"42", name:"Registro DMARC configurado",             block:"DNS y Email",       risk:"Alto",    weight:8,  riskDesc:"Sin política de autenticación de correo" },
+  { id:"43", name:"DKIM con selector activo",               block:"DNS y Email",       risk:"Medio",   weight:5,  riskDesc:"Autenticidad de correos enviados no verificable" },
+  { id:"44", name:"Registro CAA presente",                  block:"DNS y Email",       risk:"Bajo",    weight:2,  riskDesc:"Sin control sobre qué CAs emiten certificados" },
+  { id:"45", name:"DNSSEC habilitado",                      block:"DNS y Email",       risk:"Bajo",    weight:2,  riskDesc:"DNS vulnerable a spoofing y envenenamiento" },
+  { id:"46", name:"Sin riesgo de subdomain takeover",       block:"DNS y Email",       risk:"Alto",    weight:8,  riskDesc:"Subdominio apunta a servicio no controlado" },
+  { id:"47", name:"Puertos de BD no expuestos",             block:"DNS y Email",       risk:"Crítico", weight:10, riskDesc:"Bases de datos accesibles directamente desde Internet" },
+  // Bloque 9 — Fingerprinting y Contenido
+  { id:"48", name:"Django DEBUG=True no expuesto",          block:"Fingerprinting",    risk:"Alto",    weight:8,  riskDesc:"Stack trace e información sensible expuestos" },
+  { id:"49", name:"Laravel debug page no expuesta",         block:"Fingerprinting",    risk:"Alto",    weight:8,  riskDesc:"Configuración y stack trace expuestos" },
+  { id:"50", name:"Spring Boot Actuator no expuesto",       block:"Fingerprinting",    risk:"Alto",    weight:8,  riskDesc:"Endpoints de gestión y métricas accesibles" },
+  { id:"51", name:"Meta generator sin versión de CMS",      block:"Fingerprinting",    risk:"Medio",   weight:5,  riskDesc:"Versión del CMS facilita ataques dirigidos" },
+  { id:"52", name:"Comentarios HTML sin datos sensibles",   block:"Fingerprinting",    risk:"Medio",   weight:5,  riskDesc:"Datos sensibles en comentarios HTML visibles" },
+  { id:"53", name:"Sin contenido mixto (HTTP en HTTPS)",    block:"Fingerprinting",    risk:"Medio",   weight:5,  riskDesc:"Recursos HTTP debilitan la seguridad HTTPS" },
+  { id:"54", name:"Formularios con action HTTPS o relativo",block:"Fingerprinting",    risk:"Alto",    weight:8,  riskDesc:"Formularios envían datos a endpoints HTTP" },
+  { id:"55", name:"Campos de contraseña no servidos por HTTP",block:"Fingerprinting",  risk:"Crítico", weight:10, riskDesc:"Credenciales enviadas sin cifrado" },
 ];
 
 /**
