@@ -347,11 +347,14 @@ function renderResults(data) {
     tr.dataset.severity = t.severity || "";
     tr.dataset.result   = t.result   || "";
     tr.innerHTML = `
-      <td>${escapeHtml(t.id)}</td>
-      <td>
-        ${escapeHtml(t.name)}
-        <a href="${API_BASE}/wiki.html#t${encodeURIComponent(String(t.id))}" target="_blank" rel="noopener" class="wiki-link" title="Ver en wiki">📖</a>
+      <td class="text-center align-middle pe-0">
+        <button class="btn btn-link btn-sm p-0 lh-1" title="Ver en wiki"
+                onclick="openWikiModal('${escapeHtml(String(t.id))}')">
+          <i class="fa-solid fa-book-open text-info" style="font-size:.8rem"></i>
+        </button>
       </td>
+      <td>${escapeHtml(t.id)}</td>
+      <td>${escapeHtml(t.name)}</td>
       <td><span class="badge badge-${escapeHtml(t.result)}">${escapeHtml(t.result)}</span></td>
       <td class="muted">${escapeHtml(t.detail || "—")}</td>
     `;
@@ -1251,7 +1254,7 @@ function _renderWikiTable() {
     const sColor = SEV_COLOR[t.severity] || "secondary";
     return `<tr class="wiki-row" data-test-id="${t.id}" style="cursor:pointer">
       <td><code class="text-info">${t.id}</code></td>
-      <td>${escapeHtml(t.name)}${t.description ? `<div class="text-muted small text-truncate wiki-desc-preview" style="max-width:300px">${escapeHtml(t.description.substring(0,80))}${t.description.length>80?"…":""}</div>` : ""}</td>
+      <td>${escapeHtml(t.name)}${t.description ? `<div class="text-muted small text-truncate wiki-desc-preview" style="max-width:300px">${escapeHtml(t.description.replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim().substring(0,80))}…</div>` : ""}</td>
       <td><span class="badge bg-secondary">${t.block} — ${escapeHtml(t.block_name)}</span></td>
       <td><span class="badge bg-${sColor}">${t.severity}</span></td>
       <td>${t.cwe ? `<a href="https://cwe.mitre.org/data/definitions/${t.cwe.replace("CWE-","")}.html" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">${t.cwe}</a>` : "—"}</td>
@@ -1296,7 +1299,7 @@ function openWikiDetailPanel(testId) {
   const descEl       = document.getElementById("wd-description");
   const descEmpty    = document.getElementById("wd-description-empty");
   if (t.description && t.description.trim()) {
-    descEl.textContent = t.description;  // pre-formatted with white-space:pre-wrap in CSS
+    descEl.innerHTML = t.description;
     descEl.classList.remove("hidden");
     descEmpty?.classList.add("hidden");
   } else {
@@ -1350,6 +1353,205 @@ function closeWikiDetailPanel() {
 }
 
 document.getElementById("btn-wiki-detail-close")?.addEventListener("click", closeWikiDetailPanel);
+
+// Tabs de remediación en el panel de detalle (data-tab-target custom, sin Bootstrap Tab)
+document.getElementById("wd-description")?.addEventListener("click", e => {
+  const btn = e.target.closest("[data-tab-target]");
+  if (!btn) return;
+  e.preventDefault();
+  const navList = btn.closest("ul");
+  if (!navList) return;
+  const tabContent = navList.nextElementSibling;
+  if (!tabContent) return;
+  navList.querySelectorAll(".nav-link").forEach(b => b.classList.remove("active"));
+  tabContent.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
+  btn.classList.add("active");
+  const target = tabContent.querySelector(btn.getAttribute("data-tab-target"));
+  if (target) target.classList.add("active");
+});
+
+// Handler de tabs dentro del modal wiki (misma lógica, distinto contenedor)
+document.getElementById("wm-description")?.addEventListener("click", e => {
+  const btn = e.target.closest("[data-tab-target]");
+  if (!btn) return;
+  e.preventDefault();
+  const navList = btn.closest("ul");
+  if (!navList) return;
+  const tabContent = navList.nextElementSibling;
+  if (!tabContent) return;
+  navList.querySelectorAll(".nav-link").forEach(b => b.classList.remove("active"));
+  tabContent.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
+  btn.classList.add("active");
+  const target = tabContent.querySelector(btn.getAttribute("data-tab-target"));
+  if (target) target.classList.add("active");
+});
+
+async function openWikiModal(testId) {
+  const normId = id => String(parseInt(id, 10) || 0).padStart(2, "0");
+  const norm = normId(testId);
+
+  if (!_wikiData) {
+    try { _wikiData = await apiFetch("/api/tests"); } catch { _wikiData = null; }
+  }
+  const t = _wikiData?.tests?.find(x => normId(x.id) === norm);
+
+  const SEV_COLOR = { CRITICAL: "danger", HIGH: "warning", MEDIUM: "info", LOW: "secondary" };
+
+  document.getElementById("wm-id").textContent   = t ? t.id : testId;
+  document.getElementById("wm-name").textContent = t?.name || "";
+
+  const sevEl = document.getElementById("wm-severity");
+  sevEl.textContent = t?.severity || "";
+  sevEl.className   = `badge bg-${SEV_COLOR[t?.severity] || "secondary"}`;
+
+  document.getElementById("wm-block").textContent =
+    t ? `${t.block} — ${t.block_name}` : "";
+
+  const cweEl = document.getElementById("wm-cwe");
+  if (t?.cwe) {
+    cweEl.textContent = t.cwe;
+    cweEl.href = `https://cwe.mitre.org/data/definitions/${t.cwe.replace("CWE-", "")}.html`;
+    cweEl.style.display = "";
+  } else {
+    cweEl.style.display = "none";
+  }
+
+  const descEl    = document.getElementById("wm-description");
+  const descEmpty = document.getElementById("wm-description-empty");
+  if (t?.description?.trim()) {
+    descEl.innerHTML = t.description;
+    descEl.classList.remove("hidden");
+    descEmpty?.classList.add("hidden");
+  } else {
+    descEl.innerHTML = "";
+    descEl.classList.add("hidden");
+    descEmpty?.classList.remove("hidden");
+  }
+
+  const refs     = Array.isArray(t?.references) ? t.references : [];
+  const refsWrap = document.getElementById("wm-references-wrap");
+  const refsList  = document.getElementById("wm-references");
+  if (refs.length && refsWrap && refsList) {
+    refsList.innerHTML = refs.map(u => {
+      let display = u;
+      try { display = new URL(u).hostname; } catch {}
+      return `<li><a href="${u}" target="_blank" rel="noopener noreferrer">${escapeHtml(display)}</a></li>`;
+    }).join("");
+    refsWrap.style.display = "";
+  } else if (refsWrap) {
+    refsWrap.style.display = "none";
+  }
+
+  // Botones Copiar MD / Descargar .md
+  const copyBtn = document.getElementById("wm-copy-md");
+  const dlBtn   = document.getElementById("wm-download-md");
+  if (copyBtn) copyBtn.onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(buildTestMarkdown(t));
+      const orig = copyBtn.innerHTML;
+      copyBtn.innerHTML = '<i class="fa-solid fa-check me-1"></i>Copiado';
+      copyBtn.classList.replace("btn-outline-info", "btn-outline-success");
+      setTimeout(() => {
+        copyBtn.innerHTML = orig;
+        copyBtn.classList.replace("btn-outline-success", "btn-outline-info");
+      }, 2000);
+    } catch { /* clipboard no disponible */ }
+  };
+  if (dlBtn) dlBtn.onclick = () => {
+    const md = buildTestMarkdown(t);
+    const slug = (t?.name || testId).replace(/[^a-z0-9]/gi, "-").toLowerCase().replace(/-+/g, "-");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([md], { type: "text/markdown" }));
+    a.download = `TEST-${t?.id || testId}-${slug}.md`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  bootstrap.Modal.getOrCreateInstance(
+    document.getElementById("wiki-quick-modal")
+  ).show();
+}
+
+/* ─── Markdown export helpers ─────────────────────────────────── */
+
+// Convierte nodos inline de un elemento HTML a sintaxis Markdown
+function htmlInlineToMd(el) {
+  let html = el.innerHTML
+    .replace(/<code[^>]*>(.*?)<\/code>/gi,          (_, c) => "`" + c + "`")
+    .replace(/<(?:strong|b)[^>]*>(.*?)<\/(?:strong|b)>/gi, (_, c) => `**${c}**`)
+    .replace(/<(?:em|i)[^>]*>(.*?)<\/(?:em|i)>/gi,  (_, c) => `*${c}*`)
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "");
+  const tmp = document.createElement("textarea");
+  tmp.innerHTML = html;
+  return tmp.value.trim();
+}
+
+// Convierte los datos de un test al formato Markdown completo
+function buildTestMarkdown(t) {
+  if (!t) return "";
+  const lines = [];
+  lines.push(`# TEST-${t.id} — ${t.name}`, "");
+  lines.push(`**Severidad:** ${t.severity || "—"}  `);
+  lines.push(`**Bloque:** ${t.block} — ${t.block_name || "—"}  `);
+  if (t.cwe) {
+    const num = t.cwe.replace(/\D/g, "");
+    lines.push(`**CWE:** [${t.cwe}](https://cwe.mitre.org/data/definitions/${num}.html)  `);
+  }
+  lines.push("");
+
+  if (t.description?.trim()) {
+    const tmp = document.createElement("div");
+    tmp.innerHTML = t.description;
+    const ICON = { PASS: "✅", FAIL: "❌", WARN: "⚠️", SKIP: "⏭️" };
+
+    for (const el of tmp.children) {
+      if (el.classList.contains("wiki-sect-head")) {
+        lines.push(`## ${el.textContent.trim()}`, "");
+
+      } else if (el.tagName === "P") {
+        lines.push(htmlInlineToMd(el), "");
+
+      } else if (el.tagName === "DIV" && el.querySelector(".badge")) {
+        // Filas de resultados posibles
+        for (const row of el.querySelectorAll("[class*='mb-1']")) {
+          const badge = row.querySelector(".badge");
+          if (!badge) continue;
+          const result = badge.textContent.trim();
+          const text   = row.textContent.replace(result, "").trim();
+          lines.push(`- ${ICON[result] || "•"} **${result}** — ${text}`);
+        }
+        lines.push("");
+
+      } else if (el.tagName === "UL" && el.classList.contains("nav")) {
+        // nav-tabs: se procesa junto con tab-content a continuación
+
+      } else if (el.classList.contains("tab-content")) {
+        for (const pane of el.querySelectorAll(".tab-pane")) {
+          const btn     = tmp.querySelector(`[data-tab-target="#${pane.id}"]`);
+          const tabName = btn ? btn.textContent.trim() : pane.id.split("-").pop();
+          const pre     = pane.querySelector("pre");
+          if (pre) {
+            lines.push(`### ${tabName}`, "```", pre.textContent.trim(), "```", "");
+          }
+        }
+      }
+    }
+  }
+
+  const refs = Array.isArray(t.references) ? t.references : [];
+  if (refs.length) {
+    lines.push("## Referencias", "");
+    for (const r of refs) {
+      let display = r;
+      try { display = new URL(r).hostname; } catch { /**/ }
+      lines.push(`- [${display}](${r})`);
+    }
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
 
 
 

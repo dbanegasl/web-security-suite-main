@@ -259,9 +259,19 @@ body { overflow-x: hidden; }
 .wiki-detail-desc {
   font-size: .875rem;
   line-height: 1.7;
-  white-space: pre-wrap;
   color: var(--bs-body-color);
-  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+.wiki-sect-head {
+  font-size: .65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--bs-info);
+  margin-top: 1rem;
+  margin-bottom: .35rem;
+}
+.wiki-detail-desc .wiki-sect-head:first-child {
+  margin-top: 0;
 }
 .wiki-detail-refs { padding-left: 1.2rem; margin: 0; }
 .wiki-detail-refs li { margin-bottom: 4px; font-size: .82rem; }
