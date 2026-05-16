@@ -18,7 +18,10 @@
     <button id="btn-sidebar-toggle" class="btn btn-outline-secondary btn-sm d-lg-none" aria-label="Menú"><i class="fa-solid fa-bars"></i></button>
     <span id="topbar-section-title" class="topbar-title">Inicio</span>
     <div class="topbar-user ms-auto d-flex align-items-center gap-2">
-      <div id="topbar-avatar" class="topbar-avatar"></div>
+      <div id="topbar-avatar" class="topbar-avatar">
+        <span id="topbar-avatar-initials"></span>
+        <img id="topbar-avatar-img" class="topbar-avatar-img hidden" alt="avatar" />
+      </div>
       <span id="topbar-username" class="topbar-username d-none d-sm-inline"></span>
       <span id="topbar-role" class="badge topbar-role-badge"></span>
       <a href="#" id="btn-logout" class="topbar-logout" title="Cerrar sesión" aria-label="Cerrar sesión">
@@ -34,9 +37,10 @@
   <div id="login-screen">
     <div class="card" style="width:360px;max-width:95vw;">
       <div class="card-body p-4">
-        <div class="d-flex align-items-center justify-content-center gap-2 mb-4">
-          <span style="font-size:24px">🔐</span>
-          <span class="fw-semibold fs-5">Web Security Suite</span>
+        <div class="d-flex align-items-center justify-content-center gap-2 mb-4" id="login-branding">
+          <img id="login-logo-img" class="hidden" alt="logo" style="max-height:40px;max-width:140px;object-fit:contain" />
+          <span id="login-logo-icon" style="font-size:24px">🔐</span>
+          <span id="login-app-title" class="fw-semibold fs-5">Web Security Suite</span>
         </div>
         <form id="form-login" novalidate>
           <div class="mb-3">
@@ -81,8 +85,9 @@
   <!-- ── Sidebar ──────────────────────────────────────────────── -->
   <nav class="sidebar">
     <div class="sidebar-logo">
-      <i class="fa-solid fa-shield-halved"></i>
-      <span>Web Security Suite</span>
+      <img id="sidebar-logo-img" class="hidden" alt="logo" style="max-height:28px;max-width:120px;object-fit:contain" />
+      <i id="sidebar-logo-icon" class="fa-solid fa-shield-halved"></i>
+      <span id="sidebar-app-title">Web Security Suite</span>
     </div>
     <ul class="sidebar-nav">
       <li><a href="#" class="nav-item active" data-view="home"><i class="fa-solid fa-house fa-fw me-2"></i>Inicio</a></li>
@@ -92,13 +97,14 @@
       <li><a href="#" class="nav-item" data-view="history"><i class="fa-solid fa-clock-rotate-left fa-fw me-2"></i>Historial</a></li>
       <li><a href="#" class="nav-item" data-view="evolution"><i class="fa-solid fa-chart-line fa-fw me-2"></i>Evolución</a></li>
       <li id="nav-admin-item" class="hidden"><a href="#" class="nav-item" data-view="admin"><i class="fa-solid fa-users-gear fa-fw me-2"></i>Administración</a></li>
+      <li id="nav-settings-item"><a href="#" class="nav-item" data-view="settings"><i class="fa-solid fa-gear fa-fw me-2"></i>Configuración</a></li>
     </ul>
     <div class="sidebar-sep"></div>
     <ul class="sidebar-nav" style="flex:0">
       <li><a href="#" class="nav-item" data-view="wiki" style="font-size:12px"><i class="fa-solid fa-book-open fa-fw me-2"></i>Wiki de tests</a></li>
     </ul>
     <div class="sidebar-footer">
-      <button id="btn-theme-toggle" class="btn btn-sm btn-outline-secondary w-100 mb-2" onclick="toggleTheme()">☀️ BRITE</button>
+      <button id="btn-theme-toggle" class="btn btn-sm btn-outline-secondary w-100 mb-2" onclick="toggleTheme()"><i class="fa-solid fa-sun fa-fw me-1"></i>LIGHT</button>
       <div id="app-version"></div>
       <div class="mt-1" style="display:flex;align-items:center;gap:6px;">
         <a href="https://github.com/dbanegasl/web-security-suite-main" target="_blank" rel="noopener"
@@ -122,11 +128,12 @@
       <div class="home-hero">
         <div class="home-hero-glow"></div>
         <div class="home-hero-content">
-          <div class="home-hero-icon">
-            <i class="fa-solid fa-shield-halved"></i>
+          <div class="home-hero-icon" id="home-hero-icon">
+            <i id="home-hero-fa-icon" class="fa-solid fa-shield-halved"></i>
+            <img id="home-hero-logo-img" class="hidden" alt="logo" style="max-height:56px;max-width:200px;object-fit:contain" />
           </div>
           <div>
-            <h1 class="home-hero-title">Web Security Suite</h1>
+            <h1 class="home-hero-title" id="home-hero-title">Web Security Suite</h1>
             <p class="home-hero-subtitle">Plataforma de auditoría HTTP profesional — Bienvenido, <span id="home-username" class="home-hero-user"></span></p>
           </div>
         </div>
@@ -630,6 +637,189 @@
         <button class="btn btn-outline-danger btn-sm" id="btn-purge-history">
           <i class="fa-solid fa-trash-can me-1"></i>Vaciar historial
         </button>
+      </div>
+    </section>
+
+    <!-- ══ Vista: Configuración ═══════════════════════════════ -->
+    <section id="view-settings" class="view">
+      <h1 class="h4 fw-semibold mb-4"><i class="fa-solid fa-gear me-2"></i>Configuración</h1>
+
+      <!-- Bootstrap tabs -->
+      <ul class="nav nav-tabs mb-4" id="settings-tabs" role="tablist">
+        <li class="nav-item" role="presentation" id="settings-tab-platform-li">
+          <button class="nav-link active" id="settings-tab-platform" data-bs-toggle="tab"
+            data-bs-target="#tab-platform" type="button" role="tab">
+            <i class="fa-solid fa-palette me-1"></i>Plataforma
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="settings-tab-profile" data-bs-toggle="tab"
+            data-bs-target="#tab-profile" type="button" role="tab">
+            <i class="fa-solid fa-circle-user me-1"></i>Mi Perfil
+          </button>
+        </li>
+      </ul>
+
+      <div class="tab-content">
+
+        <!-- ── Tab: Plataforma (admin only) ─────────────────── -->
+        <div class="tab-pane fade show active" id="tab-platform" role="tabpanel">
+          <div class="row g-4">
+
+            <!-- Logo -->
+            <div class="col-12 col-lg-6">
+              <div class="settings-card">
+                <div class="settings-card-header">
+                  <i class="fa-solid fa-image me-2 text-primary"></i>Logo de la plataforma
+                </div>
+                <div class="settings-card-body">
+                  <div class="settings-logo-preview-wrap mb-3">
+                    <img id="settings-logo-preview" class="settings-logo-preview" alt="Vista previa" />
+                    <span id="settings-logo-placeholder" class="settings-logo-placeholder text-muted small">
+                      <i class="fa-solid fa-image fa-2x d-block mb-1"></i>Sin logo
+                    </span>
+                  </div>
+                  <input type="file" id="settings-logo-file" class="form-control form-control-sm mb-2"
+                    accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" />
+                  <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-primary" id="btn-save-logo">
+                      <i class="fa-solid fa-floppy-disk me-1"></i>Guardar logo
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" id="btn-remove-logo">
+                      <i class="fa-solid fa-xmark me-1"></i>Quitar
+                    </button>
+                  </div>
+                  <div id="settings-logo-msg" class="mt-2"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Título y colores -->
+            <div class="col-12 col-lg-6">
+              <div class="settings-card">
+                <div class="settings-card-header">
+                  <i class="fa-solid fa-font me-2 text-info"></i>Nombre de la plataforma
+                </div>
+                <div class="settings-card-body">
+                  <div class="input-group input-group-sm">
+                    <input type="text" id="settings-app-title" class="form-control"
+                      maxlength="60" placeholder="Ej.: Mi Empresa Security" />
+                    <button class="btn btn-primary" id="btn-save-title">
+                      <i class="fa-solid fa-floppy-disk"></i>
+                    </button>
+                  </div>
+                  <div id="settings-title-msg" class="mt-2"></div>
+                </div>
+              </div>
+
+              <div class="settings-card mt-3">
+                <div class="settings-card-header">
+                  <i class="fa-solid fa-palette me-2 text-warning"></i>Colores de resultados
+                </div>
+                <div class="settings-card-body">
+                  <div class="settings-color-grid">
+                    <div class="settings-color-row">
+                      <span class="badge badge-PASS">PASS</span>
+                      <input type="color" id="color-pass" class="settings-color-input" title="Color PASS" />
+                      <span class="settings-color-hex" id="color-pass-hex"></span>
+                    </div>
+                    <div class="settings-color-row">
+                      <span class="badge badge-FAIL">FAIL</span>
+                      <input type="color" id="color-fail" class="settings-color-input" title="Color FAIL" />
+                      <span class="settings-color-hex" id="color-fail-hex"></span>
+                    </div>
+                    <div class="settings-color-row">
+                      <span class="badge badge-WARN">WARN</span>
+                      <input type="color" id="color-warn" class="settings-color-input" title="Color WARN" />
+                      <span class="settings-color-hex" id="color-warn-hex"></span>
+                    </div>
+                    <div class="settings-color-row">
+                      <span class="badge badge-SKIP">SKIP</span>
+                      <input type="color" id="color-skip" class="settings-color-input" title="Color SKIP" />
+                      <span class="settings-color-hex" id="color-skip-hex"></span>
+                    </div>
+                  </div>
+                  <div class="d-flex gap-2 mt-3">
+                    <button class="btn btn-sm btn-primary" id="btn-save-colors">
+                      <i class="fa-solid fa-floppy-disk me-1"></i>Guardar colores
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" id="btn-reset-colors">
+                      <i class="fa-solid fa-rotate-left me-1"></i>Defaults
+                    </button>
+                  </div>
+                  <div id="settings-colors-msg" class="mt-2"></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ── Tab: Mi Perfil ────────────────────────────────── -->
+        <div class="tab-pane fade" id="tab-profile" role="tabpanel">
+          <div class="row g-4">
+
+            <!-- Avatar -->
+            <div class="col-12 col-lg-5">
+              <div class="settings-card">
+                <div class="settings-card-header">
+                  <i class="fa-solid fa-circle-user me-2 text-primary"></i>Foto de perfil
+                </div>
+                <div class="settings-card-body text-center">
+                  <div class="avatar-preview-wrap mx-auto mb-3">
+                    <div id="profile-avatar-initials" class="avatar-preview-initials"></div>
+                    <img id="profile-avatar-img" class="avatar-preview-img hidden" alt="avatar" />
+                  </div>
+                  <input type="file" id="profile-avatar-file" class="form-control form-control-sm mb-2"
+                    accept="image/png,image/jpeg,image/gif,image/webp" />
+                  <div class="d-flex gap-2 justify-content-center">
+                    <button class="btn btn-sm btn-primary" id="btn-save-avatar">
+                      <i class="fa-solid fa-floppy-disk me-1"></i>Guardar foto
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" id="btn-remove-avatar">
+                      <i class="fa-solid fa-xmark me-1"></i>Quitar
+                    </button>
+                  </div>
+                  <div id="settings-avatar-msg" class="mt-2"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Cambiar contraseña -->
+            <div class="col-12 col-lg-5">
+              <div class="settings-card">
+                <div class="settings-card-header">
+                  <i class="fa-solid fa-lock me-2 text-warning"></i>Cambiar contraseña
+                </div>
+                <div class="settings-card-body">
+                  <form id="form-change-pwd" novalidate>
+                    <div class="mb-3">
+                      <label for="change-pwd-current" class="form-label small">Contraseña actual</label>
+                      <input type="password" id="change-pwd-current" class="form-control form-control-sm"
+                        autocomplete="current-password" required />
+                    </div>
+                    <div class="mb-3">
+                      <label for="change-pwd-new" class="form-label small">Nueva contraseña</label>
+                      <input type="password" id="change-pwd-new" class="form-control form-control-sm"
+                        autocomplete="new-password" required minlength="6" />
+                    </div>
+                    <div class="mb-3">
+                      <label for="change-pwd-confirm" class="form-label small">Confirmar nueva contraseña</label>
+                      <input type="password" id="change-pwd-confirm" class="form-control form-control-sm"
+                        autocomplete="new-password" required minlength="6" />
+                    </div>
+                    <div id="change-pwd-msg" class="mb-3"></div>
+                    <button type="submit" class="btn btn-sm btn-warning">
+                      <i class="fa-solid fa-key me-1"></i>Cambiar contraseña
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
       </div>
     </section>
   </main>

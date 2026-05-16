@@ -33,13 +33,13 @@ const THEMES = {
   vapor: {
     href:      "https://cdn.jsdelivr.net/npm/bootswatch@5.3.8/dist/vapor/bootstrap.min.css",
     bsTheme:   "dark",
-    btnLabel:  "☀️ BRITE",
+    btnLabel:  '<i class="fa-solid fa-sun fa-fw me-1"></i>LIGHT',
     next:      "brite",
   },
   brite: {
     href:      "https://cdn.jsdelivr.net/npm/bootswatch@5.3.8/dist/brite/bootstrap.min.css",
     bsTheme:   "light",
-    btnLabel:  "🌙 VAPOR",
+    btnLabel:  '<i class="fa-solid fa-moon fa-fw me-1"></i>DARK',
     next:      "vapor",
   },
 };
@@ -49,7 +49,7 @@ function setTheme(name) {
   document.getElementById("theme-css").href = cfg.href;
   document.documentElement.setAttribute("data-bs-theme", cfg.bsTheme);
   const btn = document.getElementById("btn-theme-toggle");
-  if (btn) btn.textContent = cfg.btnLabel;
+  if (btn) btn.innerHTML = cfg.btnLabel;
   localStorage.setItem(THEME_KEY, name);
 }
 
@@ -95,9 +95,16 @@ function hideLogin() {
 function applyUserUI() {
   const user = getUser();
   if (!user) return;
-  // Avatar con iniciales
-  const avatarEl = document.getElementById("topbar-avatar");
-  if (avatarEl) avatarEl.textContent = user.username.slice(0, 2).toUpperCase();
+  // Avatar: foto real o iniciales
+  const initialsEl = document.getElementById("topbar-avatar-initials");
+  const avatarImg  = document.getElementById("topbar-avatar-img");
+  if (user.avatar) {
+    if (avatarImg)  { avatarImg.src = user.avatar; avatarImg.classList.remove("hidden"); }
+    if (initialsEl) initialsEl.textContent = "";
+  } else {
+    if (avatarImg)  avatarImg.classList.add("hidden");
+    if (initialsEl) initialsEl.textContent = user.username.slice(0, 2).toUpperCase();
+  }
   // Nombre de usuario
   if (topbarUsername) topbarUsername.textContent = user.username;
   // Badge de rol
@@ -132,7 +139,9 @@ formLogin.addEventListener("submit", async e => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
     });
-    saveAuth(data.access_token, { id: data.id, username: data.username, role: data.role });
+    saveAuth(data.access_token, { id: data.id, username: data.username, role: data.role, avatar: data.avatar || null });
+    // Recargar settings de plataforma con el token ya disponible
+    loadAndApplySettings();
     applyUserUI();
     hideLogin();
     navigateTo("home");
@@ -153,10 +162,14 @@ btnLogout.addEventListener("click", e => {
 
 // Verificar token al cargar
 (async function init() {
+  loadAndApplySettings();   // branding visible antes del login
   const token = getToken();
   if (!token) { showLogin(); return; }
   try {
-    await apiFetch("/api/auth/me", { method: "GET" });
+    const me = await apiFetch("/api/auth/me", { method: "GET" });
+    // Actualizar usuario guardado con datos frescos (incluye avatar)
+    const stored = getUser();
+    if (stored) saveAuth(getToken(), { ...stored, ...me });
     applyUserUI();
     hideLogin();
     navigateFromHash();  // Respetar hash en URL; si vacío → home
@@ -1110,10 +1123,11 @@ const VIEW_TITLES = {
   history:    "Historial",
   evolution:  "Evolución",
   admin:      "Administración",
+  settings:   "Configuración",
   wiki:       "Wiki de tests"
 };
 
-const VALID_VIEWS = new Set(["home","individual","batch","lists","history","evolution","admin","wiki"]);
+const VALID_VIEWS = new Set(["home","individual","batch","lists","history","evolution","admin","settings","wiki"]);
 
 function navigateTo(target, { pushHash = true } = {}) {
   if (!target || !VALID_VIEWS.has(target)) return;
@@ -1143,6 +1157,7 @@ function navigateTo(target, { pushHash = true } = {}) {
   if (target === "lists")     loadListsIndex();
   if (target === "evolution") initEvolutionView();
   if (target === "admin")     loadAdminUsers();
+  if (target === "settings")  initSettingsView();
   // Cerrar sidebar en mobile
   if (window.innerWidth < 992) {
     document.querySelector(".sidebar")?.classList.remove("sidebar-open");
@@ -1957,3 +1972,372 @@ document.getElementById("btn-purge-confirm")?.addEventListener("click", async ()
     btn.innerHTML = '<i class="fa-solid fa-trash-can me-1"></i>Sí, vaciar historial';
   }
 });
+
+
+// ══════════════════════════════════════════════════════════════
+// BRANDING — carga y aplica configuración de plataforma
+// ══════════════════════════════════════════════════════════════
+
+/** Carga los settings de plataforma desde la API (público) y los aplica. */
+async function loadAndApplySettings() {
+  try {
+    const res = await fetch(`${API_BASE}/api/settings`);
+    if (!res.ok) return;
+    const settings = await res.json();
+    applyBranding(settings);
+  } catch {
+    // Si la API no está disponible, seguir con los defaults CSS
+  }
+}
+
+/** Aplica branding dinámico al DOM: título, logo, colores y favicon. */
+function applyBranding(settings) {
+  // ── Título ──────────────────────────────────────────────────
+  const title = (settings.app_title || "Web Security Suite").trim();
+  document.title = title;
+  const titleTargets = ["sidebar-app-title", "login-app-title", "home-hero-title"];
+  titleTargets.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = title;
+  });
+
+  // ── Logo ────────────────────────────────────────────────────
+  const logo = settings.logo_base64 || "";
+  const logoSets = [
+    { img: "sidebar-logo-img",   icon: "sidebar-logo-icon" },
+    { img: "login-logo-img",     icon: "login-logo-icon" },
+    { img: "home-hero-logo-img", icon: "home-hero-fa-icon" },
+  ];
+  logoSets.forEach(({ img, icon }) => {
+    const imgEl  = document.getElementById(img);
+    const iconEl = document.getElementById(icon);
+    if (imgEl)  { imgEl.src = logo; imgEl.classList.toggle("hidden", !logo); }
+    if (iconEl) iconEl.classList.toggle("hidden", !!logo);
+  });
+
+  // ── Colores de acento ───────────────────────────────────────
+  const colorMap = {
+    "--wss-pass": settings.color_pass || "#3fb950",
+    "--wss-fail": settings.color_fail || "#f85149",
+    "--wss-warn": settings.color_warn || "#d29922",
+    "--wss-skip": settings.color_skip || "#bc8cff",
+  };
+  Object.entries(colorMap).forEach(([prop, val]) => {
+    document.documentElement.style.setProperty(prop, val);
+  });
+
+  // ── Favicon ─────────────────────────────────────────────────
+  const favicon = settings.favicon_base64 || "";
+  if (favicon) {
+    let link = document.querySelector("link[rel='icon']");
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "icon";
+      document.head.appendChild(link);
+    }
+    link.href = favicon;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// VISTA CONFIGURACIÓN
+// ══════════════════════════════════════════════════════════════
+
+// Defaults originales para restaurar colores
+const _COLOR_DEFAULTS = {
+  "color-pass": "#3fb950",
+  "color-fail": "#f85149",
+  "color-warn": "#d29922",
+  "color-skip": "#bc8cff",
+};
+
+/** Inicializa la vista de configuración al navegar hacia ella. */
+function initSettingsView() {
+  const user = getUser();
+
+  // Mostrar/ocultar tab Plataforma según rol
+  const platformTabLi = document.getElementById("settings-tab-platform-li");
+  if (platformTabLi) {
+    platformTabLi.classList.toggle("hidden", user?.role !== "admin");
+  }
+
+  // Si el usuario no es admin y el tab activo es Plataforma, activar Mi Perfil
+  if (user?.role !== "admin") {
+    const profileTab = document.getElementById("settings-tab-profile");
+    if (profileTab) profileTab.click();
+  }
+
+  // Cargar formulario de plataforma si es admin
+  if (user?.role === "admin") _loadPlatformForm();
+
+  // Cargar preview de avatar
+  _loadProfileAvatarPreview();
+}
+
+/** Rellena el formulario de configuración de plataforma con los valores actuales. */
+async function _loadPlatformForm() {
+  try {
+    const res = await fetch(`${API_BASE}/api/settings`);
+    if (!res.ok) return;
+    const settings = await res.json();
+
+    // Título
+    const titleInput = document.getElementById("settings-app-title");
+    if (titleInput) titleInput.value = settings.app_title || "";
+
+    // Preview de logo actual
+    _updateLogoPreview(settings.logo_base64 || "");
+
+    // Colores
+    [["color-pass","color_pass"], ["color-fail","color_fail"],
+     ["color-warn","color_warn"], ["color-skip","color_skip"]].forEach(([inputId, key]) => {
+      const el    = document.getElementById(inputId);
+      const hexEl = document.getElementById(`${inputId}-hex`);
+      const val   = settings[key] || _COLOR_DEFAULTS[inputId];
+      if (el) el.value = val;
+      if (hexEl) hexEl.textContent = val;
+    });
+  } catch {
+    // Silencioso
+  }
+}
+
+function _updateLogoPreview(src) {
+  const previewEl     = document.getElementById("settings-logo-preview");
+  const placeholderEl = document.getElementById("settings-logo-placeholder");
+  if (!previewEl || !placeholderEl) return;
+  if (src) {
+    previewEl.src = src;
+    previewEl.classList.remove("hidden");
+    placeholderEl.classList.add("hidden");
+  } else {
+    previewEl.src = "";
+    previewEl.classList.add("hidden");
+    placeholderEl.classList.remove("hidden");
+  }
+}
+
+function _loadProfileAvatarPreview() {
+  const user = getUser();
+  const initialsEl = document.getElementById("profile-avatar-initials");
+  const avatarImg  = document.getElementById("profile-avatar-img");
+  if (!initialsEl || !avatarImg) return;
+  if (user?.avatar) {
+    avatarImg.src = user.avatar;
+    avatarImg.classList.remove("hidden");
+    initialsEl.classList.add("hidden");
+  } else {
+    avatarImg.classList.add("hidden");
+    initialsEl.classList.remove("hidden");
+    initialsEl.textContent = (user?.username || "?").slice(0, 2).toUpperCase();
+  }
+}
+
+// ── Handlers: logo ───────────────────────────────────────────
+
+// Preview inmediato al seleccionar archivo
+document.getElementById("settings-logo-file")?.addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => _updateLogoPreview(ev.target.result);
+  reader.readAsDataURL(file);
+});
+
+document.getElementById("btn-save-logo")?.addEventListener("click", async () => {
+  const file = document.getElementById("settings-logo-file")?.files[0];
+  const msgEl = document.getElementById("settings-logo-msg");
+  if (!file) { _showSettingsMsg(msgEl, "Selecciona un archivo primero.", "warning"); return; }
+
+  const reader = new FileReader();
+  reader.onload = async ev => {
+    const b64 = ev.target.result;
+    try {
+      await apiPut("/api/admin/settings", { key: "logo_base64", value: b64 });
+      _showSettingsMsg(msgEl, "Logo guardado.", "success");
+      loadAndApplySettings();
+    } catch (err) {
+      _showSettingsMsg(msgEl, err.message, "danger");
+    }
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById("btn-remove-logo")?.addEventListener("click", async () => {
+  const msgEl = document.getElementById("settings-logo-msg");
+  try {
+    await apiPut("/api/admin/settings", { key: "logo_base64", value: "" });
+    _showSettingsMsg(msgEl, "Logo eliminado.", "success");
+    document.getElementById("settings-logo-file").value = "";
+    _updateLogoPreview("");
+    loadAndApplySettings();
+  } catch (err) {
+    _showSettingsMsg(msgEl, err.message, "danger");
+  }
+});
+
+// ── Handlers: título ─────────────────────────────────────────
+
+document.getElementById("btn-save-title")?.addEventListener("click", async () => {
+  const val   = document.getElementById("settings-app-title")?.value.trim();
+  const msgEl = document.getElementById("settings-title-msg");
+  if (!val) { _showSettingsMsg(msgEl, "El título no puede estar vacío.", "warning"); return; }
+  try {
+    await apiPut("/api/admin/settings", { key: "app_title", value: val });
+    _showSettingsMsg(msgEl, "Título guardado.", "success");
+    loadAndApplySettings();
+  } catch (err) {
+    _showSettingsMsg(msgEl, err.message, "danger");
+  }
+});
+
+// ── Handlers: colores ────────────────────────────────────────
+
+// Actualizar texto hex en tiempo real al mover el color picker
+["color-pass","color-fail","color-warn","color-skip"].forEach(id => {
+  document.getElementById(id)?.addEventListener("input", e => {
+    const hexEl = document.getElementById(`${id}-hex`);
+    if (hexEl) hexEl.textContent = e.target.value;
+  });
+});
+
+document.getElementById("btn-save-colors")?.addEventListener("click", async () => {
+  const msgEl = document.getElementById("settings-colors-msg");
+  const pairs = [
+    ["color_pass", "color-pass"],
+    ["color_fail", "color-fail"],
+    ["color_warn", "color-warn"],
+    ["color_skip", "color-skip"],
+  ];
+  try {
+    for (const [key, inputId] of pairs) {
+      const val = document.getElementById(inputId)?.value || "";
+      await apiPut("/api/admin/settings", { key, value: val });
+    }
+    _showSettingsMsg(msgEl, "Colores guardados.", "success");
+    loadAndApplySettings();
+  } catch (err) {
+    _showSettingsMsg(msgEl, err.message, "danger");
+  }
+});
+
+document.getElementById("btn-reset-colors")?.addEventListener("click", async () => {
+  const msgEl = document.getElementById("settings-colors-msg");
+  try {
+    for (const [inputId, val] of Object.entries(_COLOR_DEFAULTS)) {
+      const key = inputId.replace("-", "_");  // "color-pass" → "color_pass"
+      await apiPut("/api/admin/settings", { key, value: val });
+      const el = document.getElementById(inputId);
+      const hexEl = document.getElementById(`${inputId}-hex`);
+      if (el) el.value = val;
+      if (hexEl) hexEl.textContent = val;
+    }
+    _showSettingsMsg(msgEl, "Colores restaurados.", "success");
+    loadAndApplySettings();
+  } catch (err) {
+    _showSettingsMsg(msgEl, err.message, "danger");
+  }
+});
+
+// ── Handlers: avatar ─────────────────────────────────────────
+
+// Preview inmediato al seleccionar archivo de avatar
+document.getElementById("profile-avatar-file")?.addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    // Redimensionar a 150x150 con canvas para reducir peso
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 150; canvas.height = 150;
+      const ctx = canvas.getContext("2d");
+      // Recorte centrado (mantener aspect ratio como cover)
+      const size = Math.min(img.width, img.height);
+      const sx   = (img.width  - size) / 2;
+      const sy   = (img.height - size) / 2;
+      ctx.drawImage(img, sx, sy, size, size, 0, 0, 150, 150);
+      const b64 = canvas.toDataURL("image/jpeg", 0.85);
+      // Mostrar preview
+      const previewImg  = document.getElementById("profile-avatar-img");
+      const previewInit = document.getElementById("profile-avatar-initials");
+      if (previewImg)  { previewImg.src = b64; previewImg.classList.remove("hidden"); }
+      if (previewInit) previewInit.classList.add("hidden");
+      // Guardar temporalmente en el input para el botón guardar
+      document.getElementById("profile-avatar-file")._b64 = b64;
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById("btn-save-avatar")?.addEventListener("click", async () => {
+  const msgEl = document.getElementById("settings-avatar-msg");
+  const fileInput = document.getElementById("profile-avatar-file");
+  const b64 = fileInput?._b64;
+  if (!b64) { _showSettingsMsg(msgEl, "Selecciona una imagen primero.", "warning"); return; }
+  try {
+    await apiPost("/api/users/me/avatar", { avatar_base64: b64 });
+    // Actualizar usuario en localStorage
+    const stored = getUser();
+    if (stored) saveAuth(getToken(), { ...stored, avatar: b64 });
+    applyUserUI();
+    _loadProfileAvatarPreview();
+    _showSettingsMsg(msgEl, "Foto de perfil guardada.", "success");
+    fileInput._b64 = null;
+  } catch (err) {
+    _showSettingsMsg(msgEl, err.message, "danger");
+  }
+});
+
+document.getElementById("btn-remove-avatar")?.addEventListener("click", async () => {
+  const msgEl = document.getElementById("settings-avatar-msg");
+  try {
+    await apiFetch("/api/users/me/avatar", { method: "DELETE" });
+    const stored = getUser();
+    if (stored) saveAuth(getToken(), { ...stored, avatar: null });
+    applyUserUI();
+    _loadProfileAvatarPreview();
+    document.getElementById("profile-avatar-file").value = "";
+    document.getElementById("profile-avatar-file")._b64 = null;
+    _showSettingsMsg(msgEl, "Foto eliminada.", "success");
+  } catch (err) {
+    _showSettingsMsg(msgEl, err.message, "danger");
+  }
+});
+
+// ── Handlers: cambiar contraseña ─────────────────────────────
+
+document.getElementById("form-change-pwd")?.addEventListener("submit", async e => {
+  e.preventDefault();
+  const msgEl   = document.getElementById("change-pwd-msg");
+  const current = document.getElementById("change-pwd-current").value;
+  const newPwd  = document.getElementById("change-pwd-new").value;
+  const confirm = document.getElementById("change-pwd-confirm").value;
+
+  if (newPwd !== confirm) {
+    _showSettingsMsg(msgEl, "Las contraseñas no coinciden.", "warning");
+    return;
+  }
+  if (newPwd.length < 6) {
+    _showSettingsMsg(msgEl, "La nueva contraseña debe tener al menos 6 caracteres.", "warning");
+    return;
+  }
+
+  try {
+    await apiPut("/api/users/me/password", { current_password: current, new_password: newPwd });
+    _showSettingsMsg(msgEl, "Contraseña actualizada correctamente.", "success");
+    document.getElementById("form-change-pwd").reset();
+  } catch (err) {
+    _showSettingsMsg(msgEl, err.message, "danger");
+  }
+});
+
+// ── Utilidad: mostrar mensaje inline en settings ─────────────
+
+function _showSettingsMsg(el, msg, type = "info") {
+  if (!el) return;
+  el.innerHTML = `<div class="alert alert-${type} py-1 px-2 small mb-0">${escapeHtml(msg)}</div>`;
+  setTimeout(() => { if (el) el.innerHTML = ""; }, 4000);
+}

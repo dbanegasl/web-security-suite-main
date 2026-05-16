@@ -25,7 +25,7 @@ from sqlmodel import Session, col, delete as sql_delete, func, select
 
 import auth
 import database
-from models import DomainList, ListDomain, ScanHistory, User
+from models import DomainList, ListDomain, PlatformSetting, ScanHistory, User
 
 # ── Configuración ──────────────────────────────────────────────────────────────
 SCAN_SCRIPT = Path(os.environ.get("SCAN_SCRIPT_PATH", str(Path(__file__).parent / "scan.sh")))
@@ -295,15 +295,22 @@ async def login(
         "id": user.id,
         "username": user.username,
         "role": user.role,
+        "avatar": user.avatar,
     }
 
 
 @app.get("/api/auth/me")
-async def me(current_user: User = Depends(auth.get_current_user)):
+async def me(
+    current_user: User = Depends(auth.get_current_user),
+    session: Session = Depends(database.get_session),
+):
+    # Refrescar para incluir el avatar actualizado
+    user = session.get(User, current_user.id) or current_user
     return {
-        "id": current_user.id,
-        "username": current_user.username,
-        "role": current_user.role,
+        "id": user.id,
+        "username": user.username,
+        "role": user.role,
+        "avatar": user.avatar,
     }
 
 
@@ -1185,6 +1192,153 @@ async def admin_users_reset_password(
     if not u:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     u.password_hash = auth.hash_password(body.password)
+    session.add(u)
+    session.commit()
+    return {"ok": True}
+
+
+# ── Endpoints: configuración de plataforma ────────────────────────────────────
+
+_SETTINGS_WHITELIST = {
+    "app_title", "logo_base64", "color_pass", "color_fail",
+    "color_warn", "color_skip", "favicon_base64",
+}
+
+_HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+_B64_DATA_RE  = re.compile(r"^data:image/(png|jpeg|gif|webp|svg\+xml);base64,[A-Za-z0-9+/=]+$")
+
+
+@app.get("/api/settings")
+async def settings_get(session: Session = Depends(database.get_session)):
+    """Devuelve la configuración de plataforma. Público — no requiere auth."""
+    rows = session.exec(select(PlatformSetting)).all()
+    return {r.key: r.value for r in rows}
+
+
+class SettingUpdateRequest(BaseModel):
+    key: str
+    value: str
+
+    @field_validator("key")
+    @classmethod
+    def validate_key(cls, v: str) -> str:
+        if v not in _SETTINGS_WHITELIST:
+            raise ValueError(f"Clave no permitida. Valores válidos: {sorted(_SETTINGS_WHITELIST)}")
+        return v
+
+    @field_validator("value")
+    @classmethod
+    def validate_value(cls, v: str) -> str:
+        # Límite de tamaño: 300 KB (logos base64 en pantalla completa)
+        if len(v.encode()) > 300 * 1024:
+            raise ValueError("El valor supera el tamaño máximo de 300 KB")
+        return v
+
+
+@app.put("/api/admin/settings")
+async def settings_update(
+    body: SettingUpdateRequest,
+    admin: User = Depends(_require_admin),
+    session: Session = Depends(database.get_session),
+):
+    """Actualiza un parámetro de configuración de plataforma. Solo admins."""
+    # Validaciones específicas por tipo de clave
+    if body.key.startswith("color_"):
+        if body.value and not _HEX_COLOR_RE.match(body.value):
+            raise HTTPException(status_code=422, detail="El color debe ser un valor hexadecimal (#rrggbb)")
+    if body.key.endswith("_base64") and body.value:
+        if not _B64_DATA_RE.match(body.value):
+            raise HTTPException(status_code=422, detail="El valor base64 debe ser un data URL de imagen válido")
+    if body.key == "app_title" and not body.value.strip():
+        raise HTTPException(status_code=422, detail="El título no puede estar vacío")
+
+    row = session.get(PlatformSetting, body.key)
+    if row:
+        row.value = body.value
+        row.updated_at = datetime.now(timezone.utc)
+        row.updated_by = admin.id
+        session.add(row)
+    else:
+        session.add(PlatformSetting(
+            key=body.key,
+            value=body.value,
+            updated_by=admin.id,
+        ))
+    session.commit()
+    return {"key": body.key, "ok": True}
+
+
+# ── Endpoints: perfil de usuario (avatar y contraseña) ───────────────────────
+
+_AVATAR_SIZE_LIMIT = 200 * 1024  # 200 KB en bytes
+
+
+class AvatarUpdateRequest(BaseModel):
+    avatar_base64: str
+
+    @field_validator("avatar_base64")
+    @classmethod
+    def validate_avatar(cls, v: str) -> str:
+        if not _B64_DATA_RE.match(v):
+            raise ValueError("El avatar debe ser un data URL de imagen válido (png, jpeg, gif, webp)")
+        if len(v.encode()) > _AVATAR_SIZE_LIMIT:
+            raise ValueError("El avatar supera el tamaño máximo de 200 KB")
+        return v
+
+
+@app.post("/api/users/me/avatar")
+async def users_me_avatar_set(
+    body: AvatarUpdateRequest,
+    current_user: User = Depends(auth.get_current_user),
+    session: Session = Depends(database.get_session),
+):
+    u = session.get(User, current_user.id)
+    if not u:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    u.avatar = body.avatar_base64
+    session.add(u)
+    session.commit()
+    return {"ok": True}
+
+
+@app.delete("/api/users/me/avatar", status_code=200)
+async def users_me_avatar_delete(
+    current_user: User = Depends(auth.get_current_user),
+    session: Session = Depends(database.get_session),
+):
+    u = session.get(User, current_user.id)
+    if not u:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    u.avatar = None
+    session.add(u)
+    session.commit()
+    return {"ok": True}
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, v: str) -> str:
+        if len(v) < 6:
+            raise ValueError("La contraseña debe tener al menos 6 caracteres")
+        return v
+
+
+@app.put("/api/users/me/password")
+async def users_me_password_change(
+    body: PasswordChangeRequest,
+    current_user: User = Depends(auth.get_current_user),
+    session: Session = Depends(database.get_session),
+):
+    u = session.get(User, current_user.id)
+    if not u:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if not auth.verify_password(body.current_password, u.password_hash):
+        raise HTTPException(status_code=403, detail="La contraseña actual es incorrecta")
+    u.password_hash = auth.hash_password(body.new_password)
     session.add(u)
     session.commit()
     return {"ok": True}

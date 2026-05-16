@@ -16,6 +16,7 @@ class User(SQLModel, table=True):
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     last_login: Optional[datetime] = Field(default=None)
+    avatar: Optional[str] = Field(default=None)   # base64 data URL
 
 
 class DomainList(SQLModel, table=True):
@@ -39,6 +40,15 @@ class ListDomain(SQLModel, table=True):
     notes: str = Field(default="", max_length=512)
     is_active: bool = Field(default=True)
     added_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class PlatformSetting(SQLModel, table=True):
+    __tablename__ = "platform_settings"  # type: ignore[assignment]
+
+    key: str = Field(primary_key=True, max_length=64)
+    value: str = Field(default="")
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_by: Optional[int] = Field(default=None, foreign_key="users.id")
 
 
 class ScanHistory(SQLModel, table=True):
