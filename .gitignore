@@ -2,6 +2,14 @@
 domains.csv
 web/.env
 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+.venv-1/
+*.egg-info/
+
 # Reportes generados — solo se trackea la carpeta
 reports/*
 !reports/.gitkeep

@@ -1,8 +1,8 @@
 # ── API Backend ──────────────────────────────────────────────────────────────
-# Base: Debian slim para tener curl/openssl/dig disponibles
+# Base: Debian slim
 FROM debian:bookworm-slim
 
-# Instalar dependencias del sistema (las mismas que usa scan.sh)
+# Instalar dependencias del sistema
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bash \
     curl \
@@ -14,13 +14,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Dependencias Python primero (mejor cache)
+# Dependencias Python (mejor cache si no cambia requirements.txt)
 COPY web/api/requirements.txt /app/requirements.txt
 RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
 
-# Script de escaneo
-COPY scan.sh /app/scan.sh
-RUN chmod +x /app/scan.sh
+# Paquete wss (core Python — reemplaza scan.sh)
+COPY pyproject.toml /app/pyproject.toml
+COPY wss/ /app/wss/
+RUN pip3 install --no-cache-dir --break-system-packages /app
 
 # Código de la API
 COPY web/api/main.py /app/main.py

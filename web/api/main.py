@@ -9,10 +9,11 @@ import asyncio
 import json
 import os
 import re
-import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
+
+import httpx
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.responses import PlainTextResponse, StreamingResponse
@@ -27,8 +28,12 @@ import auth
 import database
 from models import DomainList, ListDomain, PlatformSetting, ScanHistory, User
 
+# wss Python core (evita subprocess)
+from wss.core.context import ScanContext
+from wss.core.scanner import scan as _wss_scan
+from wss.reporters.json_reporter import generate as _json_generate
+
 # ── Configuración ──────────────────────────────────────────────────────────────
-SCAN_SCRIPT = Path(os.environ.get("SCAN_SCRIPT_PATH", str(Path(__file__).parent / "scan.sh")))
 SCAN_TIMEOUT = int(os.getenv("SCAN_TIMEOUT_SECONDS", "120"))
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:8080")
 FIRST_ADMIN_USER = os.getenv("APP_FIRST_ADMIN_USER", "admin")
@@ -126,19 +131,22 @@ class BatchRequest(BaseModel):
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
-def _build_env(domain: str, cookie: str, ip: str) -> dict[str, str]:
-    """Construye el entorno seguro para ejecutar scan.sh."""
-    return {
-        "OUTPUT_FORMAT": "json",
-        "DOMAIN": domain,
-        "SESSION_COOKIE_NAME": cookie,
-        "IP": ip,
-        # Variables de sistema mínimas necesarias para curl/openssl/dig
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-        "HOME": "/root",
-        "LANG": "C.UTF-8",
-        "LC_ALL": "C.UTF-8",
-    }
+def _build_scan_context(domain: str, cookie: str, ip: str) -> ScanContext:
+    """Construye un ScanContext a partir de los parámetros de la petición."""
+    clean = re.sub(r"^https?://", "", domain)
+    if "/" in clean:
+        host, _, path_rest = clean.partition("/")
+        base_path = f"/{path_rest}" if path_rest else "/"
+    else:
+        host = clean
+        base_path = "/"
+    return ScanContext(
+        domain=domain,
+        host=host,
+        base_url=f"https://{host}{base_path}",
+        session_cookie=cookie,
+        ip=ip,
+    )
 
 
 # Semáforo global: máximo 3 scans simultáneos para evitar saturación de red/CPU
@@ -146,51 +154,28 @@ _SCAN_SEM = asyncio.Semaphore(3)
 
 
 async def _run_scan(domain: str, cookie: str, ip: str) -> dict[str, Any]:
-    """Ejecuta scan.sh y devuelve el resultado JSON parseado."""
+    """Ejecuta el scan con wss Python core y devuelve el resultado JSON."""
     async with _SCAN_SEM:
         return await _run_scan_inner(domain, cookie, ip)
 
 
 async def _run_scan_inner(domain: str, cookie: str, ip: str) -> dict[str, Any]:
-    """Lógica interna del scan (sin semáforo)."""
-    env = _build_env(domain, cookie, ip)
-
-    loop = asyncio.get_running_loop()
+    """Lógica interna del scan usando wss core directamente (sin subprocess)."""
+    ctx = _build_scan_context(domain, cookie, ip)
     try:
-        result: subprocess.CompletedProcess = await asyncio.wait_for(
-            loop.run_in_executor(
-                None,
-                lambda: subprocess.run(  # noqa: S603 — args como lista, sin shell
-                    ["bash", str(SCAN_SCRIPT)],
-                    env=env,
-                    capture_output=True,
-                    text=True,
-                    timeout=SCAN_TIMEOUT,
-                ),
-            ),
-            timeout=SCAN_TIMEOUT + 10,
-        )
+        results = await asyncio.wait_for(_wss_scan(ctx), timeout=SCAN_TIMEOUT)
     except asyncio.TimeoutError:
         raise HTTPException(status_code=408, detail="Timeout: el scan tardó demasiado")
-    except FileNotFoundError:
-        raise HTTPException(status_code=500, detail="scan.sh no encontrado")
+    finally:
+        # Cerrar el cliente httpx si fue creado
+        if ctx._client is not None:
+            await ctx._client.aclose()
 
-    stdout = result.stdout.strip()
-    if not stdout:
-        raise HTTPException(
-            status_code=500,
-            detail="El script no produjo salida. stderr: " + result.stderr[:200],
-        )
-
-    try:
-        data = json.loads(stdout)
-    except json.JSONDecodeError as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error al parsear JSON del script: {exc}. stdout: {stdout[:200]}",
-        )
-
-    data["exitCode"] = result.returncode
+    data: dict[str, Any] = json.loads(
+        _json_generate(results, domain=domain, base_url=ctx.base_url,
+                       ip=ip or None, scanned_at=datetime.now())
+    )
+    data["exitCode"] = 0 if not any(r.status.value == "FAIL" for r in results) else 1
     return data
 
 
@@ -223,7 +208,7 @@ def _save_scan(
 # ── Endpoints: salud (público) ────────────────────────────────────────────────
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "scriptExists": SCAN_SCRIPT.exists()}
+    return {"status": "ok"}
 
 
 # ── Endpoints: descubrimiento de cookies ─────────────────────────────────────
@@ -237,37 +222,41 @@ async def discover_cookies(
 ):
     """Hace HEAD a https://{domain}/ y devuelve los nombres de cookies Set-Cookie."""
     domain = domain.strip().lower()
-    # Normalizar: quitar protocolo y path
     domain = re.sub(r"^https?://", "", domain).split("/")[0]
     if not _DOMAIN_RE.match(domain):
         raise HTTPException(status_code=400, detail="Dominio no válido")
     if ip and not _IP_RE.match(ip):
         raise HTTPException(status_code=400, detail="IP no válida")
 
-    curl_args = ["curl", "--max-time", "8", "--connect-timeout", "4", "-sk", "-I"]
-    if ip:
-        curl_args += ["--resolve", f"{domain}:443:{ip}"]
-    curl_args.append(f"https://{domain}/")
+    from wss.core.http_client import ForcedIPTransport
 
-    loop = asyncio.get_running_loop()
+    transport = (
+        ForcedIPTransport(domain, ip, verify=False)
+        if ip
+        else httpx.AsyncHTTPTransport(verify=False)
+    )
+
     try:
-        proc = await asyncio.wait_for(
-            loop.run_in_executor(
-                None,
-                lambda: subprocess.run(  # noqa: S603 — lista de args, sin shell
-                    curl_args, capture_output=True, text=True, timeout=12
-                ),
-            ),
-            timeout=14,
-        )
+        async with httpx.AsyncClient(
+            transport=transport,
+            follow_redirects=True,
+            timeout=httpx.Timeout(8.0, connect=4.0),
+        ) as client:
+            resp = await asyncio.wait_for(
+                client.head(f"https://{domain}/"),
+                timeout=12.0,
+            )
     except asyncio.TimeoutError:
         raise HTTPException(status_code=408, detail="Timeout al contactar el servidor")
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Error al contactar el servidor: {exc!s:.120}")
 
     names = []
-    for line in proc.stdout.splitlines():
-        m = re.match(r"(?i)set-cookie:\s*([^=;,\s]+)", line.strip())
-        if m:
-            names.append(m.group(1))
+    for k, v in resp.headers.multi_items():
+        if k.lower() == "set-cookie":
+            m = re.match(r"([^=;,\s]+)", v.strip())
+            if m:
+                names.append(m.group(1))
     return {"cookies": names}
 
 

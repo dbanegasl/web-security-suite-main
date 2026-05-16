@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wss"
+version = "4.0.0a0"
+description = "Web Security Suite — passive HTTP security scanner"
+authors = [{ name = "Daniel Banegas" }]
+requires-python = ">=3.11"
+dependencies = [
+    "httpx[http2]>=0.27",
+    "typer[all]>=0.12",
+    "dnspython>=2.6",
+    "beautifulsoup4>=4.12",
+    "lxml>=5",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+    "respx>=0.21",
+]
+
+[project.scripts]
+wss = "wss.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["wss*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
