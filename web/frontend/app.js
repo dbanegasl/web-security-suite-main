@@ -119,6 +119,8 @@ function applyUserUI() {
     if (user.role === "admin") adminItem.classList.remove("hidden");
     else adminItem.classList.add("hidden");
   }
+  // Marcar body para ocultar/mostrar elementos admin-only-el via CSS
+  document.body.classList.toggle("is-admin", user.role === "admin");
   // Versión en el footer del sidebar
   const verEl = document.getElementById("app-version");
   if (verEl) verEl.textContent = `v${APP_VERSION} | Build: ${BUILD_DATE}`;
@@ -1247,21 +1249,109 @@ function _renderWikiTable() {
 
   tbody.innerHTML = filtered.map(t => {
     const sColor = SEV_COLOR[t.severity] || "secondary";
-    const refs = (t.references || []).map(u =>
-      `<a href="${u}" target="_blank" rel="noopener noreferrer" class="wiki-ref-link">${new URL(u).hostname}</a>`
-    ).join(" ");
-    return `<tr>
-      <td><code>${t.id}</code></td>
-      <td>${t.name}${refs ? `<div class="wiki-refs">${refs}</div>` : ""}</td>
-      <td><span class="badge bg-secondary">${t.block} — ${t.block_name}</span></td>
+    return `<tr class="wiki-row" data-test-id="${t.id}" style="cursor:pointer">
+      <td><code class="text-info">${t.id}</code></td>
+      <td>${escapeHtml(t.name)}${t.description ? `<div class="text-muted small text-truncate wiki-desc-preview" style="max-width:300px">${escapeHtml(t.description.substring(0,80))}${t.description.length>80?"…":""}</div>` : ""}</td>
+      <td><span class="badge bg-secondary">${t.block} — ${escapeHtml(t.block_name)}</span></td>
       <td><span class="badge bg-${sColor}">${t.severity}</span></td>
-      <td>${t.cwe ? `<a href="https://cwe.mitre.org/data/definitions/${t.cwe.replace('CWE-','')}.html" target="_blank" rel="noopener noreferrer">${t.cwe}</a>` : "—"}</td>
-      <td class="wiki-desc">${t.description || "—"}</td>
+      <td>${t.cwe ? `<a href="https://cwe.mitre.org/data/definitions/${t.cwe.replace("CWE-","")}.html" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">${t.cwe}</a>` : "—"}</td>
     </tr>`;
   }).join("");
 
   if (countEl) countEl.textContent = `Mostrando ${filtered.length} de ${_wikiData.total} tests`;
 }
+
+// Panel de detalle wiki
+let _wikiDetailTestId = null;
+
+function openWikiDetailPanel(testId) {
+  const t = _wikiData?.tests?.find(x => x.id === testId);
+  if (!t) return;
+  _wikiDetailTestId = testId;
+
+  const SEV_COLOR = { CRITICAL: "danger", HIGH: "warning", MEDIUM: "info", LOW: "secondary" };
+
+  const panel     = document.getElementById("wiki-detail-panel");
+  const layout    = document.getElementById("wiki-layout");
+  if (!panel || !layout) return;
+
+  document.getElementById("wd-id").textContent           = t.id;
+  document.getElementById("wd-name").textContent         = t.name;
+
+  const sevEl = document.getElementById("wd-severity");
+  sevEl.textContent  = t.severity;
+  sevEl.className    = `badge bg-${SEV_COLOR[t.severity] || "secondary"}`;
+
+  document.getElementById("wd-block").textContent        = `${t.block} — ${t.block_name}`;
+
+  const cweEl = document.getElementById("wd-cwe");
+  if (t.cwe) {
+    cweEl.textContent = t.cwe;
+    cweEl.href        = `https://cwe.mitre.org/data/definitions/${t.cwe.replace("CWE-","")}.html`;
+    cweEl.style.display = "";
+  } else {
+    cweEl.style.display = "none";
+  }
+
+  const descEl       = document.getElementById("wd-description");
+  const descEmpty    = document.getElementById("wd-description-empty");
+  if (t.description && t.description.trim()) {
+    descEl.textContent = t.description;  // pre-formatted with white-space:pre-wrap in CSS
+    descEl.classList.remove("hidden");
+    descEmpty?.classList.add("hidden");
+  } else {
+    descEl.classList.add("hidden");
+    descEmpty?.classList.remove("hidden");
+  }
+
+  const refs = Array.isArray(t.references) ? t.references : [];
+  const refsWrap = document.getElementById("wd-references-wrap");
+  const refsList  = document.getElementById("wd-references");
+  if (refs.length && refsWrap && refsList) {
+    refsList.innerHTML = refs.map(u => {
+      let display = u;
+      try { display = new URL(u).hostname; } catch {}
+      return `<li><a href="${u}" target="_blank" rel="noopener noreferrer">${escapeHtml(display)}</a></li>`;
+    }).join("");
+    refsWrap.style.display = "";
+  } else if (refsWrap) {
+    refsWrap.style.display = "none";
+  }
+
+  // Botón "Editar" — visible solo para admins via CSS class admin-only-el
+
+  // Resaltar fila activa
+  document.querySelectorAll(".wiki-row").forEach(r => r.classList.remove("table-active"));
+  document.querySelector(`.wiki-row[data-test-id="${testId}"]`)?.classList.add("table-active");
+
+  // Mostrar panel
+  panel.classList.remove("hidden");
+  layout.classList.add("wiki-layout-split");
+}
+
+// Listener: clic en filas de la tabla wiki (delegación)
+document.getElementById("wiki-tbody")?.addEventListener("click", e => {
+  const row = e.target.closest(".wiki-row");
+  if (!row) return;
+  const testId = row.dataset.testId;
+  if (_wikiDetailTestId === testId) {
+    // Clic en la misma fila: cerrar panel
+    closeWikiDetailPanel();
+  } else {
+    openWikiDetailPanel(testId);
+  }
+});
+
+function closeWikiDetailPanel() {
+  _wikiDetailTestId = null;
+  document.getElementById("wiki-detail-panel")?.classList.add("hidden");
+  document.getElementById("wiki-layout")?.classList.remove("wiki-layout-split");
+  document.querySelectorAll(".wiki-row").forEach(r => r.classList.remove("table-active"));
+}
+
+document.getElementById("btn-wiki-detail-close")?.addEventListener("click", closeWikiDetailPanel);
+
+
 
 async function _loadHomeStats() {
   try {
@@ -1330,6 +1420,8 @@ function navigateTo(target, { pushHash = true } = {}) {
   if (target === "admin")     loadAdminUsers();
   if (target === "settings")  initSettingsView();
   if (target === "wiki")      initWikiView();
+  // Al salir de la wiki, cerrar panel de detalle
+  if (target !== "wiki")      closeWikiDetailPanel?.();
   // Cerrar sidebar en mobile
   if (window.innerWidth < 992) {
     document.querySelector(".sidebar")?.classList.remove("sidebar-open");
@@ -2143,6 +2235,216 @@ document.getElementById("btn-purge-confirm")?.addEventListener("click", async ()
     btn.disabled = false;
     btn.innerHTML = '<i class="fa-solid fa-trash-can me-1"></i>Sí, vaciar historial';
   }
+});
+
+
+
+// ══════════════════════════════════════════════════════════════
+// ADMIN: CATÁLOGO DE TESTS
+// ══════════════════════════════════════════════════════════════
+
+let _adminTestsData = [];   // cache de todos los tests admin
+
+const _SEVERITY_BADGE = {
+  CRITICAL: "danger",
+  HIGH:     "warning",
+  MEDIUM:   "info",
+  LOW:      "secondary",
+};
+
+async function loadAdminTests() {
+  try {
+    const data = await apiFetch("/api/admin/tests");
+    _adminTestsData = data;
+    _populateAdminBlockFilter(data);
+    _renderAdminTests(data);
+  } catch (err) {
+    const tbody = document.getElementById("admin-tests-tbody");
+    if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">${err.message}</td></tr>`;
+  }
+}
+
+function _populateAdminBlockFilter(tests) {
+  const sel = document.getElementById("admin-tests-filter-block");
+  if (!sel) return;
+  const blocks = [...new Map(tests.map(t => [t.block, t.block_name])).entries()]
+    .sort((a, b) => a[0] - b[0]);
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Todos los bloques</option>';
+  blocks.forEach(([b, name]) => {
+    const opt = document.createElement("option");
+    opt.value = b;
+    opt.textContent = `Bloque ${b}: ${name}`;
+    if (String(b) === current) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function _renderAdminTests(tests) {
+  const search   = (document.getElementById("admin-tests-search")?.value || "").toLowerCase();
+  const block    = document.getElementById("admin-tests-filter-block")?.value || "";
+  const status   = document.getElementById("admin-tests-filter-status")?.value || "";
+
+  let filtered = tests.filter(t => {
+    if (search && !`${t.id} ${t.name}`.toLowerCase().includes(search)) return false;
+    if (block && String(t.block) !== block) return false;
+    if (status === "active" && !t.is_active) return false;
+    if (status === "inactive" && t.is_active) return false;
+    return true;
+  });
+
+  const count = document.getElementById("admin-tests-count");
+  if (count) count.textContent = `${filtered.length} test${filtered.length !== 1 ? "s" : ""}`;
+
+  const tbody = document.getElementById("admin-tests-tbody");
+  if (!tbody) return;
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Sin resultados</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(t => {
+    const sevCls = _SEVERITY_BADGE[t.severity] || "secondary";
+    const activeBadge = t.is_active
+      ? '<span class="badge rounded-pill bg-success">activo</span>'
+      : '<span class="badge rounded-pill bg-secondary">inactivo</span>';
+    const customMark = t.description_custom ? ' <i class="fa-solid fa-pen-to-square text-info fa-xs" title="Descripción editada"></i>' : "";
+    return `
+      <tr class="${t.is_active ? "" : "opacity-50"}">
+        <td><code class="text-info">${t.id}</code></td>
+        <td>
+          ${escapeHtml(t.name)}${customMark}
+          ${t.description ? `<div class="text-muted small text-truncate" style="max-width:320px">${escapeHtml(t.description.substring(0, 80))}${t.description.length > 80 ? "…" : ""}</div>` : ""}
+        </td>
+        <td><span class="text-muted small">${escapeHtml(t.block_name)}</span></td>
+        <td><span class="badge bg-${sevCls}">${t.severity}</span></td>
+        <td class="text-center">
+          <div class="form-check form-switch d-inline-block m-0">
+            <input class="form-check-input admin-test-toggle" type="checkbox" role="switch"
+              data-test-id="${t.id}" ${t.is_active ? "checked" : ""}
+              title="${t.is_active ? "Desactivar" : "Activar"} test ${t.id}">
+          </div>
+        </td>
+        <td class="text-end">
+          <button class="btn btn-outline-info btn-xs admin-test-edit-btn" data-test-id="${t.id}"
+            title="Editar test ${t.id}">
+            <i class="fa-solid fa-pen fa-xs"></i>
+          </button>
+        </td>
+      </tr>`;
+  }).join("");
+}
+
+// Filtros en tiempo real
+["admin-tests-search", "admin-tests-filter-block", "admin-tests-filter-status"].forEach(id => {
+  document.getElementById(id)?.addEventListener("input", () => _renderAdminTests(_adminTestsData));
+  document.getElementById(id)?.addEventListener("change", () => _renderAdminTests(_adminTestsData));
+});
+
+// Toggle activo/inactivo (delegación de eventos)
+document.getElementById("admin-tests-tbody")?.addEventListener("change", async e => {
+  const toggle = e.target.closest(".admin-test-toggle");
+  if (!toggle) return;
+  const testId   = toggle.dataset.testId;
+  const isActive = toggle.checked;
+  toggle.disabled = true;
+  try {
+    await apiFetch(`/api/admin/tests/${testId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ is_active: isActive }),
+    });
+    const idx = _adminTestsData.findIndex(t => t.id === testId);
+    if (idx !== -1) _adminTestsData[idx].is_active = isActive;
+    _renderAdminTests(_adminTestsData);
+    showToast("success", `Test ${testId} ${isActive ? "activado" : "desactivado"}`);
+  } catch (err) {
+    toggle.checked = !isActive;   // revertir
+    showToast("error", "Error al actualizar", err.message);
+  } finally {
+    toggle.disabled = false;
+  }
+});
+
+// Abrir modal de edición (delegación)
+document.getElementById("admin-tests-tbody")?.addEventListener("click", e => {
+  const btn = e.target.closest(".admin-test-edit-btn");
+  if (!btn) return;
+  const testId = btn.dataset.testId;
+  openAdminTestEditModal(testId);
+});
+
+function openAdminTestEditModal(testId) {
+  const t = _adminTestsData.find(x => x.id === testId);
+  if (!t) return;
+  document.getElementById("edit-test-id").value          = t.id;
+  document.getElementById("edit-test-name").value        = t.name;
+  document.getElementById("edit-test-description").value = t.description || "";
+  document.getElementById("edit-test-block").value       = `${t.block} — ${t.block_name}`;
+  document.getElementById("edit-test-cwe").value         = t.cwe || "";
+  const sevSel = document.getElementById("edit-test-severity");
+  sevSel.value = t.severity;
+  const badge = document.getElementById("edit-test-custom-badge");
+  if (badge) badge.style.display = t.description_custom ? "" : "none";
+  const title = document.getElementById("modal-edit-test-label");
+  if (title) title.innerHTML = `<i class="fa-solid fa-pen-to-square me-2 text-info"></i>Editar test <code>${t.id}</code> — ${escapeHtml(t.name)}`;
+  const modalEl = document.getElementById("modal-edit-test");
+  const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+  modal.show();
+}
+
+document.getElementById("btn-edit-test-save")?.addEventListener("click", async () => {
+  const testId = document.getElementById("edit-test-id").value;
+  const name        = document.getElementById("edit-test-name").value.trim();
+  const severity    = document.getElementById("edit-test-severity").value;
+  const cwe         = document.getElementById("edit-test-cwe").value.trim();
+  const description = document.getElementById("edit-test-description").value;
+  if (!name) { showToast("error", "El nombre no puede estar vacío"); return; }
+  const btn = document.getElementById("btn-edit-test-save");
+  btn.disabled = true;
+  try {
+    const updated = await apiFetch(`/api/admin/tests/${testId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name, severity, cwe: cwe || "", description }),
+    });
+    const idx = _adminTestsData.findIndex(t => t.id === testId);
+    if (idx !== -1) Object.assign(_adminTestsData[idx], updated);
+    _renderAdminTests(_adminTestsData);
+    bootstrap.Modal.getInstance(document.getElementById("modal-edit-test"))?.hide();
+    showToast("success", `Test ${testId} guardado`);
+  } catch (err) {
+    showToast("error", "Error al guardar", err.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById("btn-edit-test-reset")?.addEventListener("click", async () => {
+  const testId = document.getElementById("edit-test-id").value;
+  // Cerrar el modal de edición primero para que el confirm no quede detrás
+  const editModalEl = document.getElementById("modal-edit-test");
+  bootstrap.Modal.getInstance(editModalEl)?.hide();
+  const ok = await showConfirm(
+    `¿Restablecer el test ${testId} a los valores originales del código? Se perderán nombre, severidad y descripción personalizados.`,
+    "Restablecer test"
+  );
+  if (!ok) return;
+  const btn = document.getElementById("btn-edit-test-reset");
+  btn.disabled = true;
+  try {
+    await apiFetch(`/api/admin/tests/${testId}/reset`, { method: "POST" });
+    bootstrap.Modal.getInstance(document.getElementById("modal-edit-test"))?.hide();
+    showToast("success", `Test ${testId} restablecido`);
+    await loadAdminTests();
+  } catch (err) {
+    showToast("error", "Error al restablecer", err.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// Cargar tests cuando se activa el tab
+document.getElementById("admin-tab-tests-btn")?.addEventListener("shown.bs.tab", () => {
+  loadAdminTests();
 });
 
 

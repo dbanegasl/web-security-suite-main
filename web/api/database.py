@@ -29,8 +29,10 @@ def create_db_and_tables() -> None:
 def _migrate_add_columns() -> None:
     """Añade columnas nuevas a tablas existentes si aún no existen (SQLite no hace ALTER automático)."""
     migrations = [
-        ("scan_history", "list_id", "INTEGER REFERENCES domain_lists(id)"),
-        ("users", "avatar", "TEXT"),
+        ("scan_history",  "list_id",           "INTEGER REFERENCES domain_lists(id)"),
+        ("users",         "avatar",             "TEXT"),
+        ("test_catalog",  "is_active",          "INTEGER NOT NULL DEFAULT 1"),
+        ("test_catalog",  "description_custom", "INTEGER NOT NULL DEFAULT 0"),
     ]
     with _engine.connect() as conn:
         for table, column, col_def in migrations:
@@ -68,10 +70,13 @@ def get_session():
 
 
 def sync_test_catalog() -> None:
-    """Sincroniza TEST_REGISTRY → tabla test_catalog (upsert completo).
+    """Sincroniza TEST_REGISTRY → tabla test_catalog (upsert).
 
-    Se llama en cada arranque de la API para que el catálogo refleje siempre
-    el estado actual del paquete wss instalado.
+    Reglas de sync:
+    - Campos siempre actualizados desde código: name, block, block_name, severity, cwe,
+      references, package, synced_at.
+    - ``description`` solo se actualiza si ``description_custom == False``.
+    - ``is_active`` nunca se toca (campo puramente administrativo).
     """
     import json
     from datetime import datetime, timezone
@@ -87,16 +92,21 @@ def sync_test_catalog() -> None:
     with Session(_engine) as session:
         for meta in TEST_REGISTRY:
             row = session.get(TestCatalog, meta.id)
-            if row is None:
+            is_new = row is None
+            if is_new:
                 row = TestCatalog(id=meta.id)
                 session.add(row)
+            # Campos siempre actualizados desde código
             row.name = meta.name
             row.block = meta.block
             row.block_name = meta.block_name
             row.severity = meta.severity.value if hasattr(meta.severity, "value") else str(meta.severity)
             row.cwe = meta.cwe
-            row.description = meta.description
             row.references = json.dumps(meta.references, ensure_ascii=False)
             row.package = meta.package
             row.synced_at = now
+            # description: solo sobreescribir si el usuario no la ha editado manualmente
+            if is_new or not row.description_custom:
+                row.description = meta.description
+            # is_active: nunca tocar en rows existentes
         session.commit()

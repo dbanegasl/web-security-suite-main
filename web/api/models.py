@@ -82,3 +82,6 @@ class TestCatalog(SQLModel, table=True):
     references: str = Field(default="[]")                    # JSON array de URLs
     package: str = Field(default="", max_length=128)         # módulo Python de origen
     synced_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    # ── Campos administrados manualmente (el sync NO los sobreescribe) ──────
+    is_active: bool = Field(default=True)                    # activar/desactivar test
+    description_custom: bool = Field(default=False)          # True = desc editada vía CRUD

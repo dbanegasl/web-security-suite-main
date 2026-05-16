@@ -280,6 +280,122 @@ async def get_tests(
     return {"total": len(tests_out), "blocks": blocks_out, "tests": tests_out}
 
 
+# ── Endpoints: administración del catálogo de tests ──────────────────────────
+
+class TestCatalogPatch(BaseModel):
+    name: Optional[str] = None
+    severity: Optional[str] = None      # LOW|MEDIUM|HIGH|CRITICAL
+    cwe: Optional[str] = None           # ej. "CWE-614" o "" para borrar
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+@app.get("/api/admin/tests")
+async def admin_get_tests(
+    block: Optional[int] = Query(default=None),
+    session: Session = Depends(database.get_session),
+    current_user: User = Depends(auth.get_current_user),
+):
+    """Lista todos los tests (incluyendo inactivos) — solo admin."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+    import json as _json
+    stmt = select(TestCatalog).order_by(TestCatalog.id)
+    if block is not None:
+        stmt = stmt.where(TestCatalog.block == block)
+    rows = session.exec(stmt).all()
+    return [
+        {
+            "id": r.id,
+            "name": r.name,
+            "block": r.block,
+            "block_name": r.block_name,
+            "severity": r.severity,
+            "cwe": r.cwe,
+            "description": r.description,
+            "description_custom": r.description_custom,
+            "references": _json.loads(r.references or "[]"),
+            "package": r.package,
+            "is_active": r.is_active,
+            "synced_at": r.synced_at.isoformat() if r.synced_at else None,
+        }
+        for r in rows
+    ]
+
+
+@app.patch("/api/admin/tests/{test_id}")
+async def admin_patch_test(
+    test_id: str,
+    body: TestCatalogPatch,
+    session: Session = Depends(database.get_session),
+    current_user: User = Depends(auth.get_current_user),
+):
+    """Edita nombre, severidad, descripción y/o estado activo de un test — solo admin."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+    row = session.get(TestCatalog, test_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Test no encontrado")
+    if body.name is not None:
+        if not body.name.strip():
+            raise HTTPException(status_code=400, detail="El nombre no puede estar vacío")
+        row.name = body.name.strip()
+    if body.severity is not None:
+        sev = body.severity.upper()
+        if sev not in ("LOW", "MEDIUM", "HIGH", "CRITICAL"):
+            raise HTTPException(status_code=400, detail="Severidad inválida")
+        row.severity = sev
+    if body.cwe is not None:
+        row.cwe = body.cwe.strip() or None
+    if body.description is not None:
+        row.description = body.description
+        row.description_custom = True   # proteger de futuros syncs
+    if body.is_active is not None:
+        row.is_active = body.is_active
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    import json as _json
+    return {
+        "id": row.id,
+        "name": row.name,
+        "block": row.block,
+        "block_name": row.block_name,
+        "severity": row.severity,
+        "cwe": row.cwe,
+        "description": row.description,
+        "description_custom": row.description_custom,
+        "is_active": row.is_active,
+    }
+
+
+@app.post("/api/admin/tests/{test_id}/reset")
+async def admin_reset_test(
+    test_id: str,
+    session: Session = Depends(database.get_session),
+    current_user: User = Depends(auth.get_current_user),
+):
+    """Restablece nombre, severidad y descripción al valor del código (TEST_REGISTRY) — solo admin."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+    row = session.get(TestCatalog, test_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Test no encontrado")
+    from wss.core.scanner import _ensure_tests_loaded
+    from wss.core.registry import TEST_REGISTRY
+    _ensure_tests_loaded()
+    meta = next((m for m in TEST_REGISTRY if m.id == test_id), None)
+    if meta:
+        row.name = meta.name
+        row.severity = meta.severity.value if hasattr(meta.severity, "value") else str(meta.severity)
+        row.cwe = meta.cwe if hasattr(meta, "cwe") else None
+        row.description = meta.description
+    row.description_custom = False
+    session.add(row)
+    session.commit()
+    return {"ok": True, "test_id": test_id}
+
+
 # ── Endpoints: descubrimiento de cookies ─────────────────────────────────────
 @app.get("/api/discover-cookies")
 @limiter.limit("20/minute")
