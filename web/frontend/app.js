@@ -671,7 +671,7 @@ function mdReferenceTable() {
 function renderBatchTable(table, results, lines = []) {
   const colCount = TESTS.length + 4;
   let html = "<thead><tr><th>Dominio</th>";
-  TESTS.forEach(t => { html += `<th><a href="${API_BASE}/wiki.html#t${t}" target="_blank" rel="noopener" class="wiki-th-link" title="TEST-${t}">${t}</a></th>`; });
+  TESTS.forEach(t => { html += `<th class="wiki-th-link" title="TEST-${t} — clic para ver detalle" onclick="openWikiModal('${t}')" style="cursor:pointer">${t}</th>`; });
   html += "<th>OK</th><th>FL</th><th>WN</th></tr></thead><tbody>";
 
   results.forEach((r, idx) => {
@@ -694,7 +694,8 @@ function renderBatchTable(table, results, lines = []) {
         if (res === "PASS") p++;
         if (res === "FAIL") f++;
         if (res === "WARN") w++;
-        html += `<td class="${cls}">${ch}</td>`;
+        const tip = escapeHtml(`TEST-${t}: ${test?.name || ""}${test?.detail ? " — " + test.detail : ""}`);
+        html += `<td class="${cls} wiki-cell" onclick="openWikiModal('${t}')" title="${tip}" style="cursor:pointer">${ch}</td>`;
       });
       html += `<td class="cell-P">${p}</td><td class="cell-F">${f}</td><td class="cell-W">${w}</td>`;
     }
@@ -716,6 +717,10 @@ function renderBatchTable(table, results, lines = []) {
   });
   html += "</tbody>";
   table.innerHTML = html;
+
+  table.querySelectorAll(".wiki-cell, th.wiki-th-link").forEach(cell => {
+    cell.addEventListener("click", e => e.stopPropagation());
+  });
 
   table.querySelectorAll(".batch-domain-row").forEach(row => {
     row.addEventListener("click", () => {
