@@ -18,6 +18,9 @@ _TEST_MODULES = [
     "wss.tests.block_4_info_leak",
     "wss.tests.block_5_server_config",
     "wss.tests.block_6_modern_headers",
+    "wss.tests.block_7_exposed_files",
+    "wss.tests.block_8_dns_email",
+    "wss.tests.block_9_fingerprint",
 ]
 
 

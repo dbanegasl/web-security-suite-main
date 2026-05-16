@@ -341,6 +341,9 @@ function renderResults(data) {
   tbody.innerHTML = "";
   for (const t of data.tests) {
     const tr = document.createElement("tr");
+    tr.dataset.block    = t.block    || "";
+    tr.dataset.severity = t.severity || "";
+    tr.dataset.result   = t.result   || "";
     tr.innerHTML = `
       <td>${escapeHtml(t.id)}</td>
       <td>
@@ -352,10 +355,48 @@ function renderResults(data) {
     `;
     tbody.appendChild(tr);
   }
+
+  // Resetear filtros y aplicarlos por primera vez
+  document.getElementById("filter-block").value    = "";
+  document.getElementById("filter-severity").value = "";
+  document.getElementById("filter-result").value   = "";
+  _applyFilters();
+
   resultsDiv.classList.remove("hidden");
 }
 
 function hideResults() { resultsDiv.classList.add("hidden"); }
+
+// ── Filtros de tests ─────────────────────────────────────────
+function _applyFilters() {
+  const selBlock    = document.getElementById("filter-block")?.value    || "";
+  const selSeverity = document.getElementById("filter-severity")?.value || "";
+  const selResult   = document.getElementById("filter-result")?.value   || "";
+  const rows = document.querySelectorAll("#tests-tbody tr");
+  let visible = 0;
+  rows.forEach(tr => {
+    const matchBlock    = !selBlock    || tr.dataset.block    === selBlock;
+    const matchSeverity = !selSeverity || tr.dataset.severity === selSeverity;
+    const matchResult   = !selResult   || tr.dataset.result   === selResult;
+    if (matchBlock && matchSeverity && matchResult) {
+      tr.classList.remove("wss-hidden");
+      visible++;
+    } else {
+      tr.classList.add("wss-hidden");
+    }
+  });
+  const countEl = document.getElementById("filter-count");
+  if (countEl) {
+    countEl.textContent = (selBlock || selSeverity || selResult)
+      ? `${visible} / ${rows.length} tests`
+      : "";
+  }
+}
+
+["filter-block", "filter-severity", "filter-result"].forEach(id => {
+  document.getElementById(id)?.addEventListener("change", _applyFilters);
+});
+
 function showError(msg) {
   errorBanner.textContent = "❌ " + msg;
   errorBanner.classList.remove("hidden");

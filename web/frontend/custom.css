@@ -1017,3 +1017,21 @@ body { overflow-x: hidden; }
   object-fit: cover;
   border-radius: 50%;
 }
+
+/* ── Filtros de tests ──────────────────────────────────────── */
+.wss-filter-select {
+  background-color: var(--bs-body-bg);
+  border-color: var(--bs-border-color);
+  color: var(--bs-body-color);
+  width: auto !important;
+  min-width: 170px;
+  font-size: 0.78rem;
+}
+.wss-filter-select:focus {
+  border-color: var(--bs-primary);
+  box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+}
+#filter-count {
+  font-size: 0.78rem;
+}
+tr.wss-hidden { display: none; }

@@ -308,6 +308,38 @@
         </div>
         <!-- Tarjetas de resumen -->
         <div class="row row-cols-2 row-cols-sm-4 g-2 my-3" id="summary-cards"></div>
+        <!-- Filtros de tests -->
+        <div class="d-flex flex-wrap gap-2 align-items-center mb-2" id="test-filters">
+          <span class="text-muted small">Filtrar:</span>
+          <select class="form-select form-select-sm wss-filter-select" id="filter-block">
+            <option value="">Todos los bloques</option>
+            <option value="1">Bloque 1 — Cookies</option>
+            <option value="2">Bloque 2 — Transporte y TLS</option>
+            <option value="3">Bloque 3 — Cabeceras HTTP</option>
+            <option value="4">Bloque 4 — Fuga de información</option>
+            <option value="5">Bloque 5 — Config. del servidor</option>
+            <option value="6">Bloque 6 — Headers modernos</option>
+            <option value="7">Bloque 7 — Archivos expuestos</option>
+            <option value="8">Bloque 8 — DNS y Email</option>
+            <option value="9">Bloque 9 — Fingerprinting</option>
+          </select>
+          <select class="form-select form-select-sm wss-filter-select" id="filter-severity">
+            <option value="">Todas las severidades</option>
+            <option value="CRITICAL">CRITICAL</option>
+            <option value="HIGH">HIGH</option>
+            <option value="MEDIUM">MEDIUM</option>
+            <option value="LOW">LOW</option>
+            <option value="INFO">INFO</option>
+          </select>
+          <select class="form-select form-select-sm wss-filter-select" id="filter-result">
+            <option value="">Todos los resultados</option>
+            <option value="FAIL">❌ FAIL</option>
+            <option value="WARN">⚠️ WARN</option>
+            <option value="PASS">✅ PASS</option>
+            <option value="SKIP">⏭ SKIP</option>
+          </select>
+          <span class="text-muted small ms-1" id="filter-count"></span>
+        </div>
         <!-- Tabla de tests -->
         <div class="table-responsive">
           <table class="table table-dark table-hover table-sm" id="tests-table">

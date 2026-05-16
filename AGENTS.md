@@ -34,7 +34,10 @@ web/                   # Interfaz web Docker (ver sección "Stack web" más abaj
 | 4 | TEST-15 a TEST-17 | Fuga de información | 3 |
 | 5 | TEST-18 a TEST-20 | Configuración del servidor | 3 |
 | 6 | TEST-21 a TEST-25 | Headers modernos y deprecados | 5 |
-| **Total** | **TEST-01 a TEST-25** | | **25** |
+| 7 | TEST-26 a TEST-40 | Archivos y rutas expuestas | 15 |
+| 8 | TEST-41 a TEST-47 | DNS, Email y Dominio | 7 |
+| 9 | TEST-48 a TEST-55 | Fingerprinting y Contenido | 8 |
+| **Total** | **TEST-01 a TEST-55** | | **55** |
 
 ## Ejecución
 
