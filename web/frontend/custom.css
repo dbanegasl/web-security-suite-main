@@ -202,10 +202,17 @@ body { overflow-x: hidden; }
 .view { display: none; }
 .view.active { display: block; }
 
-/* La vista Listas y Wiki escapan el padding del .main-content */
-#view-lists { margin: -32px; }
-.view-wiki  { margin: -32px; }
-.wiki-frame { display: block; width: 100%; height: 100vh; border: none; }
+/* La vista Wiki ya no usa iframe — resetear márgenes negativos */
+.view-wiki  { margin: 0; }
+.wiki-frame { display: none; }  /* por compatibilidad si queda alguna referencia */
+
+/* ── Wiki dinámica ────────────────────────────────────────────── */
+.wiki-table { font-size: .85rem; }
+.wiki-table th { white-space: nowrap; }
+.wiki-table td { vertical-align: top; }
+.wiki-desc { max-width: 340px; }
+.wiki-refs { margin-top: 4px; }
+.wiki-ref-link { font-size: .75rem; color: var(--bs-info); margin-right: 6px; }
 
 /* ── Utilidad ─────────────────────────────────────────────────── */
 .hidden { display: none !important; }

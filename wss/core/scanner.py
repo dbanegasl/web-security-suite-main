@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib
+import pkgutil
 import time
 from typing import Optional
 
@@ -9,25 +10,36 @@ from wss.core.registry import TEST_REGISTRY
 from wss.core.context import ScanContext
 from wss.core.result import Result, Status
 
-# Módulos de tests — importarlos activa sus decoradores @test y puebla TEST_REGISTRY.
-# Añadir aquí cada nuevo bloque conforme se migre.
-_TEST_MODULES = [
-    "wss.tests.block_1_cookies",
-    "wss.tests.block_2_transport",
-    "wss.tests.block_3_headers",
-    "wss.tests.block_4_info_leak",
-    "wss.tests.block_5_server_config",
-    "wss.tests.block_6_modern_headers",
-    "wss.tests.block_7_exposed_files",
-    "wss.tests.block_8_dns_email",
-    "wss.tests.block_9_fingerprint",
-]
+# ── Auto-discovery ──────────────────────────────────────────────────────────
+# Se descubren automáticamente todos los módulos bajo wss.tests que empiecen
+# por "block_". Esto permite añadir wss/tests/block_N_*.py sin tocar este
+# archivo.  Los módulos externos que usen el entry-point "wss.tests" se
+# añadirán aquí en una fase futura.
+
+def _discover_test_modules() -> list[str]:
+    """Devuelve la lista de módulos wss.tests.block_* disponibles, ordenados."""
+    import wss.tests as _tests_pkg
+    modules = []
+    for info in pkgutil.iter_modules(_tests_pkg.__path__, prefix="wss.tests."):
+        if info.name.split(".")[-1].startswith("block_"):
+            modules.append(info.name)
+    return sorted(modules)
+
+
+_loaded = False
 
 
 def _ensure_tests_loaded() -> None:
-    """Importa todos los módulos de tests para registrar sus decoradores."""
-    for module in _TEST_MODULES:
+    """Importa todos los módulos de tests descubiertos para registrar sus decoradores.
+
+    Idempotente: solo importa una vez por proceso.
+    """
+    global _loaded
+    if _loaded:
+        return
+    for module in _discover_test_modules():
         importlib.import_module(module)
+    _loaded = True
 
 
 async def scan(

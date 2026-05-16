@@ -23,6 +23,7 @@ def create_db_and_tables() -> None:
     # Migración ligera: añadir columnas nuevas que no existían en versiones anteriores
     _migrate_add_columns()
     _seed_platform_settings()
+    sync_test_catalog()
 
 
 def _migrate_add_columns() -> None:
@@ -64,3 +65,38 @@ def _seed_platform_settings() -> None:
 def get_session():
     with Session(_engine) as session:
         yield session
+
+
+def sync_test_catalog() -> None:
+    """Sincroniza TEST_REGISTRY → tabla test_catalog (upsert completo).
+
+    Se llama en cada arranque de la API para que el catálogo refleje siempre
+    el estado actual del paquete wss instalado.
+    """
+    import json
+    from datetime import datetime, timezone
+
+    from wss.core.scanner import _ensure_tests_loaded
+    from wss.core.registry import TEST_REGISTRY
+
+    _ensure_tests_loaded()
+
+    from models import TestCatalog  # import local para evitar ciclo circular
+    now = datetime.now(timezone.utc)
+
+    with Session(_engine) as session:
+        for meta in TEST_REGISTRY:
+            row = session.get(TestCatalog, meta.id)
+            if row is None:
+                row = TestCatalog(id=meta.id)
+                session.add(row)
+            row.name = meta.name
+            row.block = meta.block
+            row.block_name = meta.block_name
+            row.severity = meta.severity.value if hasattr(meta.severity, "value") else str(meta.severity)
+            row.cwe = meta.cwe
+            row.description = meta.description
+            row.references = json.dumps(meta.references, ensure_ascii=False)
+            row.package = meta.package
+            row.synced_at = now
+        session.commit()

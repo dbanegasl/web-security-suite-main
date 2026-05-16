@@ -125,6 +125,7 @@ Generados por `generate_report_individual()` y `generate_report_batch()`. Se gua
 - Especificación de tests (criterios, snippets bash): [docs/tests-reference.md](docs/tests-reference.md)
 - Guía de uso y modos de ejecución: [docs/usage-guide.md](docs/usage-guide.md)
 - Despliegue detrás de un proxy nginx (subpath, sub_filter): [docs/deploy-nginx-proxy.md](docs/deploy-nginx-proxy.md)
+- **Cómo crear un test nuevo** (decorador @test, auto-discovery, tests unitarios): [docs/creating-tests.md](docs/creating-tests.md)
 - Formato CSV para batch: ver [domains.csv.example](domains.csv.example) (`dominio,cookie_sesion,ip_forzada`)
 
 ## Pitfalls frecuentes

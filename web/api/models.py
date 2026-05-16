@@ -65,3 +65,20 @@ class ScanHistory(SQLModel, table=True):
     results_json: str = Field(default="{}")
     triggered_by: Optional[int] = Field(default=None, foreign_key="users.id")
     list_id: Optional[int] = Field(default=None, foreign_key="domain_lists.id")
+
+
+class TestCatalog(SQLModel, table=True):
+    """Catálogo de tests sincronizado desde TEST_REGISTRY en cada arranque."""
+
+    __tablename__ = "test_catalog"  # type: ignore[assignment]
+
+    id: str = Field(primary_key=True, max_length=8)          # "01"…"55"
+    name: str = Field(max_length=128)
+    block: int = Field(index=True)
+    block_name: str = Field(default="", max_length=64)
+    severity: str = Field(default="MEDIUM", max_length=16)   # LOW|MEDIUM|HIGH|CRITICAL
+    cwe: Optional[str] = Field(default=None, max_length=32)
+    description: str = Field(default="")
+    references: str = Field(default="[]")                    # JSON array de URLs
+    package: str = Field(default="", max_length=128)         # módulo Python de origen
+    synced_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

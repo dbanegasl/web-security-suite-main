@@ -1170,6 +1170,135 @@ const VIEW_TITLES = {
 
 const VALID_VIEWS = new Set(["home","individual","batch","lists","history","evolution","admin","settings","wiki"]);
 
+// ── Wiki dinámica ─────────────────────────────────────────────────────────
+let _wikiData = null; // caché de la última respuesta de /api/tests
+
+async function initWikiView() {
+  const loading  = document.getElementById("wiki-loading");
+  const errorEl  = document.getElementById("wiki-error");
+  const tableWrap= document.getElementById("wiki-table-wrap");
+  const filterBlock = document.getElementById("wiki-filter-block");
+  const filterSev   = document.getElementById("wiki-filter-severity");
+  const searchEl    = document.getElementById("wiki-search");
+
+  loading?.classList.remove("hidden");
+  errorEl?.classList.add("hidden");
+  tableWrap?.classList.add("hidden");
+
+  try {
+    if (!_wikiData) {
+      _wikiData = await apiFetch("/api/tests");
+      // Poblar select de bloques (solo la primera vez)
+      if (filterBlock && filterBlock.options.length <= 1) {
+        _wikiData.blocks.forEach(b => {
+          const opt = document.createElement("option");
+          opt.value = b.block;
+          opt.textContent = `Bloque ${b.block} — ${b.name}`;
+          filterBlock.appendChild(opt);
+        });
+      }
+    }
+
+    loading?.classList.add("hidden");
+    tableWrap?.classList.remove("hidden");
+    _renderWikiTable();
+
+    // Listeners (idempotentes: se adjuntan al contenedor, no cada vez)
+    filterBlock?.addEventListener("change", _renderWikiTable, { signal: _wikiAbortCtrl?.signal });
+    filterSev?.addEventListener("change", _renderWikiTable,   { signal: _wikiAbortCtrl?.signal });
+    searchEl?.addEventListener("input",   _renderWikiTable,   { signal: _wikiAbortCtrl?.signal });
+  } catch (err) {
+    loading?.classList.add("hidden");
+    if (errorEl) { errorEl.textContent = `Error al cargar el catálogo: ${err.message}`; errorEl.classList.remove("hidden"); }
+  }
+}
+
+// AbortController para limpiar listeners cuando se sale de la wiki
+let _wikiAbortCtrl = null;
+// (Re-inicializar en cada visita)
+const _origNavigateTo = navigateTo;  // guardamos referencia previa para wrapping inline
+
+function _renderWikiTable() {
+  if (!_wikiData) return;
+  const filterBlock = document.getElementById("wiki-filter-block");
+  const filterSev   = document.getElementById("wiki-filter-severity");
+  const searchEl    = document.getElementById("wiki-search");
+  const tbody       = document.getElementById("wiki-tbody");
+  const countEl     = document.getElementById("wiki-count");
+  if (!tbody) return;
+
+  const blk   = filterBlock?.value || "";
+  const sev   = filterSev?.value   || "";
+  const query = (searchEl?.value   || "").toLowerCase().trim();
+
+  const SEV_COLOR = { CRITICAL: "danger", HIGH: "warning", MEDIUM: "info", LOW: "secondary" };
+
+  const filtered = _wikiData.tests.filter(t => {
+    if (blk && String(t.block) !== blk) return false;
+    if (sev && t.severity !== sev)       return false;
+    if (query && !(
+      t.id.includes(query) ||
+      t.name.toLowerCase().includes(query) ||
+      (t.description || "").toLowerCase().includes(query) ||
+      (t.cwe || "").toLowerCase().includes(query)
+    )) return false;
+    return true;
+  });
+
+  tbody.innerHTML = filtered.map(t => {
+    const sColor = SEV_COLOR[t.severity] || "secondary";
+    const refs = (t.references || []).map(u =>
+      `<a href="${u}" target="_blank" rel="noopener noreferrer" class="wiki-ref-link">${new URL(u).hostname}</a>`
+    ).join(" ");
+    return `<tr>
+      <td><code>${t.id}</code></td>
+      <td>${t.name}${refs ? `<div class="wiki-refs">${refs}</div>` : ""}</td>
+      <td><span class="badge bg-secondary">${t.block} — ${t.block_name}</span></td>
+      <td><span class="badge bg-${sColor}">${t.severity}</span></td>
+      <td>${t.cwe ? `<a href="https://cwe.mitre.org/data/definitions/${t.cwe.replace('CWE-','')}.html" target="_blank" rel="noopener noreferrer">${t.cwe}</a>` : "—"}</td>
+      <td class="wiki-desc">${t.description || "—"}</td>
+    </tr>`;
+  }).join("");
+
+  if (countEl) countEl.textContent = `Mostrando ${filtered.length} de ${_wikiData.total} tests`;
+}
+
+async function _loadHomeStats() {
+  try {
+    const data = await apiFetch("/api/tests");
+    // Números del hero
+    const totEl  = document.getElementById("home-total-tests");
+    const blkEl  = document.getElementById("home-total-blocks");
+    if (totEl) totEl.textContent = data.total;
+    if (blkEl) blkEl.textContent = data.blocks.length;
+    // Título de cobertura
+    const titleEl = document.getElementById("home-coverage-title");
+    if (titleEl) titleEl.innerHTML =
+      `<i class="fa-solid fa-chart-pie me-2"></i>Cobertura — ${data.total} tests en ${data.blocks.length} bloques`;
+    // Mini-badges
+    const badgesRow = document.getElementById("home-mini-badges-row");
+    if (badgesRow) {
+      badgesRow.innerHTML = data.blocks.map(b => {
+        const colorCls = (b.color || "hb-blue").replace("hb-", "hb-") + "-txt";
+        return `<span class="home-mini-badge ${colorCls}"><i class="fa-solid ${b.icon} fa-fw"></i> ${b.name}</span>`;
+      }).join("");
+    }
+    // Grid de bloques
+    const grid = document.getElementById("home-coverage-grid");
+    if (grid) {
+      grid.innerHTML = data.blocks.map(b =>
+        `<div class="hb-card ${b.color}" title="${b.description || ''}">
+          <div class="hb-num">${b.count}</div>
+          <div class="hb-icon"><i class="fa-solid ${b.icon}"></i></div>
+          <div class="hb-label">${b.name}</div>
+        </div>`
+      ).join("");
+    }
+  } catch {
+    // Si falla (e.g. token expirado), dejar los placeholders "—"
+  }
+}
+
 function navigateTo(target, { pushHash = true } = {}) {
   if (!target || !VALID_VIEWS.has(target)) return;
   const user = getUser();
@@ -1193,12 +1322,14 @@ function navigateTo(target, { pushHash = true } = {}) {
   if (target === "home") {
     const homeUser = document.getElementById("home-username");
     if (homeUser) homeUser.textContent = user?.username || "";
+    _loadHomeStats();
   }
   if (target === "history")   loadHistoryPage(0, true);
   if (target === "lists")     loadListsIndex();
   if (target === "evolution") initEvolutionView();
   if (target === "admin")     loadAdminUsers();
   if (target === "settings")  initSettingsView();
+  if (target === "wiki")      initWikiView();
   // Cerrar sidebar en mobile
   if (window.innerWidth < 992) {
     document.querySelector(".sidebar")?.classList.remove("sidebar-open");

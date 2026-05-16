@@ -26,7 +26,7 @@ from sqlmodel import Session, col, delete as sql_delete, func, select
 
 import auth
 import database
-from models import DomainList, ListDomain, PlatformSetting, ScanHistory, User
+from models import DomainList, ListDomain, PlatformSetting, ScanHistory, TestCatalog, User
 
 # wss Python core (evita subprocess)
 from wss.core.context import ScanContext
@@ -209,6 +209,75 @@ def _save_scan(
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
+
+
+# ── Endpoints: catálogo de tests ─────────────────────────────────────────────
+@app.get("/api/tests")
+async def get_tests(
+    block: Optional[int] = Query(default=None, description="Filtrar por bloque"),
+    severity: Optional[str] = Query(default=None, description="Filtrar por severidad (LOW|MEDIUM|HIGH|CRITICAL)"),
+    current_user: User = Depends(auth.get_current_user),
+    session: Session = Depends(database.get_session),
+):
+    """Devuelve el catálogo completo de tests con metadatos de bloques.
+
+    Respuesta:
+        {
+            total: int,
+            blocks: [{block, name, icon, color, description, count}],
+            tests:  [{id, name, block, block_name, severity, cwe, description, references, package}]
+        }
+    """
+    from wss.core.registry import BLOCK_META
+    import json
+
+    stmt = select(TestCatalog).order_by(TestCatalog.id)
+    if block is not None:
+        stmt = stmt.where(TestCatalog.block == block)
+    if severity is not None:
+        stmt = stmt.where(TestCatalog.severity == severity.upper())
+
+    rows = session.exec(stmt).all()
+
+    tests_out = [
+        {
+            "id": r.id,
+            "name": r.name,
+            "block": r.block,
+            "block_name": r.block_name,
+            "severity": r.severity,
+            "cwe": r.cwe,
+            "description": r.description,
+            "references": json.loads(r.references or "[]"),
+            "package": r.package,
+        }
+        for r in rows
+    ]
+
+    # Agrupar contadores por bloque desde los resultados filtrados
+    block_counts: dict[int, int] = {}
+    for r in rows:
+        block_counts[r.block] = block_counts.get(r.block, 0) + 1
+
+    # Si no hay filtro de bloque devolvemos todos los bloques conocidos
+    if block is None:
+        all_blocks = sorted(BLOCK_META.keys())
+    else:
+        all_blocks = [block]
+
+    blocks_out = [
+        {
+            "block": b,
+            "name": BLOCK_META[b].name if b in BLOCK_META else f"Bloque {b}",
+            "icon": BLOCK_META[b].icon if b in BLOCK_META else "fa-circle",
+            "color": BLOCK_META[b].color if b in BLOCK_META else "hb-blue",
+            "description": BLOCK_META[b].description if b in BLOCK_META else "",
+            "count": block_counts.get(b, 0),
+        }
+        for b in all_blocks
+    ]
+
+    return {"total": len(tests_out), "blocks": blocks_out, "tests": tests_out}
 
 
 # ── Endpoints: descubrimiento de cookies ─────────────────────────────────────

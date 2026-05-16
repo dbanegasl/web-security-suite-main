@@ -139,24 +139,17 @@
         </div>
         <div class="home-hero-stats">
           <div class="home-stat">
-            <span class="home-stat-num">25</span>
+            <span class="home-stat-num" id="home-total-tests">—</span>
             <span class="home-stat-label">Tests automatizados</span>
           </div>
           <div class="home-stat-sep"></div>
           <div class="home-stat">
-            <span class="home-stat-num">6</span>
+            <span class="home-stat-num" id="home-total-blocks">—</span>
             <span class="home-stat-label">Bloques de análisis</span>
           </div>
           <div class="home-stat-sep"></div>
           <div class="home-stat">
-            <span class="home-stat-badge-row">
-              <span class="home-mini-badge hb-orange-txt"><i class="fa-solid fa-cookie-bite fa-fw"></i> Cookies</span>
-              <span class="home-mini-badge hb-green-txt"><i class="fa-solid fa-lock fa-fw"></i> TLS</span>
-              <span class="home-mini-badge hb-blue-txt"><i class="fa-solid fa-shield-halved fa-fw"></i> Headers</span>
-              <span class="home-mini-badge hb-magenta-txt"><i class="fa-solid fa-eye-slash fa-fw"></i> Info</span>
-              <span class="home-mini-badge hb-yellow-txt"><i class="fa-solid fa-server fa-fw"></i> Config</span>
-              <span class="home-mini-badge hb-teal-txt"><i class="fa-solid fa-wand-magic-sparkles fa-fw"></i> Modern</span>
-            </span>
+            <span class="home-stat-badge-row" id="home-mini-badges-row"></span>
             <span class="home-stat-label">Categorías de cobertura</span>
           </div>
         </div>
@@ -168,7 +161,7 @@
           <div class="home-ac-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
           <div class="home-ac-body">
             <div class="home-ac-title">Análisis individual</div>
-            <div class="home-ac-desc">Audita un dominio en tiempo real y obtén los 25 tests al instante.</div>
+            <div class="home-ac-desc">Audita un dominio en tiempo real y obtén todos los tests al instante.</div>
           </div>
           <div class="home-ac-arrow"><i class="fa-solid fa-arrow-right"></i></div>
         </div>
@@ -216,39 +209,8 @@
 
       <!-- Cobertura por bloques -->
       <div class="home-coverage">
-        <div class="home-coverage-title"><i class="fa-solid fa-chart-pie me-2"></i>Cobertura — 25 tests en 6 bloques</div>
-        <div class="home-coverage-grid">
-          <div class="hb-card hb-orange">
-            <div class="hb-num">4</div>
-            <div class="hb-icon"><i class="fa-solid fa-cookie-bite"></i></div>
-            <div class="hb-label">Cookies</div>
-          </div>
-          <div class="hb-card hb-green">
-            <div class="hb-num">5</div>
-            <div class="hb-icon"><i class="fa-solid fa-lock"></i></div>
-            <div class="hb-label">Transporte y TLS</div>
-          </div>
-          <div class="hb-card hb-blue">
-            <div class="hb-num">5</div>
-            <div class="hb-icon"><i class="fa-solid fa-shield-halved"></i></div>
-            <div class="hb-label">Cabeceras HTTP</div>
-          </div>
-          <div class="hb-card hb-magenta">
-            <div class="hb-num">3</div>
-            <div class="hb-icon"><i class="fa-solid fa-eye-slash"></i></div>
-            <div class="hb-label">Fuga de info</div>
-          </div>
-          <div class="hb-card hb-yellow">
-            <div class="hb-num">3</div>
-            <div class="hb-icon"><i class="fa-solid fa-server"></i></div>
-            <div class="hb-label">Config. servidor</div>
-          </div>
-          <div class="hb-card hb-teal">
-            <div class="hb-num">5</div>
-            <div class="hb-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
-            <div class="hb-label">Headers modernos</div>
-          </div>
-        </div>
+        <div class="home-coverage-title" id="home-coverage-title"><i class="fa-solid fa-chart-pie me-2"></i>Cobertura</div>
+        <div class="home-coverage-grid" id="home-coverage-grid"></div>
       </div>
     </section>
 
@@ -574,7 +536,35 @@
 
     <!-- ══ Vista: Wiki de tests ══════════════════════════════════ -->
     <section id="view-wiki" class="view view-wiki">
-      <iframe src="wiki.html" class="wiki-frame" title="Wiki de tests de seguridad"></iframe>
+      <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <h1 class="h4 fw-semibold mb-0"><i class="fa-solid fa-book-open me-2"></i>Wiki de tests</h1>
+        <div class="d-flex gap-2 flex-wrap">
+          <select id="wiki-filter-block" class="form-select form-select-sm" style="min-width:160px">
+            <option value="">Todos los bloques</option>
+          </select>
+          <select id="wiki-filter-severity" class="form-select form-select-sm">
+            <option value="">Cualquier severidad</option>
+            <option value="CRITICAL">CRITICAL</option>
+            <option value="HIGH">HIGH</option>
+            <option value="MEDIUM">MEDIUM</option>
+            <option value="LOW">LOW</option>
+          </select>
+          <input type="search" id="wiki-search" class="form-control form-control-sm" placeholder="Buscar..." style="min-width:160px" />
+        </div>
+      </div>
+      <div id="wiki-loading" class="text-center py-5 text-muted"><i class="fa-solid fa-spinner fa-spin me-2"></i>Cargando catálogo...</div>
+      <div id="wiki-error" class="alert alert-danger hidden"></div>
+      <div id="wiki-table-wrap" class="hidden">
+        <p id="wiki-count" class="text-muted small mb-2"></p>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover wiki-table">
+            <thead><tr>
+              <th>ID</th><th>Test</th><th>Bloque</th><th>Severidad</th><th>CWE</th><th>Descripción</th>
+            </tr></thead>
+            <tbody id="wiki-tbody"></tbody>
+          </table>
+        </div>
+      </div>
     </section>
     <!-- ══ Vista: Evolución temporal (C.5) ═══════════════════ -->
     <section id="view-evolution" class="view">
