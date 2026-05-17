@@ -127,8 +127,18 @@ async def _run_scheduled_scan(schedule_id: int) -> None:
 
     # Ejecutar scan
     try:
+        import re as _re
+        _clean = _re.sub(r"^https?://", "", schedule.domain)
+        if "/" in _clean:
+            _host, _, _path_rest = _clean.partition("/")
+            _base_path = f"/{_path_rest}" if _path_rest else "/"
+        else:
+            _host = _clean
+            _base_path = "/"
         ctx = ScanContext(
             domain=schedule.domain,
+            host=_host,
+            base_url=f"https://{_host}{_base_path}",
             session_cookie=schedule.session_cookie or "",
             ip=schedule.ip or "",
         )
