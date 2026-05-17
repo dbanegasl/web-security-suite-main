@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 
 import pytest
 
 from wss.core.result import Result, Severity, Status
 from wss.core.registry import TestMeta, TEST_REGISTRY
-from wss.reporters.sarif_reporter import generate, _build_rules, _build_results
+from wss.reporters.sarif_reporter import generate, generate_from_dicts, _build_rules, _build_results
 
 
 # ── Fixtures ────────────────────────────────────────────────────────────────
@@ -293,3 +294,155 @@ def test_generate_output_is_valid_json():
     # No debe lanzar excepciones
     parsed = json.loads(output)
     assert parsed is not None
+
+
+# ── Tests de _to_utc_str / timestamp ────────────────────────────────────────
+
+def test_generate_timestamp_naive_ends_with_Z():
+    """generate() con scanned_at naive debe producir timestamp terminado en Z."""
+    results = [_make_result()]
+    naive = datetime(2026, 5, 16, 12, 0, 0)
+    doc = json.loads(generate(results, domain="example.com", scanned_at=naive))
+    ts = doc["runs"][0]["invocations"][0]["startTimeUtc"]
+    assert ts.endswith("Z")
+    assert "+00:00" not in ts
+
+
+def test_generate_timestamp_aware_ends_with_Z_no_offset():
+    """generate() con scanned_at timezone-aware no debe producir '+00:00Z'."""
+    results = [_make_result()]
+    aware = datetime(2026, 5, 16, 12, 0, 0, tzinfo=timezone.utc)
+    doc = json.loads(generate(results, domain="example.com", scanned_at=aware))
+    ts = doc["runs"][0]["invocations"][0]["startTimeUtc"]
+    assert ts.endswith("Z")
+    assert "+00:00" not in ts
+    assert ts == "2026-05-16T12:00:00Z"
+
+
+# ── Tests de generate_from_dicts() ──────────────────────────────────────────
+
+def _make_dict(
+    id: str = "01",
+    name: str = "Test dummy",
+    result: str = "FAIL",
+    detail: str = "Detalle",
+    severity: str = "HIGH",
+    cwe: str | None = "CWE-200",
+    block: int = 1,
+    duration_ms: float = 10.0,
+) -> dict:
+    """Construye un dict equivalente al que almacena Result.to_dict()."""
+    return {
+        "id": id,
+        "name": name,
+        "result": result,  # clave 'result', no 'status'
+        "detail": detail,
+        "severity": severity,
+        "cwe": cwe,
+        "block": block,
+        "duration_ms": duration_ms,
+    }
+
+
+def test_generate_from_dicts_valid_sarif():
+    """generate_from_dicts() debe devolver SARIF 2.1.0 válido."""
+    dicts = [_make_dict()]
+    doc = json.loads(generate_from_dicts(dicts, domain="example.com"))
+    assert doc["version"] == "2.1.0"
+    assert "sarif-schema-2.1.0" in doc["$schema"]
+    assert len(doc["runs"]) == 1
+
+
+def test_generate_from_dicts_fail_appears():
+    """Los dicts con result='FAIL' deben aparecer en runs[0].results."""
+    dicts = [_make_dict(id="01", result="FAIL")]
+    doc = json.loads(generate_from_dicts(dicts, domain="example.com"))
+    results = doc["runs"][0]["results"]
+    assert len(results) == 1
+    assert results[0]["level"] == "error"
+    assert results[0]["ruleId"] == "WSS-01"
+
+
+def test_generate_from_dicts_warn_appears():
+    """Los dicts con result='WARN' deben aparecer con level='warning'."""
+    dicts = [_make_dict(id="02", result="WARN")]
+    doc = json.loads(generate_from_dicts(dicts, domain="example.com"))
+    results = doc["runs"][0]["results"]
+    assert len(results) == 1
+    assert results[0]["level"] == "warning"
+
+
+def test_generate_from_dicts_pass_not_in_results():
+    """Los dicts con result='PASS' no deben aparecer en runs[0].results."""
+    dicts = [_make_dict(id="01", result="PASS")]
+    doc = json.loads(generate_from_dicts(dicts, domain="example.com"))
+    assert doc["runs"][0]["results"] == []
+
+
+def test_generate_from_dicts_skip_not_in_results():
+    """Los dicts con result='SKIP' no deben aparecer en runs[0].results."""
+    dicts = [_make_dict(id="01", result="SKIP")]
+    doc = json.loads(generate_from_dicts(dicts, domain="example.com"))
+    assert doc["runs"][0]["results"] == []
+
+
+def test_generate_from_dicts_mixed_filters_correctly():
+    """Con FAIL, WARN, PASS, SKIP — solo FAIL y WARN en results."""
+    dicts = [
+        _make_dict("01", result="FAIL"),
+        _make_dict("02", result="WARN"),
+        _make_dict("03", result="PASS"),
+        _make_dict("04", result="SKIP"),
+    ]
+    doc = json.loads(generate_from_dicts(dicts, domain="example.com"))
+    results = doc["runs"][0]["results"]
+    assert len(results) == 2
+    levels = {r["level"] for r in results}
+    assert levels == {"error", "warning"}
+
+
+def test_generate_from_dicts_message_uses_detail():
+    """message.text debe ser el campo 'detail' del dict."""
+    dicts = [_make_dict(id="01", result="FAIL", detail="Archivo .env expuesto")]
+    doc = json.loads(generate_from_dicts(dicts, domain="example.com"))
+    assert doc["runs"][0]["results"][0]["message"]["text"] == "Archivo .env expuesto"
+
+
+def test_generate_from_dicts_location_uses_domain():
+    """La uri de location debe ser https://domain/."""
+    dicts = [_make_dict(id="01", result="FAIL")]
+    doc = json.loads(generate_from_dicts(dicts, domain="target.com"))
+    uri = doc["runs"][0]["results"][0]["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]
+    assert uri == "https://target.com/"
+
+
+def test_generate_from_dicts_cwe_in_properties():
+    """Si el dict tiene cwe, debe aparecer en properties.cwe."""
+    dicts = [_make_dict(id="01", result="FAIL", cwe="CWE-530")]
+    doc = json.loads(generate_from_dicts(dicts, domain="example.com"))
+    assert doc["runs"][0]["results"][0]["properties"]["cwe"] == "CWE-530"
+
+
+def test_generate_from_dicts_no_cwe_not_in_properties():
+    """Si el dict no tiene cwe, properties.cwe no debe existir."""
+    dicts = [_make_dict(id="01", result="FAIL", cwe=None)]
+    doc = json.loads(generate_from_dicts(dicts, domain="example.com"))
+    assert "cwe" not in doc["runs"][0]["results"][0]["properties"]
+
+
+def test_generate_from_dicts_timestamp_aware_no_double_tz():
+    """Con scanned_at timezone-aware el timestamp resultante no debe contener '+00:00Z'."""
+    dicts = [_make_dict()]
+    aware = datetime(2026, 5, 16, 8, 30, 0, tzinfo=timezone.utc)
+    doc = json.loads(generate_from_dicts(dicts, domain="example.com", scanned_at=aware))
+    ts = doc["runs"][0]["invocations"][0]["startTimeUtc"]
+    assert ts.endswith("Z")
+    assert "+00:00" not in ts
+    assert ts == "2026-05-16T08:30:00Z"
+
+
+def test_generate_from_dicts_empty_list():
+    """Con lista vacía debe devolver SARIF válido con results=[]."""
+    doc = json.loads(generate_from_dicts([], domain="example.com"))
+    assert doc["version"] == "2.1.0"
+    assert doc["runs"][0]["results"] == []

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import importlib.metadata
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from wss.core.registry import TEST_REGISTRY, TestMeta
@@ -30,6 +30,13 @@ _STATUS_TO_LEVEL: dict[str, str] = {
     "FAIL": "error",
     "WARN": "warning",
 }
+
+
+def _to_utc_str(dt: datetime) -> str:
+    """Convierte datetime (naive o aware) a string UTC ISO 8601 terminado en Z."""
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt.isoformat(timespec="seconds") + "Z"
 
 
 def _tool_version() -> str:
@@ -197,7 +204,7 @@ def generate_from_dicts(
                 "invocations": [
                     {
                         "executionSuccessful": True,
-                        "startTimeUtc": scanned_at.isoformat() + "Z",
+                        "startTimeUtc": _to_utc_str(scanned_at),
                         "properties": {"domain": domain},
                     }
                 ],
@@ -257,7 +264,7 @@ def generate(
                 "invocations": [
                     {
                         "executionSuccessful": True,
-                        "startTimeUtc": scanned_at.isoformat() + "Z",
+                        "startTimeUtc": _to_utc_str(scanned_at),
                         "properties": {"domain": domain},
                     }
                 ],
