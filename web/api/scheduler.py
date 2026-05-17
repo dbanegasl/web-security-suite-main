@@ -29,7 +29,7 @@ from apscheduler.triggers.cron import CronTrigger
 from sqlmodel import Session, select
 
 import database
-from models import ScheduledScan, ScanHistory
+from models import ScheduledScan, ScanHistory, ScheduledScanRun
 
 log = logging.getLogger("wss.scheduler")
 
@@ -110,6 +110,8 @@ async def _run_scheduled_scan(schedule_id: int) -> None:
 
     log.info("Ejecutando escaneo programado id=%d dominio=%s", schedule_id, schedule.domain)
 
+    _t0 = datetime.now(timezone.utc)
+
     # Buscar último resultado para comparar (diff)
     prev_fails: set[str] = set()
     if schedule.last_scan_id:
@@ -147,6 +149,18 @@ async def _run_scheduled_scan(schedule_id: int) -> None:
         data = json.loads(output)
     except Exception as exc:
         log.error("Error en escaneo programado id=%d: %s", schedule_id, exc)
+        _t_err = datetime.now(timezone.utc)
+        _dur_err = int((_t_err - _t0).total_seconds() * 1000)
+        with Session(database._engine) as _s:
+            _s.add(ScheduledScanRun(
+                schedule_id=schedule_id,
+                started_at=_t0,
+                finished_at=_t_err,
+                duration_ms=_dur_err,
+                status="error",
+                error_msg=str(exc)[:512],
+            ))
+            _s.commit()
         return
 
     tests = data.get("tests", [])
@@ -171,6 +185,24 @@ async def _run_scheduled_scan(schedule_id: int) -> None:
         session.commit()
         session.refresh(scan_entry)
         new_scan_id = scan_entry.id
+
+    # Registrar ejecución exitosa
+    _t_ok = datetime.now(timezone.utc)
+    _dur_ok = int((_t_ok - _t0).total_seconds() * 1000)
+    with Session(database._engine) as session:
+        session.add(ScheduledScanRun(
+            schedule_id=schedule_id,
+            started_at=_t0,
+            finished_at=_t_ok,
+            duration_ms=_dur_ok,
+            status="ok",
+            pass_count=pass_count,
+            fail_count=fail_count,
+            warn_count=warn_count,
+            skip_count=skip_count,
+            scan_id=new_scan_id,
+        ))
+        session.commit()
 
     # Actualizar schedule
     with Session(database._engine) as session:

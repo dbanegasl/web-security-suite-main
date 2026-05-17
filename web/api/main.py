@@ -27,7 +27,7 @@ from sqlmodel import Session, col, delete as sql_delete, func, select
 import auth
 import database
 import scheduler as _scheduler_mod
-from models import DomainList, ListDomain, PlatformSetting, ScanHistory, ScheduledScan, TestCatalog, User
+from models import DomainList, ListDomain, PlatformSetting, ScanHistory, ScheduledScan, ScheduledScanRun, TestCatalog, User
 
 # wss Python core (evita subprocess)
 from wss.core.context import ScanContext
@@ -1875,3 +1875,66 @@ async def schedules_run_now(
     # Lanzar en segundo plano sin bloquear la petición
     asyncio.create_task(_scheduler_mod._run_scheduled_scan(schedule_id))
     return {"ok": True, "message": f"Escaneo de '{sched.domain}' iniciado en segundo plano"}
+
+
+@app.get("/api/schedules/{schedule_id}/runs")
+async def schedules_get_runs(
+    schedule_id: int,
+    page: int = 1,
+    per_page: int = 20,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    current_user: User = Depends(_require_admin),
+    session: Session = Depends(database.get_session),
+):
+    sched = session.get(ScheduledScan, schedule_id)
+    if not sched:
+        raise HTTPException(status_code=404, detail="Schedule no encontrado")
+
+    stmt = select(ScheduledScanRun).where(ScheduledScanRun.schedule_id == schedule_id)
+    if from_date:
+        try:
+            dt_from = datetime.fromisoformat(from_date)
+            stmt = stmt.where(ScheduledScanRun.started_at >= dt_from)
+        except ValueError:
+            raise HTTPException(status_code=422, detail="from_date no es una fecha válida (YYYY-MM-DD)")
+    if to_date:
+        try:
+            dt_to = datetime.fromisoformat(to_date)
+            # incluir todo el día
+            dt_to = dt_to + timedelta(days=1)
+            stmt = stmt.where(ScheduledScanRun.started_at < dt_to)
+        except ValueError:
+            raise HTTPException(status_code=422, detail="to_date no es una fecha válida (YYYY-MM-DD)")
+
+    total = session.exec(select(func.count()).select_from(stmt.subquery())).one()
+    per_page = max(1, min(per_page, 100))
+    page = max(1, page)
+    offset = (page - 1) * per_page
+
+    runs = session.exec(
+        stmt.order_by(ScheduledScanRun.started_at.desc()).offset(offset).limit(per_page)
+    ).all()
+
+    def _run_dict(r: ScheduledScanRun) -> dict:
+        return {
+            "id": r.id,
+            "started_at": r.started_at.isoformat() if r.started_at else None,
+            "finished_at": r.finished_at.isoformat() if r.finished_at else None,
+            "duration_ms": r.duration_ms,
+            "status": r.status,
+            "error_msg": r.error_msg,
+            "pass_count": r.pass_count,
+            "fail_count": r.fail_count,
+            "warn_count": r.warn_count,
+            "skip_count": r.skip_count,
+            "scan_id": r.scan_id,
+        }
+
+    return {
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": max(1, -(-total // per_page)),
+        "items": [_run_dict(r) for r in runs],
+    }

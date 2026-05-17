@@ -3281,6 +3281,10 @@ function _renderScheduleRow(s) {
           onclick="runScheduleNow(${s.id})">
           <i class="fa-solid fa-play fa-fw"></i>
         </button>
+        <button class="btn btn-sm btn-outline-info" title="Ver ejecuciones"
+          onclick="openRunsModal(${s.id}, '${escapeHtml(s.name).replace(/'/g,"\\'")}')">
+          <i class="fa-solid fa-clock-rotate-left fa-fw"></i>
+        </button>
         <button class="btn btn-sm btn-outline-secondary" title="${toggleLabel}"
           onclick="toggleSchedule(${s.id})">
           <i class="fa-solid ${toggleIcon} fa-fw"></i>
@@ -3394,4 +3398,116 @@ async function deleteSchedule(scheduleId, name) {
   } catch (err) {
     showToast("Error al eliminar: " + err.message, "danger");
   }
+}
+
+// ── Historial de ejecuciones de schedules ──────────────────────────────────
+
+let _runsScheduleId = null;
+let _runsPage = 1;
+let _runsTotalPages = 1;
+let _runsModal = null;
+
+async function openRunsModal(scheduleId, name) {
+  _runsScheduleId = scheduleId;
+  _runsPage = 1;
+  document.getElementById("modal-runs-title").textContent = `Ejecuciones — ${name}`;
+  document.getElementById("runs-from-date").value = "";
+  document.getElementById("runs-to-date").value = "";
+  if (!_runsModal) {
+    _runsModal = new bootstrap.Modal(document.getElementById("modal-schedule-runs"));
+  }
+  _runsModal.show();
+  await loadScheduleRuns(scheduleId, 1);
+}
+
+async function loadScheduleRuns(scheduleId, page) {
+  const loading   = document.getElementById("runs-loading");
+  const empty     = document.getElementById("runs-empty");
+  const table     = document.getElementById("runs-table");
+  const pagination = document.getElementById("runs-pagination");
+
+  loading.classList.remove("d-none");
+  empty.classList.add("d-none");
+  table.classList.add("d-none");
+  pagination.classList.add("d-none");
+
+  const fromDate = document.getElementById("runs-from-date").value;
+  const toDate   = document.getElementById("runs-to-date").value;
+  let url = `/api/schedules/${scheduleId}/runs?page=${page}&per_page=20`;
+  if (fromDate) url += `&from_date=${fromDate}`;
+  if (toDate)   url += `&to_date=${toDate}`;
+
+  try {
+    const data = await apiFetch(url);
+    loading.classList.add("d-none");
+    _runsPage = data.page;
+    _runsTotalPages = data.total_pages;
+
+    if (!data.items || data.items.length === 0) {
+      empty.classList.remove("d-none");
+      return;
+    }
+
+    const tbody = document.getElementById("runs-tbody");
+    tbody.innerHTML = data.items.map(_renderRunRow).join("");
+    table.classList.remove("d-none");
+
+    document.getElementById("runs-page-indicator").textContent =
+      `página ${data.page} de ${data.total_pages} (${data.total} total)`;
+    document.getElementById("runs-prev").disabled = data.page <= 1;
+    document.getElementById("runs-next").disabled = data.page >= data.total_pages;
+    pagination.classList.remove("d-none");
+  } catch (err) {
+    loading.classList.add("d-none");
+    empty.classList.remove("d-none");
+    empty.textContent = "Error al cargar ejecuciones: " + err.message;
+  }
+}
+
+function _renderRunRow(run) {
+  const statusBadge = run.status === "ok"
+    ? '<span class="badge" style="background:var(--wss-pass)">OK</span>'
+    : '<span class="badge" style="background:var(--wss-fail)">ERROR</span>';
+  const duration = run.duration_ms != null ? _fmtDuration(run.duration_ms) : "—";
+  const started  = run.started_at ? new Date(run.started_at).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "medium" }) : "—";
+  const scanLink = run.scan_id
+    ? `<a href="#" onclick="navigateTo('history'); return false;" class="btn btn-xs btn-outline-secondary btn-sm py-0 px-1" title="Ver resultado">#${run.scan_id}</a>`
+    : "";
+  const errTooltip = run.error_msg
+    ? `<span class="text-danger small ms-1" title="${escapeHtml(run.error_msg)}"><i class="fa-solid fa-circle-exclamation"></i></span>`
+    : "";
+  return `<tr>
+    <td class="font-monospace small">${started}</td>
+    <td class="small">${duration}</td>
+    <td>${statusBadge}${errTooltip}</td>
+    <td class="text-center small" style="color:var(--wss-pass)">${run.pass_count}</td>
+    <td class="text-center small" style="color:var(--wss-fail)">${run.fail_count}</td>
+    <td class="text-center small" style="color:var(--wss-warn)">${run.warn_count}</td>
+    <td class="text-center small text-muted">${run.skip_count}</td>
+    <td class="text-end">${scanLink}</td>
+  </tr>`;
+}
+
+function _fmtDuration(ms) {
+  if (ms < 1000) return `${ms}ms`;
+  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+  const m = Math.floor(ms / 60000);
+  const s = Math.round((ms % 60000) / 1000);
+  return `${m}m ${s}s`;
+}
+
+async function applyRunsFilter() {
+  if (_runsScheduleId) await loadScheduleRuns(_runsScheduleId, 1);
+}
+
+async function clearRunsFilter() {
+  document.getElementById("runs-from-date").value = "";
+  document.getElementById("runs-to-date").value = "";
+  if (_runsScheduleId) await loadScheduleRuns(_runsScheduleId, 1);
+}
+
+async function runsChangePage(delta) {
+  const newPage = _runsPage + delta;
+  if (newPage < 1 || newPage > _runsTotalPages) return;
+  if (_runsScheduleId) await loadScheduleRuns(_runsScheduleId, newPage);
 }

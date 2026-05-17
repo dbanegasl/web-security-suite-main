@@ -784,6 +784,73 @@
       </div>
     </div>
 
+    <!-- Modal: Historial de ejecuciones de un schedule -->
+    <div class="modal fade" id="modal-schedule-runs" tabindex="-1" aria-labelledby="modal-runs-title" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="modal-runs-title">Ejecuciones</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <!-- Filtros de fecha -->
+            <div class="d-flex gap-2 mb-3 align-items-end flex-wrap">
+              <div>
+                <label class="form-label small mb-1">Desde</label>
+                <input type="date" id="runs-from-date" class="form-control form-control-sm">
+              </div>
+              <div>
+                <label class="form-label small mb-1">Hasta</label>
+                <input type="date" id="runs-to-date" class="form-control form-control-sm">
+              </div>
+              <button class="btn btn-sm btn-secondary" onclick="applyRunsFilter()">
+                <i class="fa-solid fa-filter me-1"></i>Aplicar
+              </button>
+              <button class="btn btn-sm btn-outline-secondary" onclick="clearRunsFilter()">
+                <i class="fa-solid fa-xmark me-1"></i>Limpiar
+              </button>
+            </div>
+            <!-- Spinner / vacío -->
+            <div id="runs-loading" class="text-center py-3 d-none">
+              <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+              <span class="ms-2 text-muted">Cargando…</span>
+            </div>
+            <div id="runs-empty" class="text-center text-muted py-4 d-none">
+              <i class="fa-solid fa-inbox fa-2x mb-2 d-block opacity-50"></i>Sin ejecuciones registradas
+            </div>
+            <!-- Tabla -->
+            <div class="table-responsive">
+              <table id="runs-table" class="table table-sm table-hover align-middle mb-0 d-none">
+                <thead>
+                  <tr>
+                    <th>Inicio (UTC)</th>
+                    <th>Duración</th>
+                    <th>Estado</th>
+                    <th class="text-center" title="PASS">P</th>
+                    <th class="text-center" title="FAIL">F</th>
+                    <th class="text-center" title="WARN">W</th>
+                    <th class="text-center" title="SKIP">S</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="runs-tbody"></tbody>
+              </table>
+            </div>
+            <!-- Paginación -->
+            <div id="runs-pagination" class="d-flex justify-content-between align-items-center mt-3 d-none">
+              <button id="runs-prev" class="btn btn-sm btn-outline-secondary" onclick="runsChangePage(-1)">
+                <i class="fa-solid fa-chevron-left"></i> Anterior
+              </button>
+              <span id="runs-page-indicator" class="text-muted small">página 1 de 1</span>
+              <button id="runs-next" class="btn btn-sm btn-outline-secondary" onclick="runsChangePage(1)">
+                Siguiente <i class="fa-solid fa-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ══ Vista: Administración de usuarios (C.6 — solo admin) ══ -->
     <section id="view-admin" class="view">
       <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">

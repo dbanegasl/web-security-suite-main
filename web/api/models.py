@@ -88,6 +88,25 @@ class ScheduledScan(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+class ScheduledScanRun(SQLModel, table=True):
+    """Log de cada ejecución de un escaneo programado."""
+
+    __tablename__ = "scheduled_scan_runs"  # type: ignore[assignment]
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    schedule_id: int = Field(index=True, foreign_key="scheduled_scans.id")
+    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), index=True)
+    finished_at: Optional[datetime] = Field(default=None)
+    duration_ms: Optional[int] = Field(default=None)
+    status: str = Field(default="ok", max_length=8)           # "ok" | "error"
+    error_msg: Optional[str] = Field(default=None, max_length=512)
+    pass_count: int = Field(default=0)
+    fail_count: int = Field(default=0)
+    warn_count: int = Field(default=0)
+    skip_count: int = Field(default=0)
+    scan_id: Optional[int] = Field(default=None, foreign_key="scan_history.id")
+
+
 class TestCatalog(SQLModel, table=True):
     """Catálogo de tests sincronizado desde TEST_REGISTRY en cada arranque."""
 
