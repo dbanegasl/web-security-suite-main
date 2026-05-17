@@ -1922,12 +1922,19 @@ function renderListDomains(domains) {
   domains.forEach(d => {
     const tr = document.createElement("tr");
     tr.dataset.id = d.id;
+    if (!d.is_active) tr.classList.add("opacity-50");
     tr.innerHTML = `
       <td><code>${escapeHtml(d.domain)}</code></td>
       <td class="muted">${escapeHtml(d.session_cookie) || "—"}</td>
       <td class="muted">${escapeHtml(d.ip) || "—"}</td>
       <td class="muted">${escapeHtml(d.notes) || "—"}</td>
-      <td><span class="badge ${d.is_active ? "badge-pass" : "badge-skip"}">${d.is_active ? "Sí" : "No"}</span></td>
+      <td class="text-center">
+        <div class="form-check form-switch d-inline-block m-0">
+          <input class="form-check-input list-domain-toggle" type="checkbox" role="switch"
+            data-domain-id="${d.id}" ${d.is_active ? "checked" : ""}
+            title="${d.is_active ? "Desactivar" : "Activar"} dominio">
+        </div>
+      </td>
       <td>
         <button class="btn btn-sm" onclick="openEditDomain(${d.id})">✏</button>
         <button class="btn btn-sm btn-danger-sm" onclick="deleteDomain(${d.id})">🗑</button>
@@ -1935,6 +1942,27 @@ function renderListDomains(domains) {
     tbody.appendChild(tr);
   });
 }
+
+// Toggle activo/inactivo de dominio en lista (delegación de eventos)
+document.getElementById("list-domains-tbody")?.addEventListener("change", async e => {
+  const toggle = e.target.closest(".list-domain-toggle");
+  if (!toggle) return;
+  const domainId = Number(toggle.dataset.domainId);
+  toggle.disabled = true;
+  try {
+    const res = await apiFetch(`/api/lists/${_activeListId}/domains/${domainId}/toggle`, { method: "PATCH" });
+    const tr = toggle.closest("tr");
+    if (tr) tr.classList.toggle("opacity-50", !res.is_active);
+    toggle.title = res.is_active ? "Desactivar dominio" : "Activar dominio";
+    showToast("success", `Dominio ${res.is_active ? "activado" : "desactivado"}`);
+  } catch (err) {
+    toggle.checked = !toggle.checked; // revertir
+    showToast("error", "Error al actualizar dominio", err.message);
+  } finally {
+    toggle.disabled = false;
+  }
+});
+
 
 function showListError(msg) {
   console.error(msg);

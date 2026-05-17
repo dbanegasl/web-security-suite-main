@@ -177,13 +177,22 @@ async def _probe_ip_reachable(ip: str, port: int = 443) -> bool:
         return False
 
 
-async def _run_scan(domain: str, cookie: str, ip: str) -> dict[str, Any]:
+def _get_disabled_test_ids(session: Session) -> set[str]:
+    """Retorna el conjunto de IDs de tests deshabilitados en el catálogo."""
+    return {
+        r.id for r in session.exec(
+            select(TestCatalog).where(TestCatalog.is_active == False)  # noqa: E712
+        ).all()
+    }
+
+
+async def _run_scan(domain: str, cookie: str, ip: str, disabled_ids: Optional[set[str]] = None) -> dict[str, Any]:
     """Ejecuta el scan con wss Python core y devuelve el resultado JSON."""
     async with _SCAN_SEM:
-        return await _run_scan_inner(domain, cookie, ip)
+        return await _run_scan_inner(domain, cookie, ip, disabled_ids=disabled_ids or set())
 
 
-async def _run_scan_inner(domain: str, cookie: str, ip: str) -> dict[str, Any]:
+async def _run_scan_inner(domain: str, cookie: str, ip: str, disabled_ids: Optional[set[str]] = None) -> dict[str, Any]:
     """Lógica interna del scan usando wss core directamente (sin subprocess).
 
     Si hay IP forzada pero no es alcanzable (TCP probe en IP_PROBE_TIMEOUT seg),
@@ -195,13 +204,41 @@ async def _run_scan_inner(domain: str, cookie: str, ip: str) -> dict[str, Any]:
 
     ctx = _build_scan_context(domain, cookie, effective_ip)
     try:
-        results = await asyncio.wait_for(_wss_scan(ctx), timeout=SCAN_TIMEOUT)
+        # Ejecutar solo tests activos; los deshabilitados se añaden como SKIP sintético
+        active_ids: Optional[list[str]] = None
+        if disabled_ids:
+            from wss.core.scanner import _ensure_tests_loaded
+            from wss.core.registry import TEST_REGISTRY
+            _ensure_tests_loaded()
+            all_ids = {m.id for m in TEST_REGISTRY}
+            active_ids = sorted(all_ids - disabled_ids)
+
+        results = await asyncio.wait_for(
+            _wss_scan(ctx, test_ids=active_ids),
+            timeout=SCAN_TIMEOUT,
+        )
     except asyncio.TimeoutError:
         raise HTTPException(status_code=408, detail="Timeout: el scan tardó demasiado")
     finally:
         # Cerrar el cliente httpx si fue creado
         if ctx._client is not None:
             await ctx._client.aclose()
+
+    # Añadir resultados SKIP sintéticos para tests deshabilitados
+    if disabled_ids:
+        from wss.core.registry import TEST_REGISTRY
+        from wss.core.result import Result as _Result
+        for meta in sorted(TEST_REGISTRY, key=lambda m: m.id):
+            if meta.id in disabled_ids:
+                skip_r = _Result.skip("Test deshabilitado por el administrador")
+                skip_r.id = meta.id
+                skip_r.name = meta.name
+                skip_r.block = meta.block
+                skip_r.severity = meta.severity
+                skip_r.cwe = meta.cwe
+                skip_r.duration_ms = 0.0
+                results.append(skip_r)
+        results.sort(key=lambda r: r.id)
 
     data: dict[str, Any] = json.loads(
         _json_generate(results, domain=domain, base_url=ctx.base_url,
@@ -530,7 +567,7 @@ async def scan(
     session: Session = Depends(database.get_session),
 ):
     """Ejecuta el scan sobre un único dominio y devuelve JSON estructurado."""
-    data = await _run_scan(body.domain, body.session_cookie, body.ip)
+    data = await _run_scan(body.domain, body.session_cookie, body.ip, disabled_ids=_get_disabled_test_ids(session))
     _save_scan(session, data, "individual", current_user.id)
     return data
 
@@ -549,6 +586,7 @@ async def batch(
     """
     results = []
     tasks = []
+    _disabled_ids = _get_disabled_test_ids(session)
 
     for line in body.csv_content.splitlines():
         line = line.strip()
@@ -565,7 +603,7 @@ async def batch(
             results.append({"domain": domain, "error": str(exc)})
             continue
 
-        tasks.append(_run_scan(validated.domain, validated.session_cookie, validated.ip))
+        tasks.append(_run_scan(validated.domain, validated.session_cookie, validated.ip, disabled_ids=_disabled_ids))
 
     scan_results = await asyncio.gather(*tasks, return_exceptions=True)
     for r in scan_results:
@@ -609,6 +647,7 @@ async def batch_stream(
 
     total   = len(domain_list) + len(parse_errors)
     user_id = current_user.id
+    _disabled_ids = _get_disabled_test_ids(session)
 
     async def _stream():
         completed = 0
@@ -626,7 +665,7 @@ async def batch_stream(
 
         async def _scan_one(dom: str, cook: str, ip_str: str) -> dict:
             try:
-                return await _run_scan(dom, cook, ip_str)
+                return await _run_scan(dom, cook, ip_str, disabled_ids=_disabled_ids)
             except Exception as exc:
                 return {"domain": dom, "error": str(exc)}
 
@@ -1029,6 +1068,25 @@ async def lists_delete_domain(
     session.commit()
 
 
+@app.patch("/api/lists/{list_id}/domains/{domain_id}/toggle")
+async def lists_toggle_domain(
+    list_id: int,
+    domain_id: int,
+    current_user: User = Depends(auth.get_current_user),
+    session: Session = Depends(database.get_session),
+):
+    """Activa o desactiva un dominio de la lista (toggle de is_active)."""
+    _list_or_404(list_id, session, current_user)
+    d = session.get(ListDomain, domain_id)
+    if not d or d.list_id != list_id:
+        raise HTTPException(status_code=404, detail="Dominio no encontrado en la lista")
+    d.is_active = not d.is_active
+    session.add(d)
+    session.commit()
+    session.refresh(d)
+    return {"id": d.id, "is_active": d.is_active}
+
+
 @app.post("/api/lists/{list_id}/import-csv")
 async def lists_import_csv(
     list_id: int,
@@ -1150,6 +1208,7 @@ async def lists_scan_stream(
 
     total = len(domains)
     user_id = current_user.id
+    _disabled_ids = _get_disabled_test_ids(session)
 
     async def _stream():
         completed = 0
@@ -1157,7 +1216,7 @@ async def lists_scan_stream(
 
         async def _scan_one(d: ListDomain) -> dict:
             try:
-                return await _run_scan(d.domain, d.session_cookie, d.ip)
+                return await _run_scan(d.domain, d.session_cookie, d.ip, disabled_ids=_disabled_ids)
             except Exception as exc:
                 return {"domain": d.domain, "error": str(exc)}
 
@@ -1225,10 +1284,11 @@ async def lists_scan(
 
     async def _scan_one(d: ListDomain) -> dict:
         try:
-            return await _run_scan(d.domain, d.session_cookie, d.ip)
+            return await _run_scan(d.domain, d.session_cookie, d.ip, disabled_ids=_disabled_ids)
         except Exception as exc:
             return {"domain": d.domain, "error": str(exc)}
 
+    _disabled_ids = _get_disabled_test_ids(session)
     tasks = [asyncio.create_task(_scan_one(d)) for d in domains]
     scan_results = await asyncio.gather(*tasks, return_exceptions=True)
 

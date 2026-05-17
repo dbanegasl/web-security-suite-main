@@ -29,7 +29,7 @@ from apscheduler.triggers.cron import CronTrigger
 from sqlmodel import Session, select
 
 import database
-from models import ScheduledScan, ScanHistory, ScheduledScanRun
+from models import ScheduledScan, ScanHistory, ScheduledScanRun, TestCatalog
 
 log = logging.getLogger("wss.scheduler")
 
@@ -127,8 +127,24 @@ async def _run_scheduled_scan(schedule_id: int) -> None:
                 except Exception:
                     pass
 
+    # Obtener IDs de tests deshabilitados en el catálogo
+    with Session(database._engine) as session:
+        disabled_ids = {
+            r.id for r in session.exec(
+                select(TestCatalog).where(TestCatalog.is_active == False)  # noqa: E712
+            ).all()
+        }
+
     # Ejecutar scan
     try:
+        from wss.core.scanner import _ensure_tests_loaded
+        from wss.core.registry import TEST_REGISTRY
+        _ensure_tests_loaded()
+        active_ids: Optional[list[str]] = None
+        if disabled_ids:
+            all_ids = {m.id for m in TEST_REGISTRY}
+            active_ids = sorted(all_ids - disabled_ids)
+
         import re as _re
         _clean = _re.sub(r"^https?://", "", schedule.domain)
         if "/" in _clean:
@@ -144,7 +160,23 @@ async def _run_scheduled_scan(schedule_id: int) -> None:
             session_cookie=schedule.session_cookie or "",
             ip=schedule.ip or "",
         )
-        results = await _wss_scan(ctx)
+        results = await _wss_scan(ctx, test_ids=active_ids)
+
+        # SKIP sintéticos para tests deshabilitados
+        if disabled_ids:
+            from wss.core.result import Result as _Result
+            for meta in sorted(TEST_REGISTRY, key=lambda m: m.id):
+                if meta.id in disabled_ids:
+                    skip_r = _Result.skip("Test deshabilitado por el administrador")
+                    skip_r.id = meta.id
+                    skip_r.name = meta.name
+                    skip_r.block = meta.block
+                    skip_r.severity = meta.severity
+                    skip_r.cwe = meta.cwe
+                    skip_r.duration_ms = 0.0
+                    results.append(skip_r)
+            results.sort(key=lambda r: r.id)
+
         output = _json_generate(results, schedule.domain, f"https://{_host}{_base_path}")
         data = json.loads(output)
     except Exception as exc:
