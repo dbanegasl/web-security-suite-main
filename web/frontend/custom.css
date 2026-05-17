@@ -1118,3 +1118,56 @@ body.is-admin .admin-only-el { display: revert !important; }
   font-size: 0.78rem;
 }
 tr.wss-hidden { display: none; }
+
+/* ── Cron preset chips ────────────────────────────────────────── */
+.cron-preset-chip {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  line-height: 1.4;
+  transition: background-color 0.15s, color 0.15s;
+}
+.cron-preset-chip.active {
+  background-color: var(--bs-secondary);
+  border-color: var(--bs-secondary);
+  color: #fff;
+}
+.cron-preset-chip code {
+  font-size: 0.72rem;
+  color: inherit;
+  opacity: 0.85;
+}
+
+/* ── Cron field breakdown ─────────────────────────────────────── */
+.cron-field-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 2.8rem;
+}
+.cron-field-val {
+  font-size: 0.85rem;
+  background: var(--bs-secondary-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 4px;
+  padding: 1px 6px;
+  width: 100%;
+  text-align: center;
+  transition: border-color 0.15s, color 0.15s;
+}
+.cron-field-active .cron-field-val {
+  border-color: var(--bs-info);
+  color: var(--bs-info);
+}
+.cron-field-lbl {
+  font-size: 0.65rem;
+  color: var(--bs-secondary-color);
+  text-align: center;
+  white-space: nowrap;
+}
+.cron-field-sep {
+  font-size: 1rem;
+  padding-bottom: 1.4rem;
+  line-height: 1;
+  user-select: none;
+}

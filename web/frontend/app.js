@@ -3303,6 +3303,146 @@ function _renderScheduleRow(s) {
 }
 
 // ── Modal crear/editar ────────────────────────────────────────────────────────
+// ── Desglose visual y traducción de expresión cron ─────────────────────────
+
+function _parseCronHuman(parts) {
+  const [min, hour, dom, month, dow] = parts;
+  const _num = v => v.padStart(2, '0');
+  const _days = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  const _mons = ['','enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+  // Cada minuto
+  if (parts.every(p => p === '*')) return 'Cada minuto';
+
+  // Cada N minutos
+  if (/^\*\/\d+$/.test(min) && parts.slice(1).every(p => p === '*'))
+    return `Cada ${min.slice(2)} minutos`;
+
+  // Cada hora (minuto fijo)
+  if (/^\d+$/.test(min) && hour === '*' && dom === '*' && month === '*' && dow === '*')
+    return `Cada hora, en el minuto ${min}`;
+
+  // Cada N horas
+  if (/^\d+$/.test(min) && /^\*\/\d+$/.test(hour) && dom === '*' && month === '*' && dow === '*')
+    return `Cada ${hour.slice(2)} horas, al minuto ${min}`;
+
+  // Diario
+  if (/^\d+$/.test(min) && /^\d+$/.test(hour) && dom === '*' && month === '*' && dow === '*')
+    return `Todos los días a las ${_num(hour)}:${_num(min)} UTC`;
+
+  // Semanal (un día específico)
+  if (/^\d+$/.test(min) && /^\d+$/.test(hour) && dom === '*' && month === '*' && /^\d+$/.test(dow)) {
+    const d = _days[parseInt(dow)] || `día ${dow}`;
+    return `Cada ${d} a las ${_num(hour)}:${_num(min)} UTC`;
+  }
+
+  // Mensual (día específico del mes)
+  if (/^\d+$/.test(min) && /^\d+$/.test(hour) && /^\d+$/.test(dom) && month === '*' && dow === '*')
+    return `El día ${dom} de cada mes a las ${_num(hour)}:${_num(min)} UTC`;
+
+  // Anual (día y mes específicos)
+  if (/^\d+$/.test(min) && /^\d+$/.test(hour) && /^\d+$/.test(dom) && /^\d+$/.test(month) && dow === '*') {
+    const m = _mons[parseInt(month)] || `mes ${month}`;
+    return `El ${dom} de ${m} a las ${_num(hour)}:${_num(min)} UTC`;
+  }
+
+  return null; // expresión compleja — no se traduce automáticamente
+}
+
+function updateCronBreakdown(expr) {
+  const breakdown = document.getElementById('cron-breakdown');
+  if (!breakdown) return;
+  const parts = (expr || '').trim().split(/\s+/);
+  if (parts.length !== 5 || parts.some(p => !p)) {
+    breakdown.classList.add('d-none');
+    return;
+  }
+  breakdown.classList.remove('d-none');
+  parts.forEach((v, i) => {
+    const el = document.getElementById(`cbv-${i}`);
+    if (el) el.textContent = v;
+    const box = document.getElementById(`cbf-${i}`);
+    if (box) box.classList.toggle('cron-field-active', v !== '*');
+  });
+  const humanEl = document.getElementById('cron-human-text');
+  if (humanEl) {
+    const txt = _parseCronHuman(parts);
+    humanEl.textContent = txt ? `→ ${txt}` : '';
+    humanEl.style.display = txt ? '' : 'none';
+  }
+}
+
+// ── Presets de expresión cron ──────────────────────────────────────────────
+
+const _CRON_PRESETS = [
+  { label: "Cada minuto",       cron: "* * * * *",    desc: "Se ejecuta cada 60 s. Recomendado solo para pruebas." },
+  { label: "Cada 5 min",        cron: "*/5 * * * *",  desc: "Cada 5 minutos, las 24 h del día." },
+  { label: "Cada 15 min",       cron: "*/15 * * * *", desc: "Cada cuarto de hora." },
+  { label: "Cada 30 min",       cron: "*/30 * * * *", desc: "Cada media hora." },
+  { label: "Cada hora",         cron: "0 * * * *",    desc: "Al inicio de cada hora (minuto 0)." },
+  { label: "Cada 6 horas",      cron: "0 */6 * * *",  desc: "A las 00:00, 06:00, 12:00 y 18:00 UTC." },
+  { label: "Diario 08:00 UTC",  cron: "0 8 * * *",    desc: "Todos los días a las 08:00 UTC." },
+  { label: "Diario medianoche", cron: "0 0 * * *",    desc: "Todos los días a las 00:00 UTC." },
+  { label: "Lunes 08:00 UTC",   cron: "0 8 * * 1",    desc: "Cada lunes a las 08:00 UTC. Buena opción para auditorías semanales." },
+  { label: "Domingo medianoche",cron: "0 0 * * 0",    desc: "Cada domingo a las 00:00 UTC." },
+  { label: "Mensual día 1",     cron: "0 8 1 * *",    desc: "El primer día de cada mes a las 08:00 UTC." },
+];
+
+let _cronPresetsBuilt = false;
+
+function _buildCronPresets() {
+  if (_cronPresetsBuilt) return;
+  _cronPresetsBuilt = true;
+  const container = document.getElementById("cron-preset-chips");
+  if (!container) return;
+  _CRON_PRESETS.forEach((p, i) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn-sm btn-outline-secondary cron-preset-chip";
+    btn.dataset.index = i;
+    btn.innerHTML = `<span class="fw-semibold">${p.label}</span> <code class="ms-1 small">${p.cron}</code>`;
+    btn.addEventListener("click", () => _selectCronPreset(p, btn));
+    btn.addEventListener("mouseenter", () => {
+      document.getElementById("cron-preset-desc").textContent = p.desc;
+    });
+    btn.addEventListener("mouseleave", () => {
+      const active = container.querySelector(".cron-preset-chip.active");
+      document.getElementById("cron-preset-desc").textContent = active
+        ? _CRON_PRESETS[active.dataset.index].desc : "";
+    });
+    container.appendChild(btn);
+  });
+}
+
+function _selectCronPreset(preset, btn) {
+  document.getElementById("sched-cron").value = preset.cron;
+  document.getElementById("cron-preset-desc").textContent = preset.desc;
+  document.querySelectorAll(".cron-preset-chip").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  updateCronBreakdown(preset.cron);
+}
+
+function toggleCronPresets() {
+  _buildCronPresets();
+  const panel   = document.getElementById("cron-presets");
+  const chevron = document.getElementById("cron-presets-chevron");
+  const hidden  = panel.classList.toggle("d-none");
+  chevron.classList.toggle("fa-chevron-down", hidden);
+  chevron.classList.toggle("fa-chevron-up",  !hidden);
+}
+
+function _resetCronPresets() {
+  const panel = document.getElementById("cron-presets");
+  if (panel && !panel.classList.contains("d-none")) {
+    panel.classList.add("d-none");
+    const chevron = document.getElementById("cron-presets-chevron");
+    if (chevron) { chevron.classList.add("fa-chevron-down"); chevron.classList.remove("fa-chevron-up"); }
+  }
+  document.querySelectorAll(".cron-preset-chip").forEach(b => b.classList.remove("active"));
+  const desc = document.getElementById("cron-preset-desc");
+  if (desc) desc.textContent = "";
+}
+
 function openScheduleModal(scheduleId) {
   const modalEl = document.getElementById("modal-schedule");
   if (!modalEl) return;
@@ -3312,6 +3452,8 @@ function openScheduleModal(scheduleId) {
   const idInput = document.getElementById("sched-id");
 
   document.getElementById("form-schedule")?.reset();
+  _resetCronPresets();
+  updateCronBreakdown('');
 
   if (scheduleId == null) {
     if (titleEl) titleEl.textContent = "Nuevo escaneo programado";
@@ -3326,6 +3468,7 @@ function openScheduleModal(scheduleId) {
     document.getElementById("sched-ip").value      = sched.ip || "";
     document.getElementById("sched-cookie").value  = sched.session_cookie || "";
     document.getElementById("sched-cron").value    = sched.cron_expression;
+    updateCronBreakdown(sched.cron_expression);
     document.getElementById("sched-severity").value = sched.min_severity;
     document.getElementById("sched-webhook").value = sched.webhook_url || "";
     document.getElementById("sched-notify-new-only").checked = sched.notify_on_new_fail;

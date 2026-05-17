@@ -739,8 +739,43 @@
                 <!-- Cron expression -->
                 <div class="col-md-6">
                   <label class="form-label fw-semibold">Expresión cron <span class="text-danger">*</span></label>
-                  <input type="text" id="sched-cron" class="form-control font-monospace" placeholder="0 8 * * 1" maxlength="64" required>
-                  <div class="form-text">Formato: minuto hora día mes díasemana (UTC). Ej: <code>0 8 * * 1</code> = lunes 08:00 UTC</div>
+                  <input type="text" id="sched-cron" class="form-control font-monospace" placeholder="0 8 * * 1" maxlength="64" required oninput="updateCronBreakdown(this.value)">
+                  <!-- Desglose visual en tiempo real -->
+                  <div id="cron-breakdown" class="mt-2 d-none">
+                    <div class="d-flex gap-1 align-items-end mb-1" id="cron-fields-row">
+                      <div class="cron-field-box" id="cbf-0"><div class="cron-field-val font-monospace" id="cbv-0">*</div><div class="cron-field-lbl">minuto</div></div>
+                      <div class="cron-field-sep text-muted">·</div>
+                      <div class="cron-field-box" id="cbf-1"><div class="cron-field-val font-monospace" id="cbv-1">*</div><div class="cron-field-lbl">hora</div></div>
+                      <div class="cron-field-sep text-muted">·</div>
+                      <div class="cron-field-box" id="cbf-2"><div class="cron-field-val font-monospace" id="cbv-2">*</div><div class="cron-field-lbl">día mes</div></div>
+                      <div class="cron-field-sep text-muted">·</div>
+                      <div class="cron-field-box" id="cbf-3"><div class="cron-field-val font-monospace" id="cbv-3">*</div><div class="cron-field-lbl">mes</div></div>
+                      <div class="cron-field-sep text-muted">·</div>
+                      <div class="cron-field-box" id="cbf-4"><div class="cron-field-val font-monospace" id="cbv-4">*</div><div class="cron-field-lbl">día sem.</div></div>
+                    </div>
+                    <div class="form-text" id="cron-human-text"></div>
+                  </div>
+                  <div class="form-text mb-1 mt-1">
+                    Formato: <code>minuto hora día-mes mes día-semana</code> (UTC)
+                    &nbsp;·&nbsp;
+                    <code>*</code> = cualquiera
+                    &nbsp;·&nbsp;
+                    <code>*/N</code> = cada N
+                    &nbsp;·&nbsp;
+                    <code>N</code> = valor exacto
+                  </div>
+                  <!-- Guía rápida de presets cron -->
+                  <div id="cron-presets-wrap">
+                    <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-muted"
+                      onclick="toggleCronPresets()" id="cron-presets-toggle">
+                      <i class="fa-solid fa-wand-magic-sparkles fa-fw me-1"></i>Atajos de frecuencia
+                      <i class="fa-solid fa-chevron-down fa-xs ms-1" id="cron-presets-chevron"></i>
+                    </button>
+                    <div id="cron-presets" class="d-none mt-2">
+                      <div class="d-flex flex-wrap gap-1" id="cron-preset-chips"></div>
+                      <div class="form-text mt-1" id="cron-preset-desc" style="min-height:1.2em"></div>
+                    </div>
+                  </div>
                 </div>
                 <!-- Severidad mínima -->
                 <div class="col-md-6">
