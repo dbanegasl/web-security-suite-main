@@ -59,6 +59,7 @@ async def _run_scan(
     from wss.reporters.table import print_results
     from wss.reporters.markdown import generate_individual
     from wss.reporters.json_reporter import generate as json_generate
+    from wss.reporters.sarif_reporter import generate as sarif_generate
 
     ctx = _build_context(domain, session_cookie, ip)
     scanned_at = datetime.now()
@@ -91,6 +92,14 @@ async def _run_scan(
         else:
             print(content)
 
+    elif fmt == "sarif":
+        content = sarif_generate(results, domain=domain, scanned_at=scanned_at)
+        if output:
+            output.write_text(content, encoding="utf-8")
+            console.print(f"  [green]Reporte SARIF guardado en {output}[/]")
+        else:
+            print(content)
+
     s = summary(results)
     return 0 if s["FAIL"] == 0 else 1
 
@@ -118,7 +127,7 @@ def scan(
         "table",
         "--format", "-f",
         envvar="OUTPUT_FORMAT",
-        help="Formato de salida: table | json | markdown",
+        help="Formato de salida: table | json | markdown | sarif",
     ),
     output: Optional[Path] = typer.Option(
         None,

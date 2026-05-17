@@ -1,0 +1,62 @@
+name: WSS Security Scan
+
+on:
+  # Escanea en cada push a main y en PRs
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # Permite ejecutar manualmente desde la UI de Actions
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: "Dominio a escanear (sin https://)"
+        required: true
+        default: "example.com"
+
+jobs:
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install wss
+        run: |
+          pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run security scan (SARIF output)
+        env:
+          DOMAIN: ${{ inputs.domain || vars.WSS_DOMAIN || 'example.com' }}
+        run: |
+          python -m wss \
+            --domain "$DOMAIN" \
+            --format sarif \
+            --output results.sarif
+        # El scan devuelve exit code 1 si hay FAILs.
+        # continue-on-error para que el paso de upload-sarif siempre se ejecute.
+        continue-on-error: true
+
+      - name: Upload SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('results.sarif') != ''
+        with:
+          sarif_file: results.sarif
+          category: wss-security-scan
+
+      - name: Upload SARIF as artifact
+        uses: actions/upload-artifact@v4
+        if: always() && hashFiles('results.sarif') != ''
+        with:
+          name: sarif-report
+          path: results.sarif
+          retention-days: 90
