@@ -96,6 +96,7 @@
       <li><a href="#" class="nav-item" data-view="lists"><i class="fa-solid fa-clipboard-list fa-fw me-2"></i>Análisis listas</a></li>
       <li><a href="#" class="nav-item" data-view="history"><i class="fa-solid fa-clock-rotate-left fa-fw me-2"></i>Historial</a></li>
       <li><a href="#" class="nav-item" data-view="evolution"><i class="fa-solid fa-chart-line fa-fw me-2"></i>Evolución</a></li>
+      <li id="nav-schedules-item" class="hidden"><a href="#" class="nav-item" data-view="schedules"><i class="fa-solid fa-calendar-check fa-fw me-2"></i>Programados</a></li>
       <li id="nav-admin-item" class="hidden"><a href="#" class="nav-item" data-view="admin"><i class="fa-solid fa-users-gear fa-fw me-2"></i>Administración</a></li>
       <li id="nav-settings-item"><a href="#" class="nav-item" data-view="settings"><i class="fa-solid fa-gear fa-fw me-2"></i>Configuración</a></li>
     </ul>
@@ -666,6 +667,122 @@
         </div>
       </div>
     </section>
+
+    <!-- ══ Vista: Escaneos Programados (Fase 4) ══ -->
+    <section id="view-schedules" class="view">
+      <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <h1 class="h4 fw-semibold mb-0"><i class="fa-solid fa-calendar-check me-2"></i>Escaneos Programados</h1>
+        <button class="btn btn-primary btn-sm" onclick="openScheduleModal(null)">
+          <i class="fa-solid fa-plus me-1"></i>Nuevo programado
+        </button>
+      </div>
+
+      <!-- Tabla de schedules -->
+      <div class="card shadow-sm">
+        <div class="card-body p-0">
+          <div id="schedules-loading" class="text-center py-4"><div class="spinner-border spinner-border-sm me-2"></div>Cargando...</div>
+          <div id="schedules-empty" class="text-center text-muted py-5 hidden">
+            <i class="fa-solid fa-calendar-xmark fa-2x mb-2"></i>
+            <p class="mb-0">No hay escaneos programados. Crea el primero con el botón <strong>+ Nuevo programado</strong>.</p>
+          </div>
+          <div class="table-responsive">
+            <table id="schedules-table" class="table table-hover align-middle mb-0 hidden">
+              <thead class="table-header-custom">
+                <tr>
+                  <th>Nombre</th>
+                  <th>Dominio</th>
+                  <th>Cron</th>
+                  <th>Próxima ejecución</th>
+                  <th>Última ejecución</th>
+                  <th>Estado</th>
+                  <th class="text-end">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="schedules-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Modal: Crear / Editar Schedule -->
+    <div class="modal fade" id="modal-schedule" tabindex="-1" aria-labelledby="modal-schedule-title" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="modal-schedule-title">Nuevo escaneo programado</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="form-schedule" novalidate>
+              <input type="hidden" id="sched-id" value="">
+              <div class="row g-3">
+                <!-- Nombre -->
+                <div class="col-12">
+                  <label class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
+                  <input type="text" id="sched-name" class="form-control" placeholder="Ej: Scan semanal producción" maxlength="128" required>
+                </div>
+                <!-- Dominio + IP -->
+                <div class="col-md-8">
+                  <label class="form-label fw-semibold">Dominio <span class="text-danger">*</span></label>
+                  <input type="text" id="sched-domain" class="form-control" placeholder="ejemplo.com" maxlength="253" required>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">IP forzada <small class="text-muted fw-normal">(opcional)</small></label>
+                  <input type="text" id="sched-ip" class="form-control" placeholder="1.2.3.4" maxlength="45">
+                </div>
+                <!-- Cookie -->
+                <div class="col-12">
+                  <label class="form-label fw-semibold">Cookie de sesión <small class="text-muted fw-normal">(opcional)</small></label>
+                  <input type="text" id="sched-cookie" class="form-control" placeholder="session_id=abc123" maxlength="128">
+                </div>
+                <!-- Cron expression -->
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Expresión cron <span class="text-danger">*</span></label>
+                  <input type="text" id="sched-cron" class="form-control font-monospace" placeholder="0 8 * * 1" maxlength="64" required>
+                  <div class="form-text">Formato: minuto hora día mes díasemana (UTC). Ej: <code>0 8 * * 1</code> = lunes 08:00 UTC</div>
+                </div>
+                <!-- Severidad mínima -->
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Severidad mínima para notificar</label>
+                  <select id="sched-severity" class="form-select">
+                    <option value="LOW">LOW</option>
+                    <option value="MEDIUM">MEDIUM</option>
+                    <option value="HIGH" selected>HIGH</option>
+                    <option value="CRITICAL">CRITICAL</option>
+                  </select>
+                </div>
+                <!-- Webhook URL -->
+                <div class="col-12">
+                  <label class="form-label fw-semibold">Webhook URL <small class="text-muted fw-normal">(Slack / Teams / genérico)</small></label>
+                  <input type="url" id="sched-webhook" class="form-control" placeholder="https://hooks.slack.com/services/..." maxlength="512">
+                  <div class="form-text">Debe comenzar con <code>https://</code>. Dejar vacío para no notificar.</div>
+                </div>
+                <!-- Checkboxes -->
+                <div class="col-md-6">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="sched-notify-new-only" checked>
+                    <label class="form-check-label" for="sched-notify-new-only">Solo notificar nuevos FAILs (respecto al anterior)</label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="sched-active" checked>
+                    <label class="form-check-label" for="sched-active">Activo</label>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" onclick="saveSchedule()">
+              <i class="fa-solid fa-floppy-disk me-1"></i>Guardar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- ══ Vista: Administración de usuarios (C.6 — solo admin) ══ -->
     <section id="view-admin" class="view">

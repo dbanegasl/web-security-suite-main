@@ -5,6 +5,9 @@ sqlmodel>=0.0.21
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
 bcrypt>=3.2.0,<4.0.0
+# scheduler
+apscheduler>=3.10
+pyyaml>=6.0
 # wss core dependencies
 httpx[http2]>=0.27
 dnspython>=2.6

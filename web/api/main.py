@@ -26,7 +26,8 @@ from sqlmodel import Session, col, delete as sql_delete, func, select
 
 import auth
 import database
-from models import DomainList, ListDomain, PlatformSetting, ScanHistory, TestCatalog, User
+import scheduler as _scheduler_mod
+from models import DomainList, ListDomain, PlatformSetting, ScanHistory, ScheduledScan, TestCatalog, User
 
 # wss Python core (evita subprocess)
 from wss.core.context import ScanContext
@@ -76,6 +77,14 @@ def on_startup() -> None:
             ))
             session.commit()
             print(f"INFO: Usuario admin '{FIRST_ADMIN_USER}' creado")
+    # Arrancar scheduler de escaneos programados
+    _scheduler_mod.start_scheduler()
+
+
+@app.on_event("shutdown")
+def on_shutdown() -> None:
+    _scheduler_mod.stop_scheduler()
+
 
 # ── Patrones de validación ─────────────────────────────────────────────────────
 _DOMAIN_RE = re.compile(
@@ -1657,3 +1666,212 @@ async def users_me_password_change(
     session.add(u)
     session.commit()
     return {"ok": True}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SCHEDULES — Escaneos programados (cron)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Severidades aceptadas como umbral
+_VALID_SEVERITIES = {"LOW", "MEDIUM", "HIGH", "CRITICAL"}
+
+# Validador cron
+def _validate_cron(expr: str) -> None:
+    from apscheduler.triggers.cron import CronTrigger
+    try:
+        CronTrigger.from_crontab(expr, timezone="UTC")
+    except Exception:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Expresión cron inválida: '{expr}'. Usar formato '*/m h d M dow'",
+        )
+
+
+class ScheduleCreateRequest(BaseModel):
+    name: str
+    domain: str
+    cron_expression: str
+    session_cookie: str = ""
+    ip: str = ""
+    webhook_url: str = ""
+    min_severity: str = "HIGH"
+    notify_on_new_fail: bool = True
+    is_active: bool = True
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        v = v.strip()
+        if not v or len(v) > 128:
+            raise ValueError("El nombre debe tener entre 1 y 128 caracteres")
+        return v
+
+    @field_validator("domain")
+    @classmethod
+    def validate_domain(cls, v: str) -> str:
+        v = v.strip()
+        if not _DOMAIN_RE.match(v):
+            raise ValueError("Dominio inválido")
+        return v
+
+    @field_validator("webhook_url")
+    @classmethod
+    def validate_webhook_url(cls, v: str) -> str:
+        if v and not v.startswith("https://"):
+            raise ValueError("El webhook_url debe usar HTTPS")
+        return v
+
+    @field_validator("min_severity")
+    @classmethod
+    def validate_severity(cls, v: str) -> str:
+        v = v.upper()
+        if v not in _VALID_SEVERITIES:
+            raise ValueError(f"Severidad inválida: {v}. Usar: {', '.join(_VALID_SEVERITIES)}")
+        return v
+
+
+class ScheduleUpdateRequest(ScheduleCreateRequest):
+    """Mismo esquema que Create — todos los campos requeridos en PUT."""
+    pass
+
+
+def _schedule_to_dict(sched: ScheduledScan) -> dict:
+    return {
+        "id": sched.id,
+        "name": sched.name,
+        "domain": sched.domain,
+        "cron_expression": sched.cron_expression,
+        "session_cookie": sched.session_cookie,
+        "ip": sched.ip,
+        "webhook_url": sched.webhook_url,
+        "min_severity": sched.min_severity,
+        "notify_on_new_fail": sched.notify_on_new_fail,
+        "is_active": sched.is_active,
+        "last_run": sched.last_run.isoformat().replace("+00:00", "Z") if sched.last_run else None,
+        "last_scan_id": sched.last_scan_id,
+        "created_at": sched.created_at.isoformat().replace("+00:00", "Z") if sched.created_at else None,
+        "next_run": _scheduler_mod.next_run_utc(sched.id),
+    }
+
+
+@app.get("/api/schedules")
+async def schedules_list(
+    current_user: User = Depends(_require_admin),
+    session: Session = Depends(database.get_session),
+):
+    rows = session.exec(select(ScheduledScan).order_by(col(ScheduledScan.id))).all()
+    return [_schedule_to_dict(r) for r in rows]
+
+
+@app.post("/api/schedules", status_code=201)
+async def schedules_create(
+    body: ScheduleCreateRequest,
+    current_user: User = Depends(_require_admin),
+    session: Session = Depends(database.get_session),
+):
+    _validate_cron(body.cron_expression)
+    sched = ScheduledScan(
+        name=body.name,
+        domain=body.domain,
+        cron_expression=body.cron_expression,
+        session_cookie=body.session_cookie,
+        ip=body.ip,
+        webhook_url=body.webhook_url,
+        min_severity=body.min_severity.upper(),
+        notify_on_new_fail=body.notify_on_new_fail,
+        is_active=body.is_active,
+        created_by=current_user.id,
+    )
+    session.add(sched)
+    session.commit()
+    session.refresh(sched)
+    _scheduler_mod.reload_job(sched.id)
+    return _schedule_to_dict(sched)
+
+
+@app.get("/api/schedules/{schedule_id}")
+async def schedules_get(
+    schedule_id: int,
+    current_user: User = Depends(_require_admin),
+    session: Session = Depends(database.get_session),
+):
+    sched = session.get(ScheduledScan, schedule_id)
+    if not sched:
+        raise HTTPException(status_code=404, detail="Schedule no encontrado")
+    return _schedule_to_dict(sched)
+
+
+@app.put("/api/schedules/{schedule_id}")
+async def schedules_update(
+    schedule_id: int,
+    body: ScheduleUpdateRequest,
+    current_user: User = Depends(_require_admin),
+    session: Session = Depends(database.get_session),
+):
+    sched = session.get(ScheduledScan, schedule_id)
+    if not sched:
+        raise HTTPException(status_code=404, detail="Schedule no encontrado")
+    _validate_cron(body.cron_expression)
+    sched.name = body.name
+    sched.domain = body.domain
+    sched.cron_expression = body.cron_expression
+    sched.session_cookie = body.session_cookie
+    sched.ip = body.ip
+    sched.webhook_url = body.webhook_url
+    sched.min_severity = body.min_severity.upper()
+    sched.notify_on_new_fail = body.notify_on_new_fail
+    sched.is_active = body.is_active
+    session.add(sched)
+    session.commit()
+    session.refresh(sched)
+    _scheduler_mod.reload_job(sched.id)
+    return _schedule_to_dict(sched)
+
+
+@app.delete("/api/schedules/{schedule_id}", status_code=204)
+async def schedules_delete(
+    schedule_id: int,
+    current_user: User = Depends(_require_admin),
+    session: Session = Depends(database.get_session),
+):
+    sched = session.get(ScheduledScan, schedule_id)
+    if not sched:
+        raise HTTPException(status_code=404, detail="Schedule no encontrado")
+    # Eliminar job del scheduler antes de borrar de BD
+    jid = f"wss_schedule_{schedule_id}"
+    if _scheduler_mod._scheduler.get_job(jid):
+        _scheduler_mod._scheduler.remove_job(jid)
+    session.delete(sched)
+    session.commit()
+    return Response(status_code=204)
+
+
+@app.patch("/api/schedules/{schedule_id}/toggle")
+async def schedules_toggle(
+    schedule_id: int,
+    current_user: User = Depends(_require_admin),
+    session: Session = Depends(database.get_session),
+):
+    sched = session.get(ScheduledScan, schedule_id)
+    if not sched:
+        raise HTTPException(status_code=404, detail="Schedule no encontrado")
+    sched.is_active = not sched.is_active
+    session.add(sched)
+    session.commit()
+    session.refresh(sched)
+    _scheduler_mod.reload_job(sched.id)
+    return _schedule_to_dict(sched)
+
+
+@app.post("/api/schedules/{schedule_id}/run-now", status_code=202)
+async def schedules_run_now(
+    schedule_id: int,
+    current_user: User = Depends(_require_admin),
+    session: Session = Depends(database.get_session),
+):
+    sched = session.get(ScheduledScan, schedule_id)
+    if not sched:
+        raise HTTPException(status_code=404, detail="Schedule no encontrado")
+    # Lanzar en segundo plano sin bloquear la petición
+    asyncio.create_task(_scheduler_mod._run_scheduled_scan(schedule_id))
+    return {"ok": True, "message": f"Escaneo de '{sched.domain}' iniciado en segundo plano"}

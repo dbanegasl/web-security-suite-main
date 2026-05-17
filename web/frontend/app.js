@@ -119,6 +119,12 @@ function applyUserUI() {
     if (user.role === "admin") adminItem.classList.remove("hidden");
     else adminItem.classList.add("hidden");
   }
+  // Mostrar enlace de schedules solo si el rol es admin
+  const schedulesItem = document.getElementById("nav-schedules-item");
+  if (schedulesItem) {
+    if (user.role === "admin") schedulesItem.classList.remove("hidden");
+    else schedulesItem.classList.add("hidden");
+  }
   // Marcar body para ocultar/mostrar elementos admin-only-el via CSS
   document.body.classList.toggle("is-admin", user.role === "admin");
   // Versión en el footer del sidebar
@@ -1359,11 +1365,12 @@ const VIEW_TITLES = {
   history:    "Historial",
   evolution:  "Evolución",
   admin:      "Administración",
+  schedules:  "Programados",
   settings:   "Configuración",
   wiki:       "Wiki de tests"
 };
 
-const VALID_VIEWS = new Set(["home","individual","batch","lists","history","evolution","admin","settings","wiki"]);
+const VALID_VIEWS = new Set(["home","individual","batch","lists","history","evolution","admin","schedules","settings","wiki"]);
 
 // ── Wiki dinámica ─────────────────────────────────────────────────────────
 let _wikiData = null; // caché de la última respuesta de /api/tests
@@ -1786,6 +1793,8 @@ function navigateTo(target, { pushHash = true } = {}) {
   const user = getUser();
   // Proteger vista admin: redirigir a home si no es admin
   if (target === "admin" && user?.role !== "admin") target = "home";
+  // Proteger vista schedules: redirigir a home si no es admin
+  if (target === "schedules" && user?.role !== "admin") target = "home";
   // Actualizar título de sección en topbar
   const titleEl = document.getElementById("topbar-section-title");
   if (titleEl) titleEl.textContent = VIEW_TITLES[target] || target;
@@ -1810,6 +1819,7 @@ function navigateTo(target, { pushHash = true } = {}) {
   if (target === "lists")     loadListsIndex();
   if (target === "evolution") initEvolutionView();
   if (target === "admin")     loadAdminUsers();
+  if (target === "schedules") loadSchedulesView();
   if (target === "settings")  initSettingsView();
   if (target === "wiki")      initWikiView();
   // Al salir de la wiki, cerrar panel de detalle
@@ -3206,4 +3216,182 @@ function _showSettingsMsg(el, msg, type = "info") {
   if (!el) return;
   el.innerHTML = `<div class="alert alert-${type} py-1 px-2 small mb-0">${escapeHtml(msg)}</div>`;
   setTimeout(() => { if (el) el.innerHTML = ""; }, 4000);
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SCHEDULES — Escaneos Programados
+// ══════════════════════════════════════════════════════════════════════════════
+
+let _schedulesCache = [];
+
+// ── Cargar y renderizar tabla ─────────────────────────────────────────────────
+async function loadSchedulesView() {
+  const loadingEl = document.getElementById("schedules-loading");
+  const emptyEl   = document.getElementById("schedules-empty");
+  const tableEl   = document.getElementById("schedules-table");
+  const tbodyEl   = document.getElementById("schedules-tbody");
+
+  if (!tbodyEl) return;
+
+  loadingEl?.classList.remove("hidden");
+  emptyEl?.classList.add("hidden");
+  tableEl?.classList.add("hidden");
+
+  try {
+    _schedulesCache = await apiFetch("/api/schedules");
+    loadingEl?.classList.add("hidden");
+
+    if (!_schedulesCache.length) {
+      emptyEl?.classList.remove("hidden");
+      return;
+    }
+
+    tbodyEl.innerHTML = _schedulesCache.map(s => _renderScheduleRow(s)).join("");
+    tableEl?.classList.remove("hidden");
+  } catch (err) {
+    loadingEl?.classList.add("hidden");
+    showToast("Error al cargar programados: " + err.message, "danger");
+  }
+}
+
+function _fmtScheduleDate(iso) {
+  if (!iso) return '<span class="text-muted">—</span>';
+  const d = new Date(iso);
+  return d.toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" });
+}
+
+function _renderScheduleRow(s) {
+  const statusBadge = s.is_active
+    ? '<span class="badge bg-success">Activo</span>'
+    : '<span class="badge bg-secondary">Inactivo</span>';
+  const toggleLabel = s.is_active ? "Desactivar" : "Activar";
+  const toggleIcon  = s.is_active ? "fa-toggle-off" : "fa-toggle-on";
+
+  return `<tr data-schedule-id="${s.id}">
+    <td class="fw-semibold">${escapeHtml(s.name)}</td>
+    <td><code>${escapeHtml(s.domain)}</code></td>
+    <td><code class="font-monospace">${escapeHtml(s.cron_expression)}</code></td>
+    <td>${_fmtScheduleDate(s.next_run)}</td>
+    <td>${_fmtScheduleDate(s.last_run)}</td>
+    <td>${statusBadge}</td>
+    <td class="text-end">
+      <div class="d-flex justify-content-end gap-1 flex-wrap">
+        <button class="btn btn-sm btn-outline-primary" title="Ejecutar ahora"
+          onclick="runScheduleNow(${s.id})">
+          <i class="fa-solid fa-play fa-fw"></i>
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" title="${toggleLabel}"
+          onclick="toggleSchedule(${s.id})">
+          <i class="fa-solid ${toggleIcon} fa-fw"></i>
+        </button>
+        <button class="btn btn-sm btn-outline-warning" title="Editar"
+          onclick="openScheduleModal(${s.id})">
+          <i class="fa-solid fa-pen fa-fw"></i>
+        </button>
+        <button class="btn btn-sm btn-outline-danger" title="Eliminar"
+          onclick="deleteSchedule(${s.id}, '${escapeHtml(s.name).replace(/'/g,"\\'")}')">
+          <i class="fa-solid fa-trash fa-fw"></i>
+        </button>
+      </div>
+    </td>
+  </tr>`;
+}
+
+// ── Modal crear/editar ────────────────────────────────────────────────────────
+function openScheduleModal(scheduleId) {
+  const modalEl = document.getElementById("modal-schedule");
+  if (!modalEl) return;
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+  const titleEl = document.getElementById("modal-schedule-title");
+  const idInput = document.getElementById("sched-id");
+
+  document.getElementById("form-schedule")?.reset();
+
+  if (scheduleId == null) {
+    if (titleEl) titleEl.textContent = "Nuevo escaneo programado";
+    if (idInput) idInput.value = "";
+  } else {
+    const sched = _schedulesCache.find(s => s.id === scheduleId);
+    if (!sched) return;
+    if (titleEl) titleEl.textContent = "Editar escaneo programado";
+    if (idInput) idInput.value = sched.id;
+    document.getElementById("sched-name").value    = sched.name;
+    document.getElementById("sched-domain").value  = sched.domain;
+    document.getElementById("sched-ip").value      = sched.ip || "";
+    document.getElementById("sched-cookie").value  = sched.session_cookie || "";
+    document.getElementById("sched-cron").value    = sched.cron_expression;
+    document.getElementById("sched-severity").value = sched.min_severity;
+    document.getElementById("sched-webhook").value = sched.webhook_url || "";
+    document.getElementById("sched-notify-new-only").checked = sched.notify_on_new_fail;
+    document.getElementById("sched-active").checked = sched.is_active;
+  }
+
+  modal.show();
+}
+
+async function saveSchedule() {
+  const idVal   = document.getElementById("sched-id")?.value;
+  const payload = {
+    name:              document.getElementById("sched-name")?.value.trim(),
+    domain:            document.getElementById("sched-domain")?.value.trim(),
+    ip:                document.getElementById("sched-ip")?.value.trim(),
+    session_cookie:    document.getElementById("sched-cookie")?.value.trim(),
+    cron_expression:   document.getElementById("sched-cron")?.value.trim(),
+    min_severity:      document.getElementById("sched-severity")?.value,
+    webhook_url:       document.getElementById("sched-webhook")?.value.trim(),
+    notify_on_new_fail: document.getElementById("sched-notify-new-only")?.checked,
+    is_active:         document.getElementById("sched-active")?.checked,
+  };
+
+  if (!payload.name || !payload.domain || !payload.cron_expression) {
+    showToast("Nombre, dominio y expresión cron son obligatorios.", "warning");
+    return;
+  }
+
+  try {
+    if (idVal) {
+      await apiPut(`/api/schedules/${idVal}`, payload);
+      showToast("Programado actualizado.", "success");
+    } else {
+      await apiPost("/api/schedules", payload);
+      showToast("Programado creado.", "success");
+    }
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("modal-schedule")).hide();
+    await loadSchedulesView();
+  } catch (err) {
+    showToast("Error: " + err.message, "danger");
+  }
+}
+
+// ── Acciones de fila ──────────────────────────────────────────────────────────
+async function toggleSchedule(scheduleId) {
+  try {
+    await apiFetch(`/api/schedules/${scheduleId}/toggle`, { method: "PATCH" });
+    await loadSchedulesView();
+  } catch (err) {
+    showToast("Error al cambiar estado: " + err.message, "danger");
+  }
+}
+
+async function runScheduleNow(scheduleId) {
+  try {
+    const sched = _schedulesCache.find(s => s.id === scheduleId);
+    await apiFetch(`/api/schedules/${scheduleId}/run-now`, { method: "POST" });
+    showToast(`Escaneo de '${sched?.domain || scheduleId}' iniciado en segundo plano.`, "info");
+  } catch (err) {
+    showToast("Error al ejecutar: " + err.message, "danger");
+  }
+}
+
+async function deleteSchedule(scheduleId, name) {
+  if (!confirm(`¿Eliminar el programado "${name}"? Esta acción no se puede deshacer.`)) return;
+  try {
+    await apiFetch(`/api/schedules/${scheduleId}`, { method: "DELETE" });
+    showToast("Programado eliminado.", "success");
+    await loadSchedulesView();
+  } catch (err) {
+    showToast("Error al eliminar: " + err.message, "danger");
+  }
 }

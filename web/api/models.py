@@ -67,6 +67,27 @@ class ScanHistory(SQLModel, table=True):
     list_id: Optional[int] = Field(default=None, foreign_key="domain_lists.id")
 
 
+class ScheduledScan(SQLModel, table=True):
+    """Configuración de un escaneo periódico programado."""
+
+    __tablename__ = "scheduled_scans"  # type: ignore[assignment]
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(max_length=128)                         # nombre descriptivo
+    domain: str = Field(index=True, max_length=253)
+    session_cookie: str = Field(default="", max_length=128)
+    ip: str = Field(default="", max_length=45)                # IP forzada opcional
+    cron_expression: str = Field(max_length=64)               # e.g. "0 8 * * 1"
+    is_active: bool = Field(default=True)
+    webhook_url: str = Field(default="", max_length=512)      # Slack / Teams / genérico
+    min_severity: str = Field(default="HIGH", max_length=16)  # LOW|MEDIUM|HIGH|CRITICAL
+    notify_on_new_fail: bool = Field(default=True)            # notificar solo nuevos FAILs
+    last_run: Optional[datetime] = Field(default=None)
+    last_scan_id: Optional[int] = Field(default=None, foreign_key="scan_history.id")
+    created_by: Optional[int] = Field(default=None, foreign_key="users.id")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 class TestCatalog(SQLModel, table=True):
     """Catálogo de tests sincronizado desde TEST_REGISTRY en cada arranque."""
 
