@@ -143,7 +143,7 @@ async def _run_scheduled_scan(schedule_id: int) -> None:
             ip=schedule.ip or "",
         )
         results = await _wss_scan(ctx)
-        output = _json_generate(results, schedule.domain)
+        output = _json_generate(results, schedule.domain, f"https://{_host}{_base_path}")
         data = json.loads(output)
     except Exception as exc:
         log.error("Error en escaneo programado id=%d: %s", schedule_id, exc)
