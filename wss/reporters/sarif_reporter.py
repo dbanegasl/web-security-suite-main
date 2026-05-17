@@ -82,7 +82,9 @@ def _build_rules(registry: list[TestMeta]) -> list[dict]:
 def _build_results(results: list[Result], domain: str) -> list[dict]:
     """Genera el array results[] con solo FAIL y WARN."""
     sarif_results = []
-    artifact_uri = f"https://{domain}/"
+    # GitHub Code Scanning requiere URIs con scheme "file" (relativas al SRCROOT).
+    # Usamos una ruta virtual que identifica el dominio escaneado.
+    artifact_uri = f"scanned/{domain}/index"
 
     for r in results:
         if r.status not in (Status.FAIL, Status.WARN):
