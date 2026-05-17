@@ -1,10 +1,12 @@
 # Referencia de tests — web-security-suite
 
-Especificación técnica (PRD) de los 25 tests incluidos en `scan-cli.sh` (v3.1). Cada test incluye descripción, criterio de resultado y snippet bash ejecutable de forma independiente.
+Especificación técnica de los 55 tests (v6.5). Los bloques 1-6 incluyen snippets bash independientes; los bloques 7-9 están implementados en Python (`wss/tests/block_7_*.py`, etc.). Para añadir tests, ver [creating-tests.md](creating-tests.md).
 
-> Los snippets asumen ejecución individual. En el script principal, los tests se invocan mediante `run_tests()` con soporte tanto para modo individual (con salida detallada) como para modo batch (silencioso, resultados almacenados en `BATCH_RESULTS`).
+> Los snippets bash de bloques 1-6 asumen ejecución independiente. En el motor Python `wss`, todos los tests usan `ScanContext` con httpx.
 
 **Referencia:** OWASP Top 10 · Security Headers · ZAP Active Scan rules
+
+> **Bloques 7-9** (TEST-26 a TEST-55): Archivos/rutas expuestas, DNS/Email/Dominio, Fingerprinting/Contenido — implementados en Python `wss`. Ver código en `wss/tests/block_7_*.py`, `block_8_*.py`, `block_9_*.py`.
 
 ---
 
@@ -399,4 +401,4 @@ else echo "⚠️  WARN — revisar si aplica a rutas autenticadas"; fi
 
 ---
 
-*Documento generado con asistencia de GitHub Copilot — DUOTICS 2026 · v3.1.*
+*Documento generado con asistencia de GitHub Copilot — DUOTICS 2026 · v6.5.*

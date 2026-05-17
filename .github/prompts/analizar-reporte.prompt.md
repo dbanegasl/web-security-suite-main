@@ -34,7 +34,7 @@ Analiza el reporte de seguridad indicado y produce un resumen ejecutivo orientad
    ### Tests omitidos (SKIP)
    Listado breve con motivo.
 
-   ### Tests superados (PASS): X/20
+   ### Tests superados (PASS): X/55
    ```
 
 5. **Para cada FAIL**, incluye:

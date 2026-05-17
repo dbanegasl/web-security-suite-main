@@ -1,25 +1,37 @@
 # web-security-suite — Agent Instructions
 
-Suite de auditoría de seguridad HTTP para dominios web. Un solo script Bash (`scan-cli.sh`) con **25 tests organizados en 6 bloques**. Complementado por una interfaz web Docker (FastAPI + SPA nginx).
+Suite de auditoría de seguridad HTTP para dominios web. Motor Python (`wss`) con **55 tests organizados en 9 bloques**. Interfaz web completa: SPA Bootstrap 5.3, FastAPI, SQLite, autenticación JWT, SSE en tiempo real.
 
 ## Estructura
 
 ```
-scan-cli.sh            # Script CLI interactivo — ejecución en terminal
-domains.csv            # Dominios para análisis batch (gitignored; usar domains.csv.example como base)
-reports/               # Reportes Markdown generados (contenido gitignored, carpeta trackeada)
+wss/                   # Motor Python de scanning
+  core/
+    scanner.py         # _wss_scan(), auto-discovery de bloques por pkgutil
+    registry.py        # Decorador @test, TEST_REGISTRY
+    context.py         # ScanContext (domain, ip, cookies, http_client, …)
+    result.py          # Result (pass/fail/warn/skip)
+    http_client.py     # httpx + ForcedIPTransport (replica curl --resolve)
+  tests/
+    block_1_cookies.py
+    block_2_transport.py
+    … (9 bloques, 55 tests)
+scan-cli.sh            # Script CLI legacy (Bash)
+domains.csv            # Dominios batch (gitignored; usar domains.csv.example como base)
+reports/               # Reportes Markdown (contenido gitignored, carpeta trackeada)
 docs/
-  tests-reference.md   # Especificación técnica de cada test (snippets bash independientes)
+  tests-reference.md   # Especificación técnica bloques 1-6
   usage-guide.md       # Guía operativa completa
+  creating-tests.md    # Cómo añadir un test Python
   security-tests-wiki.html
-web/                   # Interfaz web Docker (ver sección "Stack web" más abajo)
+web/                   # Interfaz web Docker
   docker-compose.yml
-  api/                 # FastAPI — endpoints /api/scan, /api/batch, /api/history
+  api/                 # FastAPI — main.py, auth.py, database.py, models.py
   frontend/            # SPA nginx — index.html, app.js, custom.css, version.json
 .github/
-  instructions/        # Reglas Copilot por patrón de archivo (version-bump.instructions.md)
+  instructions/        # Reglas Copilot por patrón de archivo
   prompts/             # Prompts reutilizables: añadir-test, analizar-reporte, release
-  skills/              # Skills Copilot: exportar-csv
+  skills/              # Skills Copilot
 ```
 
 ## Bloques de tests (fuente de verdad)
@@ -39,26 +51,43 @@ web/                   # Interfaz web Docker (ver sección "Stack web" más abaj
 | 9 | TEST-48 a TEST-55 | Fingerprinting y Contenido | 8 |
 | **Total** | **TEST-01 a TEST-55** | | **55** |
 
-## Ejecución
+## Motor de scanning (`wss/`)
 
-Sin dependencias externas — solo `curl`, `openssl`, `dig`/`getent` (Bash ≥ 4.0).
+Paquete Python con auto-discovery de bloques. Los tests se registran con el decorador `@test`; `_wss_scan()` los descubre automáticamente via `pkgutil`.
+
+```python
+from wss.core.registry import test
+from wss.core.context import ScanContext
+from wss.core.result import Result
+
+@test("26", "Archivo .env expuesto", block=7)
+async def test_env_exposed(ctx: ScanContext) -> Result:
+    resp = await ctx.http_client.get(f"https://{ctx.domain}/.env")
+    if resp.status_code == 200:
+        return Result.fail("Archivo .env accesible públicamente")
+    return Result.ok()
+```
+
+Ver [docs/creating-tests.md](docs/creating-tests.md) para la guía completa.
+
+## CLI legacy
 
 ```bash
-# Modo interactivo
-bash scan-cli.sh
-
-# Modo no interactivo (CI/CD, cron)
+# Scan individual (Bash legacy)
 DOMAIN=dominio.ejemplo.ec SESSION_COOKIE_NAME=sessionid bash scan-cli.sh
 
-# Con IP forzada (servidores internos/staging)
+# Con IP forzada
 DOMAIN=dominio.ejemplo.ec SESSION_COOKIE_NAME=sessionid IP=192.168.x.x bash scan-cli.sh
 ```
 
 ## Stack web (`web/`)
 
-Interfaz opcional que expone el script vía HTTP. Solo tocar si la tarea involucra la UI o la API.
+Interfaz web completa. Solo tocar si la tarea involucra la UI o la API.
 
-- **API** (`web/api/main.py`): FastAPI, endpoints `/api/scan`, `/api/batch`, `/api/history`. Llama al script Bash en subprocess.
+- **API** (`web/api/main.py`): FastAPI 40+ endpoints. Usa el paquete Python `wss` para ejecutar tests (`_wss_scan()`) de forma asíncrona. JWT auth, SQLite vía SQLModel, SSE sin buffering para batch y listas.
+- **SSE**: `POST /api/batch-stream` y `GET /api/lists/{id}/scan-stream` usan `StreamingResponse` + `asyncio.Queue`. Concurrencia: `asyncio.Semaphore(5)`. Timeout: `SCAN_TIMEOUT_SECONDS` (default 180s).
+- **ForcedIPTransport**: `web/api/http_client.py` reploca `curl --resolve HOST:PORT:IP`. Si la IP no responde al probe TCP (`IP_PROBE_TIMEOUT=3.0s`), hace fallback a DNS automáticamente.
+- **SQLite**: volumen Docker — historial, listas, catálogo tests (`sync_test_catalog()` al arrancar), usuarios. Si `docker compose down -v`, re-seed con `python3 temp/seed_descriptions.py`.
 - **Frontend** (`web/frontend/`): SPA vanilla JS + Bootstrap 5.3 Bootswatch Vapor (dark). Navegación por `data-nav` → `navigateTo()` en `app.js`.
 - **Red Docker**: ambos servicios en red bridge `internal`. El nginx del frontend hace `proxy_pass http://api:8001` por DNS interno. El contenedor API alcanza IPs privadas de la subred del host vía NAT bridge — suficiente para escanear servidores internos en la misma red local.
 - **Proxy externo**: el nginx del host enruta a `host:FRONTEND_PORT` (default 8080). Usa `sub_filter 'const API_BASE = ""' 'const API_BASE = "/ruta"'` para desplegar en un subpath sin tocar el código fuente.
@@ -69,56 +98,50 @@ Interfaz opcional que expone el script vía HTTP. Solo tocar si la tarea involuc
 ## Regla: al añadir o modificar un test
 
 Actualizar **todos** estos archivos en la misma operación:
-1. `scan-cli.sh` — el test en sí
+1. `wss/tests/block_N_nombre.py` — implementar con `@test` y `ScanContext`
 2. `docs/tests-reference.md` — especificación técnica
 3. `docs/security-tests-wiki.html` — wiki (contadores en hero y footer)
 4. `README.md` — tabla de bloques y contadores
 5. `docs/usage-guide.md` — ejemplos de resumen
 6. `AGENTS.md` (esta tabla de bloques) — si cambia el rango o el total
-7. `web/frontend/index.html` — hero stats y coverage grid del home
+7. `web/frontend/app.js` — array `TESTS` y `TESTS_META` (longitud y meta de cada test)
+8. `web/frontend/index.html` — hero stats y coverage grid del home
+9. Opcionalmente: `web/api/database.py` → `sync_test_catalog()` para descripción inicial en SQLite
 
-## Convenciones del script
+## Convenciones del motor Python (`wss/`)
 
 ### Añadir un test
 
-Usa siempre `run_test` — nunca hagas `echo` de resultados directamente:
+Registrar con el decorador `@test` — ver guía completa en [docs/creating-tests.md](docs/creating-tests.md):
 
-```bash
-run_test "ID_2DIGITOS" "Descripción corta" "PASS|FAIL|WARN|SKIP" "detalle opcional"
+```python
+@test("ID", "Descripción corta", block=N)
+async def test_nombre(ctx: ScanContext) -> Result:
+    # ctx.domain, ctx.ip, ctx.cookies, ctx.http_client
+    ...
+    return Result.ok()         # PASS
+    return Result.fail("msg")  # FAIL
+    return Result.warn("msg")  # WARN
+    return Result.skip("msg")  # SKIP
 ```
 
-- IDs con cero padding: `01`–`25` (actualmente). Los nuevos tests continúan la numeración.
-- `run_test` actualiza `BATCH_RESULTS`, `SCAN_DATA`/`SCAN_ORDER`, y los contadores `PASS/FAIL/WARN/SKIP` automáticamente.
-- Resultados válidos: `PASS` / `FAIL` / `WARN` / `SKIP` (en mayúsculas).
-- Usar `SKIP` cuando falta contexto (ej.: cookie no definida) o herramienta no disponible.
+- IDs con cero padding: `"01"`–`"55"` (actualmente). Los nuevos tests continúan la numeración.
+- `ScanContext.http_client` es un cliente `httpx.AsyncClient` con `ForcedIPTransport` si se indica IP.
+- Usar `Result.skip()` cuando falta contexto (ej.: cookie no definida) o herramienta no disponible.
 
-### Variables globales clave
+### ScanContext — atributos clave
 
-| Variable | Descripción |
-|---|---|
-| `DOMAIN` | Host sin protocolo ni path |
-| `HOST` | Igual que `DOMAIN` tras separación host/path |
-| `BASE_URL` | `https://${DOMAIN}${BASE_PATH}` |
-| `SESSION_COOKIE_NAME` | Cookie de sesión para TEST-02 |
-| `IP` | IP para `--resolve` de curl (opcional) |
-| `RESOLVE_443` / `RESOLVE_80` | Flags `--resolve` construidos a partir de `IP` |
-| `RESPONSE` / `COOKIES` | Cabeceras HTTP cacheadas por `run_tests()` |
-| `BATCH_SILENT` | `1` durante batch — suprime salida por pantalla |
-| `BATCH_CURRENT_DOMAIN` | Dominio activo en modo batch (vacío en modo individual) |
-
-### Modo batch
-
-- `BATCH_SILENT=1` durante el análisis de cada dominio. No añadas `echo` extra que dependan de esta variable — usa siempre `run_test`.
-- `BATCH_RESULTS["${BATCH_CURRENT_DOMAIN}:${ID}"]` almacena resultados por dominio.
-- `batch_print_table` genera la tabla comparativa al final.
-
-### Secciones de tests
-
-Agrupa tests con `section "Nombre"` antes del bloque. La función respeta `BATCH_SILENT`.
+| Atributo | Tipo | Descripción |
+|---|---|---|
+| `ctx.domain` | `str` | Host sin protocolo ni path |
+| `ctx.ip` | `str \| None` | IP para ForcedIPTransport (opcional) |
+| `ctx.cookies` | `dict` | Cookies descubiertas |
+| `ctx.session_cookie` | `str \| None` | Nombre de la cookie de sesión principal |
+| `ctx.http_client` | `httpx.AsyncClient` | Cliente listo con IP forzada si corresponde |
 
 ### Reportes Markdown
 
-Generados por `generate_report_individual()` y `generate_report_batch()`. Se guardan en `reports/` con nombre `YYYYMMDD-HHMMSS-<dominio>.md`. El contenido de `reports/` está en `.gitignore`.
+Generados desde la SPA (botón "Descargar reporte"). El contenido de `reports/` está en `.gitignore`.
 
 ## Documentación
 
@@ -130,6 +153,8 @@ Generados por `generate_report_individual()` y `generate_report_batch()`. Se gua
 
 ## Pitfalls frecuentes
 
-- **No separar HOST de BASE_URL**: los tests TLS/DNS van contra `HOST`; los tests HTTP contra `BASE_URL`.
+- **ForcedIPTransport**: si la IP forzada no responde al probe TCP, el cliente hace fallback silencioso a DNS. No confundir con un error de la app.
 - **Cookie XSRF-TOKEN**: excluir de TEST-02 (HttpOnly) — debe ser legible por JS.
-- **`--resolve` con espacios**: `RESOLVE_443` puede estar vacío; no entrecomillar la variable al usarla en `curl`.
+- **SSE en nginx**: las rutas `*-stream` tienen `proxy_buffering off` y `X-Accel-Buffering no` en `nginx.conf`. No eliminar esas directivas.
+- **sync_test_catalog()**: se ejecuta al arrancar la API. Si el test no aparece en la wiki, verificar que el ID exista en `TEST_REGISTRY`.
+- **`docker compose down -v`**: borra el volumen SQLite — re-seed necesario con `python3 temp/seed_descriptions.py`.

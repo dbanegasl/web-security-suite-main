@@ -1,164 +1,132 @@
 # web-security-suite
 
-Suite de pruebas de seguridad HTTP para auditoría de dominios web. Ejecuta **25 tests** organizados en 6 bloques, detectando las vulnerabilidades más comunes que afectan a scorecards de seguridad (OWASP Top 10 basics, Security Headers).
+Suite de pruebas de seguridad HTTP para auditoría de dominios web. Ejecuta **55 tests** organizados en 9 bloques, detectando las vulnerabilidades más comunes (OWASP Top 10 basics, Security Headers, exposición de archivos, DNS/email y fingerprinting).
 
-**Versión:** 3.1 · **Autor:** Daniel Banegas · **Organización:** DUOTICS
+**Versión:** 6.5 · **Autor:** Daniel Banegas · **Organización:** DUOTICS
 
 ---
 
 ## Características
 
-- Sin dependencias externas — solo `curl`, `openssl` y `dig`/`getent` (disponibles por defecto en Ubuntu/Debian)
-- **Menú interactivo** con 3 opciones: análisis individual, análisis batch automático y salida
-- **Validaciones de dominio** antes de ejecutar: DNS, IP privada (advertencia), accesibilidad HTTPS y separación automática de host/path
-- **Modo batch** desde archivo CSV: analiza múltiples dominios en secuencia y presenta tabla de resultados comparativa
-- **Modo no interactivo** con variables de entorno: ideal para CI/CD y cron jobs
-- Resultados por niveles: `PASS` / `FAIL` / `WARN` / `SKIP`
-- Resolución DNS forzada por IP (útil en entornos internos o staging)
-- Carpeta `reports/` incluida en la estructura (trackeada vía `.gitkeep`, contenido ignorado por git)
-- **Interfaz web** disponible vía Docker: SPA con análisis individual, batch por CSV, historial de sesión y descarga de reportes
+- Motor 100 % Python (`wss`) — `httpx` + `asyncio`; sin dependencias externas de shell
+- **55 tests** en 9 bloques de seguridad con auto-discovery por `pkgutil`
+- **Interfaz web Docker** completa: SPA Bootstrap 5.3, FastAPI, SQLite, autenticación JWT
+- **Análisis individual** desde formulario web o API REST
+- **Análisis batch con SSE**: resultados en tiempo real, dominio a dominio conforme terminan
+- **Listas de dominios** persistentes en SQLite: CRUD, importación/exportación CSV, escaneo SSE
+- **Historial persistente** con comparación de scans y evolución temporal por dominio
+- **Panel de administración**: gestión de usuarios, edición de wiki de tests, ajustes globales
+- **Wiki de tests integrada**: modal con descripción, severidad, CWE y referencias para cada test
+- **IP forzada con probe TCP**: si la IP no es alcanzable, fallback a DNS automáticamente
+- Concurrencia controlada (semáforo 5 scans paralelos) y timeout configurable por dominio
+- Reportes descargables en Markdown
 
 ---
 
 ## Requisitos
-
-- Bash ≥ 4.0
-- `curl` con soporte TLS
-- `openssl` (para TEST-09 — verificación de certificado SSL)
-- Acceso de red al dominio desde el host donde se ejecuta
-
----
-
-## Inicio rápido
-
-```bash
-# Modo interactivo — menú principal
-bash scan-cli.sh
-
-# Modo directo — dominio + cookie de sesión identificada
-DOMAIN=sso.ejemplo.com \
-  SESSION_COOKIE_NAME=app_session \
-  bash scan-cli.sh
-
-# Con IP forzada (entorno interno / staging)
-DOMAIN=sso.ejemplo.com \
-  SESSION_COOKIE_NAME=app_session \
-  IP=192.168.1.10 \
-  bash scan-cli.sh
-
-# Batch desde CSV (modo no interactivo)
-bash scan-cli.sh   # → opción [2] en el menú
-```
-
-### Variables de entorno
-
-| Variable | Descripción |
-|---|---|
-| `DOMAIN` | Dominio a analizar (sin `https://`) |
-| `SESSION_COOKIE_NAME` | Nombre de la cookie de sesión principal |
-| `IP` | IP del servidor para forzar resolución DNS (opcional) |
-
----
-
-## Interfaz web (Docker)
-
-La suite incluye una interfaz web completa que expone los mismos 25 tests desde el navegador mediante un stack Docker (FastAPI + nginx + SPA).
-
-### Inicio rápido
-
-```bash
-cd web
-cp .env.example .env        # ajusta FRONTEND_PORT si es necesario
-docker compose up -d
-# → http://localhost:8778
-```
-
-Para reconstruir tras cambios en el código:
-
-```bash
-cd web && docker compose up --build
-```
-
-### Variables de entorno (`web/.env`)
-
-| Variable | Descripción | Valor por defecto |
-|---|---|---|
-| `FRONTEND_PORT` | Puerto del host para acceder a la interfaz | `8778` |
-| `FRONTEND_ORIGIN` | Origen permitido por la API (CORS) | `http://localhost:8778` |
-| `SCAN_TIMEOUT_SECONDS` | Timeout por dominio (segundos) | `120` |
-
-### Arquitectura
-
-```
-navegador → nginx :FRONTEND_PORT ─┬─ /api/ → FastAPI :8000 (interno)
-                                   └─ /     → SPA (HTML/JS/CSS)
-```
-
-- **nginx** sirve el frontend y hace proxy reverso de `/api/` al backend — un único puerto expuesto al host.
-- **FastAPI** (`web/api/main.py`) ejecuta `scan.sh` como subprocess con `OUTPUT_FORMAT=json` y devuelve JSON estructurado.
-- **scan.sh** es el motor de `scan-cli.sh` con soporte de salida JSON y modo batch silencioso.
-
-### Funcionalidades de la interfaz
-
-- Análisis individual con formulario (dominio, cookie de sesión, IP forzada opcional)
-- Análisis batch cargando un `domains.csv` por arrastrar o seleccionar
-- Tabla de resultados con badge por test y detalle expandible
-- Historial de escaneos en la sesión actual
-- Descarga del reporte en Markdown
-
-### Requisitos
 
 - Docker ≥ 24 con plugin Compose
 - Acceso de red al dominio a auditar desde el host donde corre Docker
 
 ---
 
+## Inicio rápido
+
+```bash
+# 1. Clonar el repositorio
+git clone https://github.com/dbanegasl/web-security-suite-main.git
+cd web-security-suite-main
+
+# 2. Levantar (git pull + docker compose up --build)
+bash deploy.sh
+# → http://localhost:8778
+```
+
+### Variables de entorno (`web/.env`)
+
+| Variable | Descripción | Valor por defecto |
+|---|---|---|
+| `FRONTEND_PORT` | Puerto del host para la interfaz | `8778` |
+| `FRONTEND_ORIGIN` | Origen CORS permitido por la API | `http://localhost:8778` |
+| `SCAN_TIMEOUT_SECONDS` | Timeout máximo por dominio (segundos) | `180` |
+| `IP_PROBE_TIMEOUT` | Timeout TCP probe para IP forzada (segundos) | `3.0` |
+
+---
+
+## Arquitectura
+
+```
+navegador → nginx :FRONTEND_PORT ─┬─ /api/                    → FastAPI :8001 (red interna Docker)
+                                   ├─ /api/batch-stream        → SSE sin buffering, timeout 1800s
+                                   ├─ /api/lists/*/scan-stream → SSE sin buffering, timeout 1800s
+                                   └─ /                        → SPA estática (HTML/JS/CSS)
+```
+
+- **nginx** sirve el frontend y hace proxy reverso a la API — un único puerto expuesto al host
+- **FastAPI** (`web/api/main.py`) usa el paquete Python `wss` para ejecutar tests de forma asíncrona
+- **wss** (`wss/`) — motor de scanning: decorador `@test`, auto-discovery de bloques, `ScanContext`
+- **SQLite** (volumen Docker) almacena historial, listas, catálogo de tests y usuarios
+- **ForcedIPTransport** de httpx replica el comportamiento de `curl --resolve HOST:PORT:IP`
+
+---
+
+## API REST
+
+| Método | Endpoint | Descripción |
+|---|---|---|
+| `POST` | `/api/auth/login` | Login → JWT |
+| `GET` | `/api/auth/me` | Info del usuario autenticado |
+| `GET` | `/api/health` | Health check |
+| `GET` | `/api/tests` | Catálogo de los 55 tests |
+| `GET` | `/api/discover-cookies` | Descubre cookies del dominio indicado |
+| `POST` | `/api/scan` | Scan individual → JSON |
+| `POST` | `/api/batch` | Scan batch síncrono → JSON |
+| `POST` | `/api/batch-stream` | Scan batch SSE → stream dominio a dominio |
+| `GET` | `/api/history` | Historial paginado |
+| `GET` | `/api/history/{id}` | Detalle de scan |
+| `GET` | `/api/history/compare` | Comparar dos scans |
+| `GET` | `/api/history/evolution/{domain}` | Evolución temporal de un dominio |
+| `GET/POST/PUT/DELETE` | `/api/lists/…` | CRUD listas de dominios |
+| `POST` | `/api/lists/{id}/import-csv` | Importar CSV a lista |
+| `GET` | `/api/lists/{id}/export-csv` | Exportar lista como CSV |
+| `GET` | `/api/lists/{id}/scan-stream` | Escanear lista completa (SSE) |
+| `POST` | `/api/lists/{id}/scan` | Escanear lista completa (síncrono) |
+| `GET` | `/api/lists/{id}/summary` | Resumen de última ejecución |
+| `GET/PATCH/POST` | `/api/admin/tests/…` | Gestión de catálogo de tests |
+| `GET/POST/PUT/DELETE` | `/api/admin/users/…` | Gestión de usuarios |
+| `DELETE` | `/api/admin/history` | Borrar historial completo |
+| `GET/PUT` | `/api/settings` | Ajustes globales |
+| `POST/DELETE` | `/api/users/me/avatar` | Avatar del usuario autenticado |
+| `PUT` | `/api/users/me/password` | Cambiar contraseña propia |
+
+Todos los endpoints (excepto `/api/health` y `/api/auth/login`) requieren `Authorization: Bearer <JWT>`.
+
+---
+
 ## Resultados
 
-| Símbolo | Significado |
+| Resultado | Significado |
 |---|---|
-| `✅ PASS` | Configuración correcta |
-| `❌ FAIL` | Vulnerabilidad detectada — requiere corrección |
-| `⚠️  WARN` | Advertencia no crítica — se recomienda revisar |
-| `⏭  SKIP` | Test omitido (falta contexto o herramienta) |
-
-**Ejemplo de salida:**
-
-```
-RESUMEN: 19 PASS  0 FAIL  1 WARN  5 SKIP  /  25 tests
-
-⚠️  SECURITY SCAN: SIN FALLOS CRÍTICOS, 1 advertencia(s) — sso.ejemplo.com
-```
+| `PASS` | Configuración correcta |
+| `FAIL` | Vulnerabilidad detectada — requiere corrección |
+| `WARN` | Advertencia no crítica — se recomienda revisar |
+| `SKIP` | Test omitido (falta contexto o herramienta) |
 
 ---
 
 ## Tests incluidos
 
-| Bloque | Tests | Qué detecta |
-|---|---|---|
-| **1 — Cookies** | TEST-01 a TEST-04 | Secure, HttpOnly, SameSite, Path |
-| **2 — Transporte / TLS** | TEST-05 a TEST-09 | HTTP→HTTPS, HSTS, TLS 1.0/1.1, cert expiry |
-| **3 — Cabeceras HTTP** | TEST-10 a TEST-14 | X-Frame-Options, XCTO, CSP, Referrer-Policy, Permissions-Policy |
-| **4 — Fuga de información** | TEST-15 a TEST-17 | Server version, X-Powered-By, X-AspNet headers |
-| **5 — Config. servidor** | TEST-18 a TEST-20 | CORS wildcard, HTTP TRACE, Cache-Control |
-| **6 — Headers modernos** | TEST-21 a TEST-25 | Headers deprecados, COOP, COEP, CORP, X-Permitted-Cross-Domain-Policies |
-
----
-
-## Cookie de sesión por dominio (referencia por stack)
-
-| Dominio de ejemplo | `SESSION_COOKIE_NAME` | Stack |
-|---|---|---|
-| `sso.ejemplo.com` | `app_session` | Laravel / PHP-FPM |
-| `admisiones.ejemplo.com` | `sessionid` | Django / Python |
-| `soporte.ejemplo.com` | `sessionid` | Django / Python |
-| `cas.ejemplo.com` | `JSESSIONID` | Java / Tomcat |
-| `servicios.ejemplo.com` | `PHPSESSID` | PHP (confirmar con curl) |
-
-> Para descubrir la cookie de un dominio nuevo:
-> ```bash
-> curl -sk -I https://<DOMAIN>/ | grep -i set-cookie
-> ```
+| Bloque | Rango | Nombre | Qué detecta |
+|---|---|---|---|
+| **1** | TEST-01 a TEST-04 | Cookies | Secure, HttpOnly, SameSite, Path |
+| **2** | TEST-05 a TEST-09 | Transporte y TLS | HTTP→HTTPS, HSTS, TLS 1.0/1.1, cert expiry |
+| **3** | TEST-10 a TEST-14 | Cabeceras HTTP | X-Frame-Options, XCTO, CSP, Referrer-Policy, Permissions-Policy |
+| **4** | TEST-15 a TEST-17 | Fuga de información | Server version, X-Powered-By, X-AspNet headers |
+| **5** | TEST-18 a TEST-20 | Configuración del servidor | CORS wildcard, HTTP TRACE, Cache-Control |
+| **6** | TEST-21 a TEST-25 | Headers modernos y deprecados | Headers deprecados, COOP, COEP, CORP, X-Permitted-Cross-Domain-Policies |
+| **7** | TEST-26 a TEST-40 | Archivos y rutas expuestas | .env, .git, backups, paneles admin, logs, etc. |
+| **8** | TEST-41 a TEST-47 | DNS, Email y Dominio | SPF, DMARC, DNSSEC, CAA, MX, WHOIS |
+| **9** | TEST-48 a TEST-55 | Fingerprinting y Contenido | Stack disclosure, mixed content, subresource integrity, etc. |
 
 ---
 
@@ -166,42 +134,57 @@ RESUMEN: 19 PASS  0 FAIL  1 WARN  5 SKIP  /  25 tests
 
 ```
 web-security-suite/
-├── README.md                      # Este archivo
-├── scan-cli.sh                    # Script CLI interactivo (v3.3)
-├── scan.sh                        # Motor de escaneo con salida JSON (usado por la API)
-├── domains.csv.example            # Plantilla de dominios para análisis batch
-├── domains.csv                    # Tu lista de dominios (gitignored — copiar del .example)
-├── .gitignore
-├── reports/                       # Reportes generados (gitignored, carpeta trackeada)
-│   └── .gitkeep
-├── web/                           # Stack de la interfaz web
-│   ├── .env.example               # Variables de entorno (copiar como .env)
-│   ├── docker-compose.yml         # Orquestación: API (FastAPI) + Frontend (nginx)
+├── README.md
+├── AGENTS.md                      # Instrucciones para agentes Copilot
+├── deploy.sh                      # git pull + docker compose up --build
+├── scan-cli.sh                    # Script CLI legacy (Bash)
+├── scan.sh                        # Motor CLI con salida JSON
+├── domains.csv.example            # Plantilla CSV para batch CLI
+├── domains.csv                    # Lista activa (gitignored)
+├── pyproject.toml                 # Paquete wss
+├── wss/                           # Motor Python de scanning
+│   ├── core/
+│   │   ├── scanner.py             # _wss_scan(), auto-discovery de bloques
+│   │   ├── registry.py            # Decorador @test, TEST_REGISTRY
+│   │   ├── context.py             # ScanContext
+│   │   ├── result.py              # Result (pass/fail/warn/skip)
+│   │   └── http_client.py         # httpx + ForcedIPTransport
+│   └── tests/
+│       ├── block_1_cookies.py
+│       ├── block_2_transport.py
+│       └── …                      # 9 bloques, 55 tests
+├── web/
+│   ├── docker-compose.yml
 │   ├── api/
-│   │   ├── Dockerfile
-│   │   ├── main.py                # API FastAPI — endpoints /api/scan y /api/batch
+│   │   ├── main.py                # FastAPI — todos los endpoints
+│   │   ├── auth.py                # JWT helpers
+│   │   ├── database.py            # SQLModel + SQLite + sync_test_catalog()
+│   │   ├── models.py              # Modelos SQLite
 │   │   └── requirements.txt
 │   └── frontend/
-│       ├── Dockerfile
-│       ├── nginx.conf             # Proxy reverso /api/ → API interna
-│       ├── index.html
-│       ├── app.js
-│       └── styles.css
+│       ├── index.html             # SPA Bootstrap 5.3 Bootswatch Vapor
+│       ├── app.js                 # Lógica SPA completa (1600+ líneas)
+│       ├── custom.css             # Estilos adicionales
+│       ├── nginx.conf             # Proxy reverso + bloques SSE sin buffering
+│       ├── version.json           # { "version": "6.5", "build": "…" }
+│       └── wiki.html              # Wiki estática de tests
+├── reports/                       # Reportes generados (gitignored)
 └── docs/
-    ├── usage-guide.md             # Guía detallada de uso, modos, ejemplos y correcciones
-    ├── tests-reference.md         # Especificación técnica (PRD) de cada test con snippets bash
-    ├── deploy-nginx-proxy.md      # Guía de despliegue detrás de un proxy nginx (subpath)
-    └── planificacion-interfaz-web.md  # Análisis y planificación de la interfaz web
+    ├── usage-guide.md             # Guía operativa: web, CLI, CI/CD
+    ├── tests-reference.md         # Especificación técnica bloques 1-6
+    ├── creating-tests.md          # Cómo añadir un test Python (@test, ScanContext)
+    ├── deploy-nginx-proxy.md      # Despliegue detrás de proxy nginx (subpath)
+    └── planificacion-interfaz-web.md
 ```
 
 ---
 
 ## Documentación
 
-- [Guía de uso](docs/usage-guide.md) — modos de ejecución (CLI, no interactivo, Docker), ejemplos por dominio, interpretación de resultados, correcciones comunes, CI/CD
-- [Referencia de tests](docs/tests-reference.md) — especificación técnica de los 25 tests con bash snippets individuales y criterios de aceptación
-- [Despliegue con proxy nginx](docs/deploy-nginx-proxy.md) — configuración para exponer la app en subpath (`/security/`) detrás de un proxy existente
-- [Interfaz web — planificación e implementación](docs/planificacion-interfaz-web.md) — análisis de viabilidad, arquitectura del stack Docker y estado de fases
+- [Guía de uso](docs/usage-guide.md) — interfaz web, CLI, CI/CD, variables de entorno, correcciones comunes
+- [Referencia de tests](docs/tests-reference.md) — especificación técnica bloques 1-6 con snippets bash
+- [Cómo crear un test](docs/creating-tests.md) — `@test`, `ScanContext`, `Result`, auto-discovery, tests unitarios
+- [Despliegue con proxy nginx](docs/deploy-nginx-proxy.md) — subpath, `sub_filter`, headers
 
 ---
 
