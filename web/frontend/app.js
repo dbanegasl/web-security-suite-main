@@ -282,6 +282,13 @@ document.getElementById("btn-download-md")?.addEventListener("click", () => {
   downloadFile(filename, buildMarkdownReport(data), "text/markdown");
 });
 
+document.getElementById("btn-download-sarif")?.addEventListener("click", () => {
+  const data = resultsDiv._scanData;
+  if (!data) return;
+  const filename = `${makeTimestamp()}-${slugify(data.domain)}.sarif`;
+  downloadFile(filename, buildSarifReport(data), "application/json");
+});
+
 let _progressTimer = null;
 function startProgress() {
   btnScan.disabled = true;
@@ -805,6 +812,7 @@ async function loadHistoryPage(offset, reset) {
         <span class="badge bg-secondary text-light h-mode">${item.scan_mode}</span>
         <span class="text-muted small h-date">${formatDate(item.scanned_at)}</span>
         <button class="btn btn-outline-secondary btn-sm h-view-btn" data-id="${item.id}">Ver</button>
+        <button class="btn btn-outline-secondary btn-sm h-sarif-btn" data-id="${item.id}" data-domain="${escapeHtml(item.domain)}" title="Descargar SARIF">SARIF</button>
       `;
       historyList.appendChild(li);
     });
@@ -835,6 +843,19 @@ async function loadHistoryPage(offset, reset) {
           renderResults(detail.results);
         } catch (err) {
           showToast("error", "Error al cargar scan", err.message);
+        }
+      });
+    });
+
+    // Botón "SARIF" — descarga el scan como archivo SARIF 2.1.0
+    historyList.querySelectorAll(".h-sarif-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        try {
+          const sarifData = await apiGet(`/api/history/${btn.dataset.id}/sarif`);
+          const filename = `${slugify(btn.dataset.domain)}-scan-${btn.dataset.id}.sarif`;
+          downloadFile(filename, JSON.stringify(sarifData, null, 2), "application/json");
+        } catch (err) {
+          showToast("error", "Error al descargar SARIF", err.message);
         }
       });
     });
@@ -1140,6 +1161,82 @@ function buildMarkdownReport(data) {
   md += `Analiza los fallos, sugiere configuraciones concretas y prioriza por nivel de riesgo.\n`;
 
   return md;
+}
+
+/**
+ * Genera un reporte SARIF 2.1.0 a partir de los datos del scan.
+ * Solo incluye resultados FAIL y WARN (convención SARIF).
+ * @param {Object} data  - Objeto con domain, tests[], scanned_at
+ * @returns {string}     - JSON string SARIF 2.1.0
+ */
+function buildSarifReport(data) {
+  const SEVERITY_TO_LEVEL = { CRITICAL: "error", HIGH: "error", MEDIUM: "warning", LOW: "note", INFO: "note" };
+  const STATUS_TO_LEVEL   = { FAIL: "error", WARN: "warning" };
+  const domain      = data.domain;
+  const artifactUri = `https://${domain}/`;
+
+  // Reglas: una por test ejecutado
+  const rules = (data.tests || []).map(t => {
+    const rule = {
+      id: `WSS-${t.id}`,
+      name: (t.name || "").replace(/[\s\-:]/g, ""),
+      shortDescription: { text: t.name || t.id },
+      fullDescription:  { text: t.name || t.id },
+      defaultConfiguration: { level: SEVERITY_TO_LEVEL[t.severity] || "warning" },
+      properties: { tags: [], severity: t.severity || "", block: t.block },
+    };
+    if (t.cwe) rule.properties.tags.push(t.cwe);
+    return rule;
+  });
+
+  // Resultados: solo FAIL y WARN
+  const results = (data.tests || [])
+    .filter(t => t.result === "FAIL" || t.result === "WARN")
+    .map(t => {
+      const r = {
+        ruleId: `WSS-${t.id}`,
+        level:  STATUS_TO_LEVEL[t.result],
+        message: { text: t.detail || t.name },
+        locations: [{
+          physicalLocation: {
+            artifactLocation: { uri: artifactUri, uriBaseId: "%SRCROOT%" },
+            region: { startLine: 1 },
+          },
+        }],
+        properties: { severity: t.severity || "", block: t.block, duration_ms: t.duration_ms },
+      };
+      if (t.cwe) r.properties.cwe = t.cwe;
+      return r;
+    });
+
+  const scannedAt = data.scanned_at || data.startedAt || new Date().toISOString();
+
+  const sarif = {
+    "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+    "version": "2.1.0",
+    "runs": [{
+      "tool": {
+        "driver": {
+          "name": "wss",
+          "version": APP_VERSION,
+          "informationUri": "https://github.com/dbanegasl/web-security-suite-main",
+          "rules": rules,
+        },
+      },
+      "invocations": [{
+        "executionSuccessful": true,
+        "startTimeUtc": scannedAt.endsWith("Z") ? scannedAt : scannedAt + "Z",
+        "properties": { "domain": domain },
+      }],
+      "results": results,
+      "artifacts": [{
+        "location": { "uri": artifactUri },
+        "description": { "text": `Target web application: ${domain}` },
+      }],
+    }],
+  };
+
+  return JSON.stringify(sarif, null, 2);
 }
 
 /**

@@ -112,6 +112,109 @@ def _build_results(results: list[Result], domain: str) -> list[dict]:
     return sarif_results
 
 
+def _build_results_from_dicts(results_dicts: list[dict], domain: str) -> list[dict]:
+    """Como _build_results() pero acepta dicts (de results_json en BD)."""
+    sarif_results = []
+    artifact_uri = f"https://{domain}/"
+
+    for r in results_dicts:
+        status_val = r.get("result", "")
+        if status_val not in ("FAIL", "WARN"):
+            continue
+
+        level = _STATUS_TO_LEVEL[status_val]
+
+        sarif_result: dict = {
+            "ruleId": f"WSS-{r['id']}",
+            "level": level,
+            "message": {"text": r.get("detail") or r.get("name", "")},
+            "locations": [
+                {
+                    "physicalLocation": {
+                        "artifactLocation": {
+                            "uri": artifact_uri,
+                            "uriBaseId": "%SRCROOT%",
+                        },
+                        "region": {"startLine": 1},
+                    }
+                }
+            ],
+            "properties": {
+                "severity": r.get("severity", ""),
+                "block": r.get("block"),
+                "duration_ms": r.get("duration_ms"),
+            },
+        }
+        if r.get("cwe"):
+            sarif_result["properties"]["cwe"] = r["cwe"]
+
+        sarif_results.append(sarif_result)
+
+    return sarif_results
+
+
+def generate_from_dicts(
+    results_dicts: list[dict],
+    domain: str,
+    scanned_at: Optional[datetime] = None,
+) -> str:
+    """Genera SARIF 2.1.0 a partir de dicts (resultados almacenados en BD).
+
+    Equivalente a generate() pero acepta la lista de dicts que se almacena en
+    ScanHistory.results_json, donde cada dict tiene las claves:
+    id, name, result (no status), detail, severity, cwe, block, duration_ms.
+
+    Args:
+        results_dicts: Lista de dicts de resultados (de results_json).
+        domain:        Dominio escaneado (sin protocolo).
+        scanned_at:    Timestamp del escaneo (default: ahora).
+
+    Returns:
+        JSON string con formato SARIF 2.1.0 válido.
+    """
+    if scanned_at is None:
+        scanned_at = datetime.now()
+
+    rules = _build_rules(TEST_REGISTRY)
+    sarif_results = _build_results_from_dicts(results_dicts, domain)
+
+    sarif_doc = {
+        "$schema": (
+            "https://raw.githubusercontent.com/oasis-tcs/sarif-spec"
+            "/master/Schemata/sarif-schema-2.1.0.json"
+        ),
+        "version": "2.1.0",
+        "runs": [
+            {
+                "tool": {
+                    "driver": {
+                        "name": "wss",
+                        "version": _tool_version(),
+                        "informationUri": "https://github.com/dbanegasl/web-security-suite-main",
+                        "rules": rules,
+                    }
+                },
+                "invocations": [
+                    {
+                        "executionSuccessful": True,
+                        "startTimeUtc": scanned_at.isoformat() + "Z",
+                        "properties": {"domain": domain},
+                    }
+                ],
+                "results": sarif_results,
+                "artifacts": [
+                    {
+                        "location": {"uri": f"https://{domain}/"},
+                        "description": {"text": f"Target web application: {domain}"},
+                    }
+                ],
+            }
+        ],
+    }
+
+    return json.dumps(sarif_doc, ensure_ascii=False, indent=2)
+
+
 def generate(
     results: list[Result],
     domain: str,

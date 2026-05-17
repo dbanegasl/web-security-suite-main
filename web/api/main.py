@@ -16,7 +16,7 @@ from typing import Any, Optional
 import httpx
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
-from fastapi.responses import PlainTextResponse, StreamingResponse
+from fastapi.responses import PlainTextResponse, Response, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -710,6 +710,32 @@ async def history_compare(
         },
         "diff": diff,
     }
+
+
+@app.get("/api/history/{scan_id}/sarif")
+async def history_sarif(
+    scan_id: int,
+    current_user: User = Depends(auth.get_current_user),
+    session: Session = Depends(database.get_session),
+):
+    """Descarga el scan del historial como archivo SARIF 2.1.0."""
+    record = session.get(ScanHistory, scan_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Scan no encontrado")
+    if current_user.role != "admin" and record.triggered_by != current_user.id:
+        raise HTTPException(status_code=403, detail="No tienes permiso para ver este scan")
+
+    from wss.reporters.sarif_reporter import generate_from_dicts
+    tests = json.loads(record.results_json).get("tests", [])
+    sarif_str = generate_from_dicts(tests, domain=record.domain, scanned_at=record.scanned_at)
+
+    safe_domain = re.sub(r"[^a-zA-Z0-9._-]", "_", record.domain)
+    filename = f"{safe_domain}-scan-{scan_id}.sarif"
+    return Response(
+        content=sarif_str,
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.get("/api/history/{scan_id}")
