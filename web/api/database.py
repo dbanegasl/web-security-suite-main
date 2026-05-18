@@ -83,6 +83,7 @@ def sync_test_catalog() -> None:
 
     from wss.core.scanner import _ensure_tests_loaded
     from wss.core.registry import TEST_REGISTRY
+    from wss.descriptions import DESCRIPTIONS as _SEED
 
     _ensure_tests_loaded()
 
@@ -105,8 +106,12 @@ def sync_test_catalog() -> None:
             row.references = json.dumps(meta.references, ensure_ascii=False)
             row.package = meta.package
             row.synced_at = now
-            # description: solo sobreescribir si el usuario no la ha editado manualmente
-            if is_new or not row.description_custom:
-                row.description = meta.description
+            # description: rellenar desde wss/descriptions.py solo cuando la DB
+            # no tiene descripción propia (vacía y no editada manualmente).
+            # Las descripciones con description_custom=True nunca se tocan.
+            if not row.description_custom:
+                seed = _SEED.get(meta.id, meta.description or "")
+                if is_new or not row.description:
+                    row.description = seed
             # is_active: nunca tocar en rows existentes
         session.commit()

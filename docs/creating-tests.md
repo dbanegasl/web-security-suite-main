@@ -165,9 +165,83 @@ Al añadir un bloque nuevo o modificar el rango de IDs, actualiza estos archivos
 | `README.md` | Tabla de bloques y contadores hero |
 | `docs/tests-reference.md` | Especificación técnica de cada test |
 | `docs/security-tests-wiki.html` | Contadores en hero y footer |
+| `wss/descriptions.py` | Descripción HTML del test nuevo (ver sección 5.1) |
 | `web/frontend/index.html` | Hero stats y coverage grid (ahora dinámicos vía `/api/tests`) |
 
 El home y la wiki de la plataforma web se actualizan **automáticamente** en cada arranque de la API gracias a `sync_test_catalog()` — no necesitas editar el frontend.
+
+---
+
+## 5.1. Añadir la descripción en `wss/descriptions.py`
+
+`wss/descriptions.py` es la **única fuente de verdad** para las descripciones HTML de los tests.
+Al arrancar, `sync_test_catalog()` rellena automáticamente cualquier descripción vacía en la DB
+usando este módulo — sin necesidad de ejecutar ningún script adicional.
+
+### Formato
+
+Añade una entrada al dict `DESCRIPTIONS` con la clave igual al ID del test (mismo valor
+que el primer argumento de `@test`):
+
+```python
+# wss/descriptions.py
+
+DESCRIPTIONS: dict[str, str] = {
+    # ... tests existentes ...
+
+    "56": desc(
+        # ¿Qué verifica?
+        "Que el header <code>X-Custom-Header</code> esté presente con el valor correcto.",
+        # ¿Por qué importa? (puede ser cadena vacía "")
+        "Sin este header, el navegador no puede aplicar la política de seguridad personalizada.",
+        # Resultados posibles: lista de (estado, texto)
+        [("PASS", "Header presente y con valor válido"),
+         ("FAIL", "Header ausente o con valor incorrecto")],
+        # Remediación: HTML libre o resultado de tabs(...)
+        tabs("56", [
+            ("Nginx", 'add_header X-Custom-Header "valor" always;'),
+            ("Apache", 'Header always set X-Custom-Header "valor"'),
+        ]),
+    ),
+}
+```
+
+### Helpers disponibles
+
+| Helper | Descripción |
+|---|---|
+| `desc(what, why, results, rem)` | Genera el bloque HTML estándar con las 4 secciones |
+| `tabs(tid, panels)` | Genera tabs Bootstrap 5 con paneles `<pre>` de código |
+| `_esc(s)` | HTML-escapa una cadena (uso interno en `tabs`) |
+
+- `results` es una lista de tuplas `(estado, texto)`, donde `estado` puede ser `PASS`, `FAIL`, `WARN`, `SKIP` o `INFO`.
+- `rem` (remediación) puede ser una cadena HTML directa o el resultado de `tabs(...)`.
+
+### Comportamiento de `sync_test_catalog()` al arrancar
+
+| Estado del row en DB | `description_custom` | ¿Se actualiza? |
+|---|---|---|
+| Row nuevo | — | Sí, desde `DESCRIPTIONS` |
+| Row existente, descripción vacía | `False` | Sí, desde `DESCRIPTIONS` |
+| Row existente, descripción presente | `False` | **No** (no sobreescribe) |
+| Row existente, cualquier descripción | `True` | **Nunca** (editada por admin) |
+
+### Script de emergencia `temp/seed_descriptions.py`
+
+Si necesitas forzar la propagación de cambios en `wss/descriptions.py` a la DB **sin** hacer
+`docker compose down -v`, usa el script de emergencia. A diferencia del arranque automático,
+este script sobrescribe descripciones existentes vía PATCH a la API y marca `description_custom=True`:
+
+```bash
+# Propagar todos los cambios
+python3 temp/seed_descriptions.py --pass <admin_password>
+
+# Propagar solo un test específico
+python3 temp/seed_descriptions.py --pass <admin_password> --test 56
+
+# Apuntar a otra instancia
+python3 temp/seed_descriptions.py --pass <admin_password> --url http://servidor:8778
+```
 
 ---
 
