@@ -49,9 +49,9 @@ def _tool_version() -> str:
 def _build_rules(registry: list[TestMeta]) -> list[dict]:
     """Genera el array rules[] del driver a partir del TEST_REGISTRY."""
     rules = []
-    for meta in sorted(registry, key=lambda m: m.id):
+    for meta in sorted(registry, key=lambda m: (m.block, m.order, m.code)):
         rule: dict = {
-            "id": f"WSS-{meta.id}",
+            "id": f"WSS-{meta.code}",
             "name": meta.name.replace(" ", "").replace("-", "").replace(":", ""),
             "shortDescription": {"text": meta.name},
             "fullDescription": {
@@ -93,7 +93,7 @@ def _build_results(results: list[Result], domain: str) -> list[dict]:
         level = _STATUS_TO_LEVEL[r.status.value]
 
         sarif_result: dict = {
-            "ruleId": f"WSS-{r.id}",
+            "ruleId": f"WSS-{r.code}",
             "level": level,
             "message": {"text": r.detail or r.name},
             "locations": [
@@ -134,7 +134,7 @@ def _build_results_from_dicts(results_dicts: list[dict], domain: str) -> list[di
         level = _STATUS_TO_LEVEL[status_val]
 
         sarif_result: dict = {
-            "ruleId": f"WSS-{r['id']}",
+            "ruleId": f"WSS-{r['code']}",
             "level": level,
             "message": {"text": r.get("detail") or r.get("name", "")},
             "locations": [
@@ -171,7 +171,7 @@ def generate_from_dicts(
 
     Equivalente a generate() pero acepta la lista de dicts que se almacena en
     ScanHistory.results_json, donde cada dict tiene las claves:
-    id, name, result (no status), detail, severity, cwe, block, duration_ms.
+    code, name, result (no status), detail, severity, cwe, block, duration_ms.
 
     Args:
         results_dicts: Lista de dicts de resultados (de results_json).

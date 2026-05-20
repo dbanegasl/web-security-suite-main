@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 from sqlalchemy import text as sa_text
-from sqlmodel import SQLModel, Session, create_engine
+from sqlmodel import SQLModel, Session, create_engine, select
 
 DB_PATH = os.getenv("DB_PATH", "/app/data/wss.db")
 
@@ -28,11 +28,22 @@ def create_db_and_tables() -> None:
 
 def _migrate_add_columns() -> None:
     """Añade columnas nuevas a tablas existentes si aún no existen (SQLite no hace ALTER automático)."""
+    with _engine.connect() as conn:
+        catalog_info = list(conn.execute(sa_text("PRAGMA table_info(test_catalog)")))
+        if catalog_info:
+            columns = {row[1]: row for row in catalog_info}
+            id_type = str(columns.get("id", ["", "", ""])[2]).upper()
+            if "code" not in columns or "INT" not in id_type:
+                conn.execute(sa_text("DROP TABLE test_catalog"))
+                conn.commit()
+                SQLModel.metadata.create_all(_engine)
+
     migrations = [
         ("scan_history",  "list_id",           "INTEGER REFERENCES domain_lists(id)"),
         ("users",         "avatar",             "TEXT"),
         ("test_catalog",  "is_active",          "INTEGER NOT NULL DEFAULT 1"),
         ("test_catalog",  "description_custom", "INTEGER NOT NULL DEFAULT 0"),
+        ("test_catalog",  "display_order",      "INTEGER NOT NULL DEFAULT 0"),
     ]
     with _engine.connect() as conn:
         for table, column, col_def in migrations:
@@ -92,14 +103,16 @@ def sync_test_catalog() -> None:
 
     with Session(_engine) as session:
         for meta in TEST_REGISTRY:
-            row = session.get(TestCatalog, meta.id)
+            row = session.exec(select(TestCatalog).where(TestCatalog.code == meta.code)).first()
             is_new = row is None
             if is_new:
-                row = TestCatalog(id=meta.id)
+                row = TestCatalog(code=meta.code)
                 session.add(row)
             # Campos siempre actualizados desde código
+            row.code = meta.code
             row.name = meta.name
             row.block = meta.block
+            row.display_order = meta.order
             row.block_name = meta.block_name
             row.severity = meta.severity.value if hasattr(meta.severity, "value") else str(meta.severity)
             row.cwe = meta.cwe
@@ -110,7 +123,7 @@ def sync_test_catalog() -> None:
             # no tiene descripción propia (vacía y no editada manualmente).
             # Las descripciones con description_custom=True nunca se tocan.
             if not row.description_custom:
-                seed = _SEED.get(meta.id, meta.description or "")
+                seed = _SEED.get(meta.code, meta.description or "")
                 if is_new or not row.description:
                     row.description = seed
             # is_active: nunca tocar en rows existentes

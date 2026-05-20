@@ -69,8 +69,8 @@ def _make_schedule(webhook_url: str, min_severity: str = "HIGH") -> ScheduledSca
 
 
 NEW_FAILS = [
-    {"id": "01", "name": "Secure Cookie", "result": "FAIL", "severity": "HIGH", "detail": "Missing Secure flag"},
-    {"id": "02", "name": "HSTS", "result": "FAIL", "severity": "CRITICAL", "detail": "No HSTS header"},
+    {"code": "COOKIE-SECURE", "name": "Secure Cookie", "result": "FAIL", "severity": "HIGH", "detail": "Missing Secure flag"},
+    {"code": "TLS-HSTS", "name": "HSTS", "result": "FAIL", "severity": "CRITICAL", "detail": "No HSTS header"},
 ]
 
 
@@ -169,7 +169,7 @@ class TestNewFailFiltering:
                 t for t in all_results
                 if t.get("result") == "FAIL"
                 and _severity_gte(t.get("severity", "MEDIUM"), min_severity)
-                and t.get("id") not in prev_fail_ids
+                and t.get("code") not in prev_fail_ids
             ]
         else:
             return [
@@ -180,28 +180,28 @@ class TestNewFailFiltering:
 
     def test_new_fail_detected(self):
         """Un FAIL nuevo (no en el anterior) debe aparecer en la notificación."""
-        results = [{"id": "03", "result": "FAIL", "severity": "HIGH", "name": "New test"}]
+        results = [{"code": "HEADER-CSP", "result": "FAIL", "severity": "HIGH", "name": "New test"}]
         prev_ids = set()
         filtered = self._apply_filter(results, prev_ids, "HIGH", True)
         assert len(filtered) == 1
 
     def test_existing_fail_ignored(self):
         """Un FAIL que ya existía en el anterior no debe notificarse."""
-        results = [{"id": "01", "result": "FAIL", "severity": "HIGH", "name": "Old fail"}]
-        prev_ids = {"01"}
+        results = [{"code": "COOKIE-SECURE", "result": "FAIL", "severity": "HIGH", "name": "Old fail"}]
+        prev_ids = {"COOKIE-SECURE"}
         filtered = self._apply_filter(results, prev_ids, "HIGH", True)
         assert len(filtered) == 0
 
     def test_below_severity_ignored(self):
         """Un FAIL por debajo del umbral no debe notificarse."""
-        results = [{"id": "04", "result": "FAIL", "severity": "LOW", "name": "Low severity"}]
+        results = [{"code": "EXPOSED-ENV", "result": "FAIL", "severity": "LOW", "name": "Low severity"}]
         prev_ids = set()
         filtered = self._apply_filter(results, prev_ids, "HIGH", True)
         assert len(filtered) == 0
 
     def test_pass_not_included(self):
         """Resultados PASS nunca deben incluirse en la notificación."""
-        results = [{"id": "05", "result": "PASS", "severity": "HIGH", "name": "Passing test"}]
+        results = [{"code": "SERVERCFG-HTTP-TRACE", "result": "PASS", "severity": "HIGH", "name": "Passing test"}]
         prev_ids = set()
         filtered = self._apply_filter(results, prev_ids, "HIGH", True)
         assert len(filtered) == 0
@@ -209,9 +209,9 @@ class TestNewFailFiltering:
     def test_notify_all_mode(self):
         """Cuando notify_on_new_fail=False, todos los FAILs (incl. los conocidos) deben notificarse."""
         results = [
-            {"id": "01", "result": "FAIL", "severity": "HIGH", "name": "Old fail"},
-            {"id": "06", "result": "FAIL", "severity": "HIGH", "name": "New fail"},
+            {"code": "COOKIE-SECURE", "result": "FAIL", "severity": "HIGH", "name": "Old fail"},
+            {"code": "DNS-SPF", "result": "FAIL", "severity": "HIGH", "name": "New fail"},
         ]
-        prev_ids = {"01"}
+        prev_ids = {"COOKIE-SECURE"}
         filtered = self._apply_filter(results, prev_ids, "HIGH", False)
         assert len(filtered) == 2

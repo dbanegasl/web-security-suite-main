@@ -1,4 +1,4 @@
-"""Bloque 5 — Configuración del servidor (TEST-18 a TEST-20)."""
+"""Bloque 5 — Configuración del servidor (SERVERCFG-CORS-WILDCARD a SERVERCFG-CACHE-CONTROL)."""
 from __future__ import annotations
 
 from wss.core.context import ScanContext
@@ -7,7 +7,7 @@ from wss.core.result import Result
 
 
 @test(
-    "18",
+    "SERVERCFG-CORS-WILDCARD",
     block=5,
     block_name="Configuración del servidor",
     name="CORS sin wildcard Access-Control-Allow-Origin",
@@ -25,7 +25,7 @@ async def test_cors(ctx: ScanContext) -> Result:
 
 
 @test(
-    "19",
+    "SERVERCFG-HTTP-TRACE",
     block=5,
     block_name="Configuración del servidor",
     name="HTTP TRACE deshabilitado",
@@ -47,7 +47,7 @@ async def test_http_trace(ctx: ScanContext) -> Result:
 
 
 @test(
-    "20",
+    "SERVERCFG-CACHE-CONTROL",
     block=5,
     block_name="Configuración del servidor",
     name="Cache-Control seguro",

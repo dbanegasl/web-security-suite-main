@@ -115,7 +115,7 @@ def scan(
         "",
         "--session-cookie", "-c",
         envvar="SESSION_COOKIE_NAME",
-        help="Nombre de la cookie de sesión principal (para TEST-02).",
+        help="Nombre de la cookie de sesión principal (para COOKIE-HTTPONLY).",
     ),
     ip: str = typer.Option(
         "",

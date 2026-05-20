@@ -1,4 +1,4 @@
-"""Tests unitarios — Bloque 1: Cookies (TEST-01 a TEST-04)
+"""Tests unitarios — Bloque 1: Cookies (COOKIE-SECURE a COOKIE-PATH)
 
 Cada test cubre los casos del bash original:
     - Camino feliz (PASS)
@@ -22,7 +22,7 @@ from wss.tests.block_1_cookies import (
 from tests.conftest import make_ctx
 
 
-# ── TEST-01: Secure ─────────────────────────────────────────────────────────
+# ── COOKIE-SECURE: Secure ─────────────────────────────────────────────────────────
 
 
 async def test_01_pass_all_secure():
@@ -66,7 +66,7 @@ async def test_01_case_insensitive():
     assert result.status == Status.PASS
 
 
-# ── TEST-02: HttpOnly ────────────────────────────────────────────────────────
+# ── COOKIE-HTTPONLY: HttpOnly ────────────────────────────────────────────────────────
 
 
 async def test_02_skip_no_session_cookie_defined():
@@ -127,7 +127,7 @@ async def test_02_case_insensitive_httponly():
     assert result.status == Status.PASS
 
 
-# ── TEST-03: SameSite ────────────────────────────────────────────────────────
+# ── COOKIE-SAMESITE: SameSite ────────────────────────────────────────────────────────
 
 
 async def test_03_pass_samesite_lax():
@@ -181,7 +181,7 @@ async def test_03_mixed_fail_only_reports_failing():
     assert "good" not in result.detail
 
 
-# ── TEST-04: Path ────────────────────────────────────────────────────────────
+# ── COOKIE-PATH: Path ────────────────────────────────────────────────────────────
 
 
 async def test_04_pass_all_have_path():

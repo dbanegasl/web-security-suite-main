@@ -55,7 +55,7 @@ async def _send_webhook(url: str, schedule: ScheduledScan, new_fails: list[dict]
 
     domain = schedule.domain
     fail_lines = "\n".join(
-        f"• [{r.get('severity','?')}] TEST-{r.get('id','?')} {r.get('name','?')}: {r.get('detail','')}"
+        f"• [{r.get('severity','?')}] {r.get('code','?')} {r.get('name','?')}: {r.get('detail','')}"
         for r in new_fails[:10]  # máx 10 en la notificación
     )
     total_msg = f"{len(new_fails)} FAIL(s) nuevo(s)" if len(new_fails) <= 10 else f"{len(new_fails)} FAIL(s) nuevos (mostrando 10)"
@@ -121,16 +121,16 @@ async def _run_scheduled_scan(schedule_id: int) -> None:
                 try:
                     prev_results = json.loads(prev.results_json).get("tests", [])
                     prev_fails = {
-                        r["id"] for r in prev_results
+                        r["code"] for r in prev_results
                         if r.get("result") in ("FAIL",)
                     }
                 except Exception:
                     pass
 
-    # Obtener IDs de tests deshabilitados en el catálogo
+    # Obtener códigos de tests deshabilitados en el catálogo
     with Session(database._engine) as session:
-        disabled_ids = {
-            r.id for r in session.exec(
+        disabled_codes = {
+            r.code for r in session.exec(
                 select(TestCatalog).where(TestCatalog.is_active == False)  # noqa: E712
             ).all()
         }
@@ -140,10 +140,10 @@ async def _run_scheduled_scan(schedule_id: int) -> None:
         from wss.core.scanner import _ensure_tests_loaded
         from wss.core.registry import TEST_REGISTRY
         _ensure_tests_loaded()
-        active_ids: Optional[list[str]] = None
-        if disabled_ids:
-            all_ids = {m.id for m in TEST_REGISTRY}
-            active_ids = sorted(all_ids - disabled_ids)
+        active_codes: Optional[list[str]] = None
+        if disabled_codes:
+            all_codes = {m.code for m in TEST_REGISTRY}
+            active_codes = sorted(all_codes - disabled_codes)
 
         import re as _re
         _clean = _re.sub(r"^https?://", "", schedule.domain)
@@ -160,22 +160,23 @@ async def _run_scheduled_scan(schedule_id: int) -> None:
             session_cookie=schedule.session_cookie or "",
             ip=schedule.ip or "",
         )
-        results = await _wss_scan(ctx, test_ids=active_ids)
+        results = await _wss_scan(ctx, test_codes=active_codes)
 
         # SKIP sintéticos para tests deshabilitados
-        if disabled_ids:
+        if disabled_codes:
             from wss.core.result import Result as _Result
-            for meta in sorted(TEST_REGISTRY, key=lambda m: m.id):
-                if meta.id in disabled_ids:
+            for meta in sorted(TEST_REGISTRY, key=lambda m: (m.block, m.order, m.code)):
+                if meta.code in disabled_codes:
                     skip_r = _Result.skip("Test deshabilitado por el administrador")
-                    skip_r.id = meta.id
+                    skip_r.code = meta.code
                     skip_r.name = meta.name
                     skip_r.block = meta.block
                     skip_r.severity = meta.severity
                     skip_r.cwe = meta.cwe
                     skip_r.duration_ms = 0.0
                     results.append(skip_r)
-            results.sort(key=lambda r: r.id)
+            order_map = {m.code: (m.block, m.order, m.code) for m in TEST_REGISTRY}
+            results.sort(key=lambda r: order_map.get(r.code, (r.block, 9999, r.code)))
 
         output = _json_generate(results, schedule.domain, f"https://{_host}{_base_path}")
         data = json.loads(output)
@@ -251,7 +252,7 @@ async def _run_scheduled_scan(schedule_id: int) -> None:
             t for t in tests
             if t.get("result") == "FAIL"
             and _severity_gte(t.get("severity", "MEDIUM"), schedule.min_severity)
-            and (not schedule.last_scan_id or t.get("id") not in prev_fails)
+            and (not schedule.last_scan_id or t.get("code") not in prev_fails)
         ]
         if current_fails:
             await _send_webhook(schedule.webhook_url, schedule, current_fails)

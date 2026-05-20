@@ -25,13 +25,13 @@ class Severity(str, Enum):
 class Result:
     """Resultado de un test individual.
 
-    Los campos id, name, block, severity y cwe son rellenados por el scanner
+    Los campos code, name, block, severity y cwe son rellenados por el scanner
     tras la ejecución del test, a partir de los metadatos del decorador @test.
     Las funciones de test solo devuelven status y detail.
     """
 
     # Rellenados por el scanner desde los metadatos del decorador
-    id: str = ""
+    code: str = ""
     name: str = ""
     block: int = 0
     severity: Severity = Severity.MEDIUM
@@ -64,7 +64,7 @@ class Result:
 
     def to_dict(self) -> dict:
         return {
-            "id": self.id,
+            "code": self.code,
             "name": self.name,
             "result": self.status.value,
             "detail": self.detail,

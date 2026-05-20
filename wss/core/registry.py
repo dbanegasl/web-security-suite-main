@@ -11,13 +11,16 @@ from wss.core.result import Severity
 class TestMeta:
     """Metadatos de un test registrado."""
 
-    id: str
+    __test__ = False  # evitar que pytest intente recolectar esta clase
+
+    code: str
     name: str
     block: int
     block_name: str
     severity: Severity
     cwe: Optional[str]
     fn: Callable
+    order: int = 0
     description: str = ""
     references: list[str] = field(default_factory=list)
     package: str = ""   # módulo Python de origen, ej. "wss.tests.block_1_cookies"
@@ -61,13 +64,14 @@ TEST_REGISTRY: list[TestMeta] = []
 
 
 def test(
-    id: str,
+    code: str,
     *,
     block: int,
     name: str,
     block_name: str = "",
     severity: str = "MEDIUM",
     cwe: Optional[str] = None,
+    order: int = 0,
     description: str = "",
     references: Optional[list[str]] = None,
 ) -> Callable:
@@ -75,7 +79,7 @@ def test(
 
     Uso:
         @test(
-            "01",
+            "COOKIE-SECURE",
             block=1,
             block_name="Cookies",
             name="Cookie attribute: Secure",
@@ -89,15 +93,17 @@ def test(
     """
 
     def decorator(fn: Callable) -> Callable:
+        effective_order = order or (sum(1 for meta in TEST_REGISTRY if meta.block == block) + 1)
         TEST_REGISTRY.append(
             TestMeta(
-                id=id,
+                code=code,
                 name=name,
                 block=block,
                 block_name=block_name or (BLOCK_META[block].name if block in BLOCK_META else ""),
                 severity=Severity(severity),
                 cwe=cwe,
                 fn=fn,
+                order=effective_order,
                 description=description,
                 references=references or [],
                 package=fn.__module__,

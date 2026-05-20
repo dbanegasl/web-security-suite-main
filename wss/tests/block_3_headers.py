@@ -1,4 +1,4 @@
-"""Bloque 3 — Cabeceras HTTP de seguridad (TEST-10 a TEST-14)."""
+"""Bloque 3 — Cabeceras HTTP de seguridad (HEADER-X-FRAME-OPTIONS a HEADER-PERMISSIONS-POLICY)."""
 from __future__ import annotations
 
 import re
@@ -9,7 +9,7 @@ from wss.core.result import Result
 
 
 @test(
-    "10",
+    "HEADER-X-FRAME-OPTIONS",
     block=3,
     block_name="Cabeceras HTTP",
     name="X-Frame-Options (anti-clickjacking)",
@@ -25,7 +25,7 @@ async def test_xframe_options(ctx: ScanContext) -> Result:
 
 
 @test(
-    "11",
+    "HEADER-X-CONTENT-TYPE-OPTIONS",
     block=3,
     block_name="Cabeceras HTTP",
     name="X-Content-Type-Options: nosniff",
@@ -41,7 +41,7 @@ async def test_xcontent_type_options(ctx: ScanContext) -> Result:
 
 
 @test(
-    "12",
+    "HEADER-CSP",
     block=3,
     block_name="Cabeceras HTTP",
     name="Content-Security-Policy",
@@ -76,7 +76,7 @@ async def test_csp(ctx: ScanContext) -> Result:
 
 
 @test(
-    "13",
+    "HEADER-REFERRER-POLICY",
     block=3,
     block_name="Cabeceras HTTP",
     name="Referrer-Policy",
@@ -92,7 +92,7 @@ async def test_referrer_policy(ctx: ScanContext) -> Result:
 
 
 @test(
-    "14",
+    "HEADER-PERMISSIONS-POLICY",
     block=3,
     block_name="Cabeceras HTTP",
     name="Permissions-Policy",

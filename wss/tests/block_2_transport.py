@@ -1,4 +1,4 @@
-"""Bloque 2 — Transporte y TLS (TEST-05 a TEST-09)."""
+"""Bloque 2 — Transporte y TLS (TLS-HTTP-TO-HTTPS a TLS-CERT-VALIDITY)."""
 from __future__ import annotations
 
 import asyncio
@@ -102,11 +102,11 @@ async def _cert_days_left(host: str, ip: str) -> int | None:
     return None
 
 
-# ── TEST-05 ───────────────────────────────────────────────────────────────────
+# ── TLS-HTTP-TO-HTTPS ───────────────────────────────────────────────────────────────────
 
 
 @test(
-    "05",
+    "TLS-HTTP-TO-HTTPS",
     block=2,
     block_name="Transporte y TLS",
     name="HTTP → HTTPS redirect 301/302",
@@ -145,11 +145,11 @@ async def test_http_redirect(ctx: ScanContext) -> Result:
         return Result.fail(f"no se pudo conectar por HTTP: {exc!s:.80}")
 
 
-# ── TEST-06 ───────────────────────────────────────────────────────────────────
+# ── TLS-HSTS ───────────────────────────────────────────────────────────────────
 
 
 @test(
-    "06",
+    "TLS-HSTS",
     block=2,
     block_name="Transporte y TLS",
     name="HSTS Strict-Transport-Security",
@@ -170,11 +170,11 @@ async def test_hsts(ctx: ScanContext) -> Result:
     return Result.pass_()
 
 
-# ── TEST-07 ───────────────────────────────────────────────────────────────────
+# ── TLS-10-DISABLED ───────────────────────────────────────────────────────────────────
 
 
 @test(
-    "07",
+    "TLS-10-DISABLED",
     block=2,
     block_name="Transporte y TLS",
     name="TLS 1.0 deshabilitado",
@@ -195,11 +195,11 @@ async def test_tls10_disabled(ctx: ScanContext) -> Result:
     return Result.pass_()
 
 
-# ── TEST-08 ───────────────────────────────────────────────────────────────────
+# ── TLS-11-DISABLED ───────────────────────────────────────────────────────────────────
 
 
 @test(
-    "08",
+    "TLS-11-DISABLED",
     block=2,
     block_name="Transporte y TLS",
     name="TLS 1.1 deshabilitado",
@@ -220,11 +220,11 @@ async def test_tls11_disabled(ctx: ScanContext) -> Result:
     return Result.pass_()
 
 
-# ── TEST-09 ───────────────────────────────────────────────────────────────────
+# ── TLS-CERT-VALIDITY ───────────────────────────────────────────────────────────────────
 
 
 @test(
-    "09",
+    "TLS-CERT-VALIDITY",
     block=2,
     block_name="Transporte y TLS",
     name="Certificado SSL vigente",

@@ -1,4 +1,4 @@
-"""Bloque 4 — Fuga de información (TEST-15 a TEST-17)."""
+"""Bloque 4 — Fuga de información (INFOLEAK-SERVER-HEADER a INFOLEAK-ASP-NET-VERSION)."""
 from __future__ import annotations
 
 import re
@@ -9,7 +9,7 @@ from wss.core.result import Result
 
 
 @test(
-    "15",
+    "INFOLEAK-SERVER-HEADER",
     block=4,
     block_name="Fuga de información",
     name="Server header oculto",
@@ -30,7 +30,7 @@ async def test_server_header(ctx: ScanContext) -> Result:
 
 
 @test(
-    "16",
+    "INFOLEAK-X-POWERED-BY",
     block=4,
     block_name="Fuga de información",
     name="X-Powered-By ausente",
@@ -46,7 +46,7 @@ async def test_x_powered_by(ctx: ScanContext) -> Result:
 
 
 @test(
-    "17",
+    "INFOLEAK-ASP-NET-VERSION",
     block=4,
     block_name="Fuga de información",
     name="X-AspNet-Version ausente",

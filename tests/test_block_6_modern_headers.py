@@ -1,4 +1,4 @@
-"""Tests unitarios — Bloque 6: Headers modernos y deprecados (TEST-21 a TEST-25)."""
+"""Tests unitarios — Bloque 6: Headers modernos y deprecados (MODERNHDR-DEPRECATED a MODERNHDR-X-PERMITTED-CROSS-DOMAIN)."""
 from __future__ import annotations
 
 from wss.core.result import Status
@@ -20,7 +20,7 @@ def _ctx_with_headers(headers: dict[str, str]):
     return ctx
 
 
-# ── TEST-21: Deprecated headers ───────────────────────────────────────────────
+# ── MODERNHDR-DEPRECATED: Deprecated headers ───────────────────────────────────────────────
 
 
 async def test_21_pass_none_present():
@@ -47,7 +47,7 @@ async def test_21_warn_multiple():
     assert "pragma" in r.detail
 
 
-# ── TEST-22: COOP ──────────────────────────────────────────────────────────────
+# ── MODERNHDR-COOP: COOP ──────────────────────────────────────────────────────────────
 
 
 async def test_22_pass():
@@ -62,7 +62,7 @@ async def test_22_warn_absent():
     assert r.status == Status.WARN
 
 
-# ── TEST-23: COEP ──────────────────────────────────────────────────────────────
+# ── MODERNHDR-COEP: COEP ──────────────────────────────────────────────────────────────
 
 
 async def test_23_pass():
@@ -77,7 +77,7 @@ async def test_23_warn_absent():
     assert r.status == Status.WARN
 
 
-# ── TEST-24: CORP ──────────────────────────────────────────────────────────────
+# ── MODERNHDR-CORP: CORP ──────────────────────────────────────────────────────────────
 
 
 async def test_24_pass():
@@ -92,7 +92,7 @@ async def test_24_warn_absent():
     assert r.status == Status.WARN
 
 
-# ── TEST-25: X-Permitted-Cross-Domain-Policies ────────────────────────────────
+# ── MODERNHDR-X-PERMITTED-CROSS-DOMAIN: X-Permitted-Cross-Domain-Policies ────────────────────────────────
 
 
 async def test_25_warn_absent():

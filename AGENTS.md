@@ -7,7 +7,7 @@ Suite de auditoría de seguridad HTTP para dominios web. Motor Python (`wss`) co
 ```
 wss/                   # Motor Python de scanning
   core/
-    scanner.py         # _wss_scan(), auto-discovery de bloques por pkgutil
+    scanner.py         # scan(), auto-discovery de bloques por pkgutil
     registry.py        # Decorador @test, TEST_REGISTRY
     context.py         # ScanContext (domain, ip, cookies, http_client, …)
     result.py          # Result (pass/fail/warn/skip)
@@ -36,36 +36,42 @@ web/                   # Interfaz web Docker
 
 ## Bloques de tests (fuente de verdad)
 
-> **Antes de citar cualquier número, consulta esta tabla.**
+> **Antes de citar cualquier número, consulta esta tabla.** Los tests ya no usan
+> numeración global secuencial como identidad funcional. Cada test tiene un
+> `code` estable y expresivo; el orden visible se controla con `block` + `order`.
 
-| Bloque | Rango | Nombre | Tests |
-|---|---|---|---|
-| 1 | TEST-01 a TEST-04 | Cookies | 4 |
-| 2 | TEST-05 a TEST-09 | Transporte y TLS | 5 |
-| 3 | TEST-10 a TEST-14 | Cabeceras HTTP | 5 |
-| 4 | TEST-15 a TEST-17 | Fuga de información | 3 |
-| 5 | TEST-18 a TEST-20 | Configuración del servidor | 3 |
-| 6 | TEST-21 a TEST-25 | Headers modernos y deprecados | 5 |
-| 7 | TEST-26 a TEST-40 | Archivos y rutas expuestas | 15 |
-| 8 | TEST-41 a TEST-47 | DNS, Email y Dominio | 7 |
-| 9 | TEST-48 a TEST-55 | Fingerprinting y Contenido | 8 |
-| **Total** | **TEST-01 a TEST-55** | | **55** |
+| Bloque | Nombre | Tests |
+|---|---|---:|
+| 1 | Cookies | 4 |
+| 2 | Transporte y TLS | 5 |
+| 3 | Cabeceras HTTP | 5 |
+| 4 | Fuga de información | 3 |
+| 5 | Configuración del servidor | 3 |
+| 6 | Headers modernos y deprecados | 5 |
+| 7 | Archivos y rutas expuestas | 15 |
+| 8 | DNS, Email y Dominio | 7 |
+| 9 | Fingerprinting y Contenido | 8 |
+| **Total** | | **55** |
 
 ## Motor de scanning (`wss/`)
 
-Paquete Python con auto-discovery de bloques. Los tests se registran con el decorador `@test`; `_wss_scan()` los descubre automáticamente via `pkgutil`.
+Paquete Python con auto-discovery de bloques. Los tests se registran con el decorador `@test`; `scan()` en `wss/core/scanner.py` los descubre automáticamente via `pkgutil`.
 
 ```python
 from wss.core.registry import test
 from wss.core.context import ScanContext
 from wss.core.result import Result
 
-@test("26", "Archivo .env expuesto", block=7)
+@test(
+    "EXPOSED-ENV",
+    block=7,
+    name="Archivo .env expuesto",
+)
 async def test_env_exposed(ctx: ScanContext) -> Result:
     resp = await ctx.http_client.get(f"https://{ctx.domain}/.env")
     if resp.status_code == 200:
         return Result.fail("Archivo .env accesible públicamente")
-    return Result.ok()
+    return Result.pass_()
 ```
 
 Ver [docs/creating-tests.md](docs/creating-tests.md) para la guía completa.
@@ -84,10 +90,10 @@ DOMAIN=dominio.ejemplo.ec SESSION_COOKIE_NAME=sessionid IP=192.168.x.x bash scan
 
 Interfaz web completa. Solo tocar si la tarea involucra la UI o la API.
 
-- **API** (`web/api/main.py`): FastAPI 40+ endpoints. Usa el paquete Python `wss` para ejecutar tests (`_wss_scan()`) de forma asíncrona. JWT auth, SQLite vía SQLModel, SSE sin buffering para batch y listas.
+- **API** (`web/api/main.py`): FastAPI 40+ endpoints. Usa el paquete Python `wss` para ejecutar tests (`wss.core.scanner.scan()`) de forma asíncrona. JWT auth, SQLite vía SQLModel, SSE sin buffering para batch y listas.
 - **SSE**: `POST /api/batch-stream` y `GET /api/lists/{id}/scan-stream` usan `StreamingResponse` + `asyncio.Queue`. Concurrencia: `asyncio.Semaphore(5)`. Timeout: `SCAN_TIMEOUT_SECONDS` (default 180s).
 - **ForcedIPTransport**: `web/api/http_client.py` reploca `curl --resolve HOST:PORT:IP`. Si la IP no responde al probe TCP (`IP_PROBE_TIMEOUT=3.0s`), hace fallback a DNS automáticamente.
-- **SQLite**: volumen Docker — historial, listas, catálogo tests (`sync_test_catalog()` al arrancar), usuarios. Si `docker compose down -v`, re-seed con `python3 temp/seed_descriptions.py`.
+- **SQLite**: bind mount `data/` — historial, listas, catálogo tests (`sync_test_catalog()` al arrancar), usuarios. Tras `docker compose down` + borrar `data/wss.db`, el catálogo y las descripciones se regeneran automáticamente al siguiente arranque.
 - **Frontend** (`web/frontend/`): SPA vanilla JS + Bootstrap 5.3 Bootswatch Vapor (dark). Navegación por `data-nav` → `navigateTo()` en `app.js`.
 - **Red Docker**: ambos servicios en red bridge `internal`. El nginx del frontend hace `proxy_pass http://api:8001` por DNS interno. El contenedor API alcanza IPs privadas de la subred del host vía NAT bridge — suficiente para escanear servidores internos en la misma red local.
 - **Proxy externo**: el nginx del host enruta a `host:FRONTEND_PORT` (default 8080). Usa `sub_filter 'const API_BASE = ""' 'const API_BASE = "/ruta"'` para desplegar en un subpath sin tocar el código fuente.
@@ -115,17 +121,20 @@ Actualizar **todos** estos archivos en la misma operación:
 Registrar con el decorador `@test` — ver guía completa en [docs/creating-tests.md](docs/creating-tests.md):
 
 ```python
-@test("ID", "Descripción corta", block=N)
+@test("MI-CATEGORIA-CODIGO", block=N, name="Descripción corta")
 async def test_nombre(ctx: ScanContext) -> Result:
     # ctx.domain, ctx.ip, ctx.cookies, ctx.http_client
     ...
-    return Result.ok()         # PASS
+    return Result.pass_()       # PASS
     return Result.fail("msg")  # FAIL
     return Result.warn("msg")  # WARN
     return Result.skip("msg")  # SKIP
 ```
 
-- IDs con cero padding: `"01"`–`"55"` (actualmente). Los nuevos tests continúan la numeración.
+- Usar `code` funcional, estable y expresivo, por ejemplo `COOKIE-SECURE`,
+  `EXPOSED-ENV` o `CVE-NGINX-2026-42945-VERSION`. No usar numeración global
+  secuencial como identidad del test.
+- Si hace falta controlar posición visual dentro del bloque, usar `order=`.
 - `ScanContext.http_client` es un cliente `httpx.AsyncClient` con `ForcedIPTransport` si se indica IP.
 - Usar `Result.skip()` cuando falta contexto (ej.: cookie no definida) o herramienta no disponible.
 
@@ -154,7 +163,7 @@ Generados desde la SPA (botón "Descargar reporte"). El contenido de `reports/` 
 ## Pitfalls frecuentes
 
 - **ForcedIPTransport**: si la IP forzada no responde al probe TCP, el cliente hace fallback silencioso a DNS. No confundir con un error de la app.
-- **Cookie XSRF-TOKEN**: excluir de TEST-02 (HttpOnly) — debe ser legible por JS.
+- **Cookie XSRF-TOKEN**: excluir de `COOKIE-HTTPONLY` — debe ser legible por JS.
 - **SSE en nginx**: las rutas `*-stream` tienen `proxy_buffering off` y `X-Accel-Buffering no` en `nginx.conf`. No eliminar esas directivas.
 - **sync_test_catalog()**: se ejecuta al arrancar la API. Si el test no aparece en la wiki, verificar que el ID exista en `TEST_REGISTRY`.
-- **`docker compose down -v`**: borra el volumen SQLite — re-seed necesario con `python3 temp/seed_descriptions.py`.
+- **Borrar `data/wss.db`**: elimina historial, listas y catálogo. Al reiniciar, `sync_test_catalog()` recrea el catálogo con descripciones desde `wss/descriptions.py`; el usuario admin se recrea si `APP_FIRST_ADMIN_PASSWORD` está configurado.

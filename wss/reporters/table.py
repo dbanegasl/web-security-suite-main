@@ -54,14 +54,14 @@ def print_results(
             current_block = r.block
             # Obtener block_name desde el registry
             from wss.core.registry import TEST_REGISTRY
-            meta = next((m for m in TEST_REGISTRY if m.id == r.id), None)
+            meta = next((m for m in TEST_REGISTRY if m.code == r.code), None)
             block_name = meta.block_name if meta else f"BLOQUE {r.block}"
             console.print(f"\n  [bold cyan]▸ {block_name}[/]")
 
         icon, style = _STATUS_STYLE.get(r.status, ("?", "white"))
         suffix = f"  → {r.detail}" if r.detail else ""
         console.print(
-            f"  [[bold {style}]{icon}[/]] TEST-{r.id} — {r.name}[dim]{suffix}[/]"
+            f"  [[bold {style}]{icon}[/]] {r.code} — {r.name}[dim]{suffix}[/]"
         )
 
     # Resumen final

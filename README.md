@@ -2,7 +2,7 @@
 
 Suite de pruebas de seguridad HTTP para auditoría de dominios web. Ejecuta **55 tests** organizados en 9 bloques, detectando las vulnerabilidades más comunes (OWASP Top 10 basics, Security Headers, exposición de archivos, DNS/email y fingerprinting).
 
-**Versión:** 6.5 · **Autor:** Daniel Banegas · **Organización:** DUOTICS
+**Versión:** 7.0 · **Autor:** Daniel Banegas · **Organización:** DUOTICS
 
 ---
 
@@ -116,17 +116,17 @@ Todos los endpoints (excepto `/api/health` y `/api/auth/login`) requieren `Autho
 
 ## Tests incluidos
 
-| Bloque | Rango | Nombre | Qué detecta |
-|---|---|---|---|
-| **1** | TEST-01 a TEST-04 | Cookies | Secure, HttpOnly, SameSite, Path |
-| **2** | TEST-05 a TEST-09 | Transporte y TLS | HTTP→HTTPS, HSTS, TLS 1.0/1.1, cert expiry |
-| **3** | TEST-10 a TEST-14 | Cabeceras HTTP | X-Frame-Options, XCTO, CSP, Referrer-Policy, Permissions-Policy |
-| **4** | TEST-15 a TEST-17 | Fuga de información | Server version, X-Powered-By, X-AspNet headers |
-| **5** | TEST-18 a TEST-20 | Configuración del servidor | CORS wildcard, HTTP TRACE, Cache-Control |
-| **6** | TEST-21 a TEST-25 | Headers modernos y deprecados | Headers deprecados, COOP, COEP, CORP, X-Permitted-Cross-Domain-Policies |
-| **7** | TEST-26 a TEST-40 | Archivos y rutas expuestas | .env, .git, backups, paneles admin, logs, etc. |
-| **8** | TEST-41 a TEST-47 | DNS, Email y Dominio | SPF, DMARC, DNSSEC, CAA, MX, WHOIS |
-| **9** | TEST-48 a TEST-55 | Fingerprinting y Contenido | Stack disclosure, mixed content, subresource integrity, etc. |
+| Bloque | Nombre | Tests | Qué detecta |
+|---|---|---:|---|
+| **1** | Cookies | 4 | Secure, HttpOnly, SameSite, Path |
+| **2** | Transporte y TLS | 5 | HTTP→HTTPS, HSTS, TLS 1.0/1.1, cert expiry |
+| **3** | Cabeceras HTTP | 5 | X-Frame-Options, XCTO, CSP, Referrer-Policy, Permissions-Policy |
+| **4** | Fuga de información | 3 | Server version, X-Powered-By, X-AspNet headers |
+| **5** | Configuración del servidor | 3 | CORS wildcard, HTTP TRACE, Cache-Control |
+| **6** | Headers modernos y deprecados | 5 | Headers deprecados, COOP, COEP, CORP, X-Permitted-Cross-Domain-Policies |
+| **7** | Archivos y rutas expuestas | 15 | .env, .git, backups, paneles admin, logs, etc. |
+| **8** | DNS, Email y Dominio | 7 | SPF, DMARC, DNSSEC, CAA, MX, WHOIS |
+| **9** | Fingerprinting y Contenido | 8 | Stack disclosure, mixed content, subresource integrity, etc. |
 
 ---
 
@@ -144,7 +144,7 @@ web-security-suite/
 ├── pyproject.toml                 # Paquete wss
 ├── wss/                           # Motor Python de scanning
 │   ├── core/
-│   │   ├── scanner.py             # _wss_scan(), auto-discovery de bloques
+│   │   ├── scanner.py             # scan(), auto-discovery de bloques
 │   │   ├── registry.py            # Decorador @test, TEST_REGISTRY
 │   │   ├── context.py             # ScanContext
 │   │   ├── result.py              # Result (pass/fail/warn/skip)
@@ -166,7 +166,7 @@ web-security-suite/
 │       ├── app.js                 # Lógica SPA completa (1600+ líneas)
 │       ├── custom.css             # Estilos adicionales
 │       ├── nginx.conf             # Proxy reverso + bloques SSE sin buffering
-│       ├── version.json           # { "version": "6.5", "build": "…" }
+│       ├── version.json           # { "version": "7.0", "build": "…" }
 │       └── wiki.html              # Wiki estática de tests
 ├── reports/                       # Reportes generados (gitignored)
 └── docs/

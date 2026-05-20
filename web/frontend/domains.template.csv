@@ -3,7 +3,7 @@
 #
 #   dominio       : requerido. Dominio o subdominio a analizar
 #                   Puede incluir subruta: app.miempresa.com/portal/
-#   cookie_sesion : opcional. Nombre de la cookie de sesión (para TEST-02 HttpOnly)
+#   cookie_sesion : opcional. Nombre de la cookie de sesión (para COOKIE-HTTPONLY HttpOnly)
 #                   Si no aplica, dejar vacío.
 #   ip_forzada    : opcional. Fuerza resolución DNS a esa IP
 #                   Útil para servidores internos o sin DNS público.

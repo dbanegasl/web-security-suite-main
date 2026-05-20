@@ -1,4 +1,4 @@
-"""Tests unitarios — Bloque 3: Cabeceras HTTP (TEST-10 a TEST-14)."""
+"""Tests unitarios — Bloque 3: Cabeceras HTTP (HEADER-X-FRAME-OPTIONS a HEADER-PERMISSIONS-POLICY)."""
 from __future__ import annotations
 
 import pytest
@@ -24,7 +24,7 @@ def _ctx_with_headers(headers: dict[str, str]):
     return ctx
 
 
-# ── TEST-10: X-Frame-Options ──────────────────────────────────────────────────
+# ── HEADER-X-FRAME-OPTIONS: X-Frame-Options ──────────────────────────────────────────────────
 
 
 async def test_10_pass():
@@ -39,7 +39,7 @@ async def test_10_fail():
     assert r.status == Status.FAIL
 
 
-# ── TEST-11: X-Content-Type-Options ──────────────────────────────────────────
+# ── HEADER-X-CONTENT-TYPE-OPTIONS: X-Content-Type-Options ──────────────────────────────────────────
 
 
 async def test_11_pass():
@@ -54,7 +54,7 @@ async def test_11_fail():
     assert r.status == Status.FAIL
 
 
-# ── TEST-12: CSP ──────────────────────────────────────────────────────────────
+# ── HEADER-CSP: CSP ──────────────────────────────────────────────────────────────
 
 
 async def test_12_fail_absent():
@@ -99,7 +99,7 @@ async def test_12_pass_complete():
     assert r.status == Status.PASS
 
 
-# ── TEST-13: Referrer-Policy ──────────────────────────────────────────────────
+# ── HEADER-REFERRER-POLICY: Referrer-Policy ──────────────────────────────────────────────────
 
 
 async def test_13_pass():
@@ -114,7 +114,7 @@ async def test_13_warn_absent():
     assert r.status == Status.WARN
 
 
-# ── TEST-14: Permissions-Policy ───────────────────────────────────────────────
+# ── HEADER-PERMISSIONS-POLICY: Permissions-Policy ───────────────────────────────────────────────
 
 
 async def test_14_pass():

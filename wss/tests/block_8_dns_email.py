@@ -1,4 +1,4 @@
-"""Bloque 8 — DNS, Email y Dominio (TEST-41 a TEST-47)."""
+"""Bloque 8 — DNS, Email y Dominio (DNS-SPF a DNS-SENSITIVE-PORTS)."""
 from __future__ import annotations
 
 import asyncio
@@ -41,11 +41,11 @@ def _get_txt_strings(answer: Any) -> list[str]:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-41  Registro SPF
+# DNS-SPF  Registro SPF
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test(
-    "41",
+    "DNS-SPF",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="Registro SPF configurado correctamente",
@@ -80,11 +80,11 @@ async def test_spf(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-42  Registro DMARC
+# DNS-DMARC  Registro DMARC
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test(
-    "42",
+    "DNS-DMARC",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="Registro DMARC configurado correctamente",
@@ -119,11 +119,11 @@ async def test_dmarc(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-43  Selectores DKIM
+# DNS-DKIM  Selectores DKIM
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test(
-    "43",
+    "DNS-DKIM",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="DKIM con al menos un selector activo",
@@ -149,11 +149,11 @@ async def test_dkim(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-44  Registro CAA
+# DNS-CAA  Registro CAA
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test(
-    "44",
+    "DNS-CAA",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="Registro CAA presente",
@@ -172,11 +172,11 @@ async def test_caa(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-45  DNSSEC
+# DNS-DNSSEC  DNSSEC
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test(
-    "45",
+    "DNS-DNSSEC",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="DNSSEC habilitado",
@@ -193,7 +193,7 @@ async def test_dnssec(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-46  Subdomain takeover
+# DNS-SUBDOMAIN-TAKEOVER  Subdomain takeover
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Servicios comunes que devuelven respuestas reconocibles cuando el recurso
@@ -212,7 +212,7 @@ _TAKEOVER_SIGNATURES: dict[str, list[str]] = {
 
 
 @test(
-    "46",
+    "DNS-SUBDOMAIN-TAKEOVER",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="Sin riesgo de subdomain takeover",
@@ -253,7 +253,7 @@ async def test_subdomain_takeover(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-47  Puertos sensibles expuestos
+# DNS-SENSITIVE-PORTS  Puertos sensibles expuestos
 # ─────────────────────────────────────────────────────────────────────────────
 
 _SENSITIVE_PORTS: dict[int, str] = {
@@ -286,7 +286,7 @@ async def _port_open(host: str, port: int, timeout: float = 2.0) -> bool:
 
 
 @test(
-    "47",
+    "DNS-SENSITIVE-PORTS",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="Puertos de bases de datos no expuestos",

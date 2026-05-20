@@ -19,7 +19,7 @@ class ScanContext:
                         (puede incluir path, ej: app.ejemplo.com/portal)
         host            Solo el hostname, sin path ni protocolo
         base_url        URL base para peticiones HTTP: https://host/path/
-        session_cookie  Nombre de la cookie de sesión principal (para TEST-02)
+        session_cookie  Nombre de la cookie de sesión principal (para COOKIE-HTTPONLY)
         ip              IP para forzar resolución DNS (equivalente a curl --resolve)
 
     Campos internos (gestionados por el contexto):

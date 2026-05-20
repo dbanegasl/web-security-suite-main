@@ -21,34 +21,23 @@ _OVERALL_LABELS = {
     "CRITICAL": "🔴 CRÍTICO — {fail} fallos detectados",
 }
 
-# Tabla de referencia estática (misma que en generate_report_individual del bash)
-_REFERENCE_ROWS = [
-    ("01", "Cookie flag: **Secure**", "Cookies", "Medio — cookie enviada por HTTP"),
-    ("02", "Cookie flag: **HttpOnly**", "Cookies", "**Alto** — robo de sesión via XSS"),
-    ("03", "Cookie flag: **SameSite**", "Cookies", "Medio — CSRF cross-site"),
-    ("04", "Cookie attribute: **Path**", "Cookies", "Bajo — scope de cookie sin restringir"),
-    ("05", "**HTTP → HTTPS** redirect 301/302", "Transporte", "Medio — tráfico en claro posible"),
-    ("06", "**HSTS** Strict-Transport-Security", "Transporte", "**Alto** — SSL stripping attack"),
-    ("07", "**TLS 1.0** deshabilitado", "Transporte", "**Alto** — protocolo roto (POODLE)"),
-    ("08", "**TLS 1.1** deshabilitado", "Transporte", "Medio — protocolo obsoleto"),
-    ("09", "Certificado SSL **vigente**", "Transporte", "Crítico — conexión insegura si expira"),
-    ("10", "**X-Frame-Options** (anti-clickjacking)", "Cabeceras", "**Alto** — iframes maliciosos"),
-    ("11", "**X-Content-Type-Options**: nosniff", "Cabeceras", "Medio — MIME confusion attack"),
-    ("12", "**Content-Security-Policy** (CSP)", "Cabeceras", "**Alto** — XSS sin restricción de scripts"),
-    ("13", "**Referrer-Policy**", "Cabeceras", "Bajo — fuga de URLs a terceros"),
-    ("14", "**Permissions-Policy**", "Cabeceras", "Bajo — acceso a APIs del navegador"),
-    ("15", "**Server** header oculto", "Fuga de info", "Medio — revela versión del servidor"),
-    ("16", "**X-Powered-By** ausente", "Fuga de info", "Medio — revela stack (PHP, etc.)"),
-    ("17", "**X-AspNet-Version** ausente", "Fuga de info", "Medio — revela versión de .NET"),
-    ("18", "**CORS** sin wildcard", "Config. servidor", "**Alto** — acceso cross-origin irrestricto"),
-    ("19", "**HTTP TRACE** deshabilitado", "Config. servidor", "Medio — XST (Cross-Site Tracing)"),
-    ("20", "**Cache-Control** adecuado", "Config. servidor", "Medio — datos sensibles en caché"),
-    ("21", "**Headers deprecados** ausentes", "Modernización", "Bajo — X-XSS-Protection, Expect-CT y Pragma obsoletos"),
-    ("22", "**Cross-Origin-Opener-Policy** (COOP)", "Aislamiento", "Medio — ataques de ventana cross-origin"),
-    ("23", "**Cross-Origin-Embedder-Policy** (COEP)", "Aislamiento", "Medio — necesario para SharedArrayBuffer"),
-    ("24", "**Cross-Origin-Resource-Policy** (CORP)", "Aislamiento", "Medio — recursos cargables desde orígenes externos"),
-    ("25", "**X-Permitted-Cross-Domain-Policies**", "Aislamiento", "Bajo — acceso de Adobe Flash/PDF a recursos"),
-]
+def _reference_rows() -> list[tuple[str, str, str, str]]:
+    """Construye la referencia desde el registro real para evitar IDs hardcodeados."""
+    from wss.core.registry import TEST_REGISTRY
+    from wss.core.scanner import _ensure_tests_loaded
+
+    _ensure_tests_loaded()
+    rows = []
+    for meta in sorted(TEST_REGISTRY, key=lambda m: (m.block, m.order, m.code)):
+        rows.append(
+            (
+                meta.code,
+                meta.name,
+                meta.block_name,
+                meta.description or meta.severity.value,
+            )
+        )
+    return rows
 
 
 def generate_individual(
@@ -124,7 +113,7 @@ def generate_individual(
     for r in results:
         icon = _ICONS.get(r.status, "?")
         detail = r.detail if r.detail else "-"
-        lines.append(f"| {r.id} | {r.name} | {icon} | {detail} |")
+        lines.append(f"| {r.code} | {r.name} | {icon} | {detail} |")
 
     lines += ["", "---", ""]
 
@@ -134,7 +123,7 @@ def generate_individual(
         lines += ["## ❌ Hallazgos críticos (FAIL)", ""]
         for r in fails:
             suffix = f": {r.detail}" if r.detail else ""
-            lines.append(f"- **TEST-{r.id} — {r.name}**{suffix}")
+            lines.append(f"- **{r.code} — {r.name}**{suffix}")
         lines.append("")
 
     # Advertencias
@@ -143,7 +132,7 @@ def generate_individual(
         lines += ["## ⚠️  Advertencias (WARN)", ""]
         for r in warns:
             suffix = f": {r.detail}" if r.detail else ""
-            lines.append(f"- **TEST-{r.id} — {r.name}**{suffix}")
+            lines.append(f"- **{r.code} — {r.name}**{suffix}")
         lines.append("")
 
     # Referencia de tests
@@ -155,7 +144,7 @@ def generate_individual(
         "| ID | Nombre | Bloque | Riesgo si falla |",
         "|----|--------|--------|-----------------|",
     ]
-    for row in _REFERENCE_ROWS:
+    for row in _reference_rows():
         lines.append(f"| {row[0]} | {row[1]} | {row[2]} | {row[3]} |")
 
     lines += [

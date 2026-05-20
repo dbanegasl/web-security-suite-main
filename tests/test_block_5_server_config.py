@@ -1,4 +1,4 @@
-"""Tests unitarios — Bloque 5: Configuración del servidor (TEST-18 a TEST-20)."""
+"""Tests unitarios — Bloque 5: Configuración del servidor (SERVERCFG-CORS-WILDCARD a SERVERCFG-CACHE-CONTROL)."""
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
@@ -34,7 +34,7 @@ def _ctx_with_trace_response(status_code: int):
     return ctx
 
 
-# ── TEST-18: CORS ──────────────────────────────────────────────────────────────
+# ── SERVERCFG-CORS-WILDCARD: CORS ──────────────────────────────────────────────────────────────
 
 
 async def test_18_pass_absent():
@@ -56,7 +56,7 @@ async def test_18_pass_specific_origin():
     assert r.status == Status.PASS
 
 
-# ── TEST-19: HTTP TRACE ────────────────────────────────────────────────────────
+# ── SERVERCFG-HTTP-TRACE: HTTP TRACE ────────────────────────────────────────────────────────
 
 
 async def test_19_fail_trace_200():
@@ -84,7 +84,7 @@ async def test_19_warn_trace_unexpected():
     assert r.status == Status.WARN
 
 
-# ── TEST-20: Cache-Control ─────────────────────────────────────────────────────
+# ── SERVERCFG-CACHE-CONTROL: Cache-Control ─────────────────────────────────────────────────────
 
 
 async def test_20_warn_absent():

@@ -112,9 +112,11 @@ class TestCatalog(SQLModel, table=True):
 
     __tablename__ = "test_catalog"  # type: ignore[assignment]
 
-    id: str = Field(primary_key=True, max_length=8)          # "01"…"55"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    code: str = Field(index=True, unique=True, max_length=96)
     name: str = Field(max_length=128)
     block: int = Field(index=True)
+    display_order: int = Field(default=0, index=True)
     block_name: str = Field(default="", max_length=64)
     severity: str = Field(default="MEDIUM", max_length=16)   # LOW|MEDIUM|HIGH|CRITICAL
     cwe: Optional[str] = Field(default=None, max_length=32)

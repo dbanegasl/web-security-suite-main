@@ -29,7 +29,7 @@ Cada función de test se registra con el decorador `@test` importado desde `wss.
 
 | Parámetro    | Tipo    | Descripción |
 |---|---|---|
-| `id`         | `str`   | Identificador único de 2 dígitos con cero: `"01"` … `"99"` |
+| `code`       | `str`   | Código funcional descriptivo único: `COOKIE-SECURE`, `EXPOSED-ENV`, `CVE-NGINX-2026-42945-VERSION` |
 | `block`      | `int`   | Número de bloque (1-9 reservados; usa 10+ para bloques nuevos) |
 | `name`       | `str`   | Nombre corto visible en reportes y UI |
 | `severity`   | `str`   | `"LOW"` \| `"MEDIUM"` \| `"HIGH"` \| `"CRITICAL"` |
@@ -58,8 +58,9 @@ from wss.core.result import Result
 
 
 @test(
-    "56",                          # ID único, continúa la numeración
+    "HEADER-X-EJEMPLO",            # code funcional único, no secuencial
     block=10,
+    order=1,
     block_name="Ejemplo",
     name="Mi nuevo test",
     severity="MEDIUM",
@@ -76,13 +77,13 @@ async def test_mi_nuevo_test(ctx: ScanContext) -> Result:
     if "x-ejemplo" in {h.lower() for h in headers}:
         return Result.fail(detail="Cabecera X-Ejemplo expuesta — eliminar del servidor.")
 
-    return Result.ok(detail="Cabecera X-Ejemplo no presente.")
+    return Result.pass_(detail="Cabecera X-Ejemplo no presente.")
 ```
 
 ### Reglas fundamentales
 
 - La función **debe ser `async`** y recibir un `ScanContext` como único argumento.
-- **Siempre devuelve un `Result`**: usa `Result.ok()`, `Result.fail()`, `Result.warn()` o `Result.skip()`.
+- **Siempre devuelve un `Result`**: usa `Result.pass_()`, `Result.fail()`, `Result.warn()` o `Result.skip()`.
 - No uses `print()` ni `logging` dentro del test; usa solo el campo `detail` del `Result`.
 - El campo `detail` debe ser una cadena de máximo ~120 caracteres.
 
@@ -157,7 +158,7 @@ python3 -m pytest tests/test_block_10_ejemplo.py -v
 
 ## 5. Actualizar la documentación
 
-Al añadir un bloque nuevo o modificar el rango de IDs, actualiza estos archivos en la **misma operación**:
+Al añadir un bloque nuevo o añadir/modificar tests, actualiza estos archivos en la **misma operación**:
 
 | Archivo | Qué actualizar |
 |---|---|
@@ -189,7 +190,7 @@ que el primer argumento de `@test`):
 DESCRIPTIONS: dict[str, str] = {
     # ... tests existentes ...
 
-    "56": desc(
+    "HEADER-X-EJEMPLO": desc(
         # ¿Qué verifica?
         "Que el header <code>X-Custom-Header</code> esté presente con el valor correcto.",
         # ¿Por qué importa? (puede ser cadena vacía "")
@@ -198,7 +199,7 @@ DESCRIPTIONS: dict[str, str] = {
         [("PASS", "Header presente y con valor válido"),
          ("FAIL", "Header ausente o con valor incorrecto")],
         # Remediación: HTML libre o resultado de tabs(...)
-        tabs("56", [
+        tabs("HEADER-X-EJEMPLO", [
             ("Nginx", 'add_header X-Custom-Header "valor" always;'),
             ("Apache", 'Header always set X-Custom-Header "valor"'),
         ]),
@@ -211,7 +212,7 @@ DESCRIPTIONS: dict[str, str] = {
 | Helper | Descripción |
 |---|---|
 | `desc(what, why, results, rem)` | Genera el bloque HTML estándar con las 4 secciones |
-| `tabs(tid, panels)` | Genera tabs Bootstrap 5 con paneles `<pre>` de código |
+| `tabs(code, panels)` | Genera tabs Bootstrap 5 con paneles `<pre>` de código |
 | `_esc(s)` | HTML-escapa una cadena (uso interno en `tabs`) |
 
 - `results` es una lista de tuplas `(estado, texto)`, donde `estado` puede ser `PASS`, `FAIL`, `WARN`, `SKIP` o `INFO`.
@@ -237,7 +238,7 @@ este script sobrescribe descripciones existentes vía PATCH a la API y marca `de
 python3 temp/seed_descriptions.py --pass <admin_password>
 
 # Propagar solo un test específico
-python3 temp/seed_descriptions.py --pass <admin_password> --test 56
+python3 temp/seed_descriptions.py --pass <admin_password> --test COOKIE-SECURE
 
 # Apuntar a otra instancia
 python3 temp/seed_descriptions.py --pass <admin_password> --url http://servidor:8778

@@ -48,7 +48,7 @@ Estas limitaciones no son accidentales. Son parte del modelo de seguridad web pa
 | 05 | HTTP a HTTPS redirect | Parcial | `fetch` sigue redirecciones, pero no siempre permite inspeccionar bien cadenas cross-origin; ademas depende de CORS. |
 | 06 | HSTS | Parcial/No | Si CORS permite leer headers podria verse, pero normalmente no estara expuesto. |
 | 07 | TLS 1.0 deshabilitado | No | El navegador no permite elegir version TLS por request. |
-| 08 | TLS 1.1 deshabilitado | No | Igual que TEST-07. |
+| 08 | TLS 1.1 deshabilitado | No | Igual que TLS-10-DISABLED. |
 | 09 | Certificado SSL vigente | No | JS no puede abrir un socket TLS crudo ni leer el certificado remoto. |
 | 10 | X-Frame-Options | Parcial/No | Puede inferirse con iframe en algunos casos, pero leer el header cross-origin no es confiable. |
 | 11 | X-Content-Type-Options | Parcial/No | Solo seria visible si el servidor expone el header mediante CORS. |
@@ -57,7 +57,7 @@ Estas limitaciones no son accidentales. Son parte del modelo de seguridad web pa
 | 14 | Permissions-Policy | Parcial/No | Lectura de header limitada por CORS. |
 | 15 | Server header | Parcial/No | `Server` normalmente no es legible desde JS cross-origin. |
 | 16 | X-Powered-By | Parcial/No | Depende de CORS y de `Access-Control-Expose-Headers`. |
-| 17 | X-AspNet-Version | Parcial/No | Igual que TEST-16. |
+| 17 | X-AspNet-Version | Parcial/No | Igual que INFOLEAK-X-POWERED-BY. |
 | 18 | CORS wildcard | Parcial | Se puede probar desde el navegador, pero no con el mismo control ni cobertura que `curl`. |
 | 19 | HTTP TRACE deshabilitado | No | Navegadores restringen metodos peligrosos o requieren CORS/preflight; no sirve como prueba confiable. |
 | 20 | Cache-Control | Parcial/No | Header visible solo si CORS lo permite; para auditoria general requiere backend. |
@@ -146,7 +146,7 @@ Hoy el script imprime salida coloreada para terminal y genera Markdown. Para una
   "summary": { "pass": 12, "fail": 5, "warn": 3, "skip": 0 },
   "tests": [
     {
-      "id": "01",
+      "code": "COOKIE-SECURE",
       "name": "Cookie attribute: Secure",
       "result": "PASS",
       "detail": ""

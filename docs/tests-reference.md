@@ -1,18 +1,18 @@
 # Referencia de tests — web-security-suite
 
-Especificación técnica de los 55 tests (v6.5). Los bloques 1-6 incluyen snippets bash independientes; los bloques 7-9 están implementados en Python (`wss/tests/block_7_*.py`, etc.). Para añadir tests, ver [creating-tests.md](creating-tests.md).
+Especificación técnica de los 55 tests (v7.0). Los bloques 1-6 incluyen snippets bash independientes; los bloques 7-9 están implementados en Python (`wss/tests/block_7_*.py`, etc.). Para añadir tests, ver [creating-tests.md](creating-tests.md).
 
 > Los snippets bash de bloques 1-6 asumen ejecución independiente. En el motor Python `wss`, todos los tests usan `ScanContext` con httpx.
 
 **Referencia:** OWASP Top 10 · Security Headers · ZAP Active Scan rules
 
-> **Bloques 7-9** (TEST-26 a TEST-55): Archivos/rutas expuestas, DNS/Email/Dominio, Fingerprinting/Contenido — implementados en Python `wss`. Ver código en `wss/tests/block_7_*.py`, `block_8_*.py`, `block_9_*.py`.
+> **Bloques 7-9** (EXPOSED-ENV a CONTENT-PASSWORD-OVER-HTTP): Archivos/rutas expuestas, DNS/Email/Dominio, Fingerprinting/Contenido — implementados en Python `wss`. Ver código en `wss/tests/block_7_*.py`, `block_8_*.py`, `block_9_*.py`.
 
 ---
 
 ## Bloque 1 — Cookies
 
-### TEST-01 — Cookie: atributo `Secure` (Scorecard: −12.4 pts)
+### COOKIE-SECURE — Cookie: atributo `Secure` (Scorecard: −12.4 pts)
 
 **Qué verifica:** Que todas las cookies tengan el atributo `Secure`, impidiendo transmisión en conexiones HTTP no cifradas.  
 **Falla si:** Alguna cookie no contiene `; secure` en el header `Set-Cookie`.
@@ -33,7 +33,7 @@ done <<< "$COOKIES"
 
 ---
 
-### TEST-02 — Cookie de sesión: atributo `HttpOnly` (Scorecard: −8.6 pts)
+### COOKIE-HTTPONLY — Cookie de sesión: atributo `HttpOnly` (Scorecard: −8.6 pts)
 
 **Qué verifica:** Que la cookie de sesión no sea accesible desde JavaScript (protección anti-XSS).  
 **Aplica a:** Cookie de sesión únicamente. El token CSRF (`XSRF-TOKEN`) debe ser legible por JS — excluirlo.  
@@ -56,7 +56,7 @@ fi
 
 ---
 
-### TEST-03 — Cookie: atributo `SameSite`
+### COOKIE-SAMESITE — Cookie: atributo `SameSite`
 
 **Qué verifica:** Protección contra CSRF vía `SameSite=Lax` o `SameSite=Strict`.  
 **Falla si:** Alguna cookie no tiene `SameSite` o tiene `SameSite=None`.
@@ -78,7 +78,7 @@ done <<< "$COOKIES"
 
 ---
 
-### TEST-04 — Cookie: atributo `Path`
+### COOKIE-PATH — Cookie: atributo `Path`
 
 **Qué verifica:** Que las cookies tengan `Path` definido para limitar su scope.  
 **Advierte** si alguna cookie no especifica `Path` (WARN, no FAIL crítico).
@@ -99,7 +99,7 @@ done <<< "$COOKIES"
 
 ## Bloque 2 — Transporte y TLS
 
-### TEST-05 — Redirección HTTP → HTTPS (Scorecard: −0.6 pts)
+### TLS-HTTP-TO-HTTPS — Redirección HTTP → HTTPS (Scorecard: −0.6 pts)
 
 **Qué verifica:** Que el servidor no sirva contenido por HTTP sin redirigir a HTTPS.  
 **Falla si:** HTTP responde código distinto de 301/302, o `Location` no apunta a `https://`.
@@ -118,7 +118,7 @@ echo "  Location    : $LOCATION"
 
 ---
 
-### TEST-06 — HSTS (Strict-Transport-Security)
+### TLS-HSTS — HSTS (Strict-Transport-Security)
 
 **Qué verifica:** Que el servidor obligue al navegador a usar HTTPS con `max-age` ≥ 1 año (31536000 segundos).  
 **FAIL** si el header está ausente. **WARN** si `max-age` < 31536000.
@@ -136,7 +136,7 @@ else echo "RESULTADO: ⚠️  WARN — max-age=${MAX_AGE} < 31536000"; fi
 
 ---
 
-### TEST-07 — TLS 1.0 deshabilitado
+### TLS-10-DISABLED — TLS 1.0 deshabilitado
 
 **Qué verifica:** Que el servidor rechace conexiones con TLS 1.0 (protocolo obsoleto, vulnerable a POODLE/BEAST).  
 **Falla si:** El servidor acepta TLS 1.0.
@@ -151,7 +151,7 @@ curl -sk --tlsv1.0 --tls-max 1.0 $RESOLVE "https://${DOMAIN}/" -o /dev/null 2>/d
 
 ---
 
-### TEST-08 — TLS 1.1 deshabilitado
+### TLS-11-DISABLED — TLS 1.1 deshabilitado
 
 **Qué verifica:** Que el servidor rechace TLS 1.1 (obsoleto desde RFC 8996, 2021).  
 **Falla si:** El servidor acepta TLS 1.1.
@@ -166,7 +166,7 @@ curl -sk --tlsv1.1 --tls-max 1.1 $RESOLVE "https://${DOMAIN}/" -o /dev/null 2>/d
 
 ---
 
-### TEST-09 — Certificado SSL vigente
+### TLS-CERT-VALIDITY — Certificado SSL vigente
 
 **Qué verifica:** Días restantes antes de que expire el certificado TLS.  
 **FAIL** si expira en ≤ 7 días. **WARN** si expira en ≤ 30 días. **PASS** si > 30 días.
@@ -188,7 +188,7 @@ else echo "✅ PASS"; fi
 
 ## Bloque 3 — Cabeceras HTTP de seguridad
 
-### TEST-10 — X-Frame-Options (anti-clickjacking)
+### HEADER-X-FRAME-OPTIONS — X-Frame-Options (anti-clickjacking)
 
 **Qué verifica:** Que el sitio no pueda ser embebido en un `<iframe>` externo.  
 **Falla si:** El header `X-Frame-Options` está ausente.  
@@ -203,7 +203,7 @@ XFO=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -i "^x-frame-options:" | 
 
 ---
 
-### TEST-11 — X-Content-Type-Options: nosniff
+### HEADER-X-CONTENT-TYPE-OPTIONS — X-Content-Type-Options: nosniff
 
 **Qué verifica:** Que el navegador no intente inferir el MIME type de las respuestas (anti-MIME sniffing).  
 **Falla si:** El header `X-Content-Type-Options` está ausente.
@@ -217,7 +217,7 @@ XCTO=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -i "^x-content-type-opti
 
 ---
 
-### TEST-12 — Content-Security-Policy
+### HEADER-CSP — Content-Security-Policy
 
 **Qué verifica:** Presencia de CSP y ausencia de directivas peligrosas.  
 **FAIL** si CSP ausente. **WARN** si contiene `unsafe-eval` (permite ejecución de código arbitrario).  
@@ -234,7 +234,7 @@ else echo "✅ PASS"; fi
 
 ---
 
-### TEST-13 — Referrer-Policy
+### HEADER-REFERRER-POLICY — Referrer-Policy
 
 **Qué verifica:** Que el sitio controle qué información de referencia se envía al navegar a otros dominios.  
 **Advierte** si el header está ausente (WARN, no FAIL crítico).
@@ -248,7 +248,7 @@ RP=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -i "^referrer-policy:" | t
 
 ---
 
-### TEST-14 — Permissions-Policy
+### HEADER-PERMISSIONS-POLICY — Permissions-Policy
 
 **Qué verifica:** Que el sitio restrinja el uso de APIs sensibles del navegador (cámara, micrófono, geolocalización).  
 **Advierte** si el header está ausente (WARN, no FAIL crítico).
@@ -264,7 +264,7 @@ PP=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -i "^permissions-policy:" 
 
 ## Bloque 4 — Fuga de información
 
-### TEST-15 — Server header sin versión
+### INFOLEAK-SERVER-HEADER — Server header sin versión
 
 **Qué verifica:** Que el header `Server` no revele el número de versión del software (ej: `nginx/1.26.2`).  
 **PASS** si el header está ausente o solo contiene el nombre del servidor. **FAIL** si contiene número de versión.  
@@ -280,7 +280,7 @@ echo "$SERVER" | grep -qiP "[\d\.]{3,}" && echo "❌ FAIL — revela versión" |
 
 ---
 
-### TEST-16 — X-Powered-By ausente
+### INFOLEAK-X-POWERED-BY — X-Powered-By ausente
 
 **Qué verifica:** Que el header `X-Powered-By` no revele el stack tecnológico (ej: `PHP/7.2.34`).  
 **Falla si:** El header está presente.
@@ -294,7 +294,7 @@ XPB=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -i "^x-powered-by:" | tr 
 
 ---
 
-### TEST-17 — X-AspNet-Version ausente
+### INFOLEAK-ASP-NET-VERSION — X-AspNet-Version ausente
 
 **Qué verifica:** Que los headers de versión de ASP.NET no estén expuestos.  
 **Aplica principalmente a:** Servidores IIS / ASP.NET. En nginx/PHP siempre debería ser PASS.
@@ -310,7 +310,7 @@ XASNET=$(curl -sk -I $RESOLVE "https://${DOMAIN}/" | grep -iE "^x-aspnet(mvc)?-v
 
 ## Bloque 5 — Configuración del servidor
 
-### TEST-18 — CORS sin wildcard
+### SERVERCFG-CORS-WILDCARD — CORS sin wildcard
 
 **Qué verifica:** Que el header `Access-Control-Allow-Origin` no use `*` (permitiría cualquier origen acceder a los recursos).  
 **PASS** si CORS no está expuesto en raíz o especifica origen explícito. **FAIL** si usa `*`.
@@ -326,7 +326,7 @@ else echo "✅ PASS — ${CORS#*: }"; fi
 
 ---
 
-### TEST-19 — HTTP TRACE deshabilitado
+### SERVERCFG-HTTP-TRACE — HTTP TRACE deshabilitado
 
 **Qué verifica:** Que el método HTTP `TRACE` esté deshabilitado (previene ataques Cross-Site Tracing / XST).  
 **FAIL** si el servidor responde `200 OK`. **PASS** si responde 405/403/404.
@@ -343,7 +343,7 @@ else echo "⚠️  WARN — respuesta inesperada: $TRACE_CODE"; fi
 
 ---
 
-### TEST-20 — Cache-Control seguro
+### SERVERCFG-CACHE-CONTROL — Cache-Control seguro
 
 **Qué verifica:** Que el header `Cache-Control` incluya directivas que eviten el cacheo de contenido sensible en navegadores/proxies.  
 **PASS** si contiene `no-store`, `no-cache` o `private`. **WARN** si el header está ausente o usa solo directivas permisivas.  
@@ -365,26 +365,26 @@ else echo "⚠️  WARN — revisar si aplica a rutas autenticadas"; fi
 
 | Test | Descripción | Criterio PASS | Nivel fallo | Pts Scorecard |
 |---|---|---|---|---|
-| TEST-01 | Cookie: Secure | Todas las cookies tienen `; secure` | FAIL | +12.4 |
-| TEST-02 | Cookie: HttpOnly | Cookie de sesión tiene `; httponly` | FAIL | +8.6 |
-| TEST-03 | Cookie: SameSite | Todas las cookies tienen `SameSite=Lax\|Strict` | FAIL | — |
-| TEST-04 | Cookie: Path | Todas las cookies tienen `Path` definido | WARN | — |
-| TEST-05 | HTTP → HTTPS redirect | Código 301/302 + Location a `https://` | FAIL | +0.6 |
-| TEST-06 | HSTS | `max-age >= 31536000` | FAIL / WARN | — |
-| TEST-07 | TLS 1.0 deshabilitado | Conexión TLS 1.0 rechazada | FAIL | — |
-| TEST-08 | TLS 1.1 deshabilitado | Conexión TLS 1.1 rechazada | FAIL | — |
-| TEST-09 | Certificado SSL | Expira en > 30 días | FAIL / WARN | — |
-| TEST-10 | X-Frame-Options | Header presente | FAIL | — |
-| TEST-11 | X-Content-Type-Options | `nosniff` presente | FAIL | — |
-| TEST-12 | Content-Security-Policy | CSP presente sin `unsafe-eval` | FAIL / WARN | — |
-| TEST-13 | Referrer-Policy | Header presente | WARN | — |
-| TEST-14 | Permissions-Policy | Header presente | WARN | — |
-| TEST-15 | Server sin versión | No contiene número de versión | FAIL | — |
-| TEST-16 | X-Powered-By ausente | Header ausente | FAIL | — |
-| TEST-17 | X-AspNet-Version ausente | Header ausente | FAIL | — |
-| TEST-18 | CORS sin wildcard | No expone `*` en Access-Control | FAIL | — |
-| TEST-19 | HTTP TRACE off | Responde 405/403/404 a TRACE | FAIL | — |
-| TEST-20 | Cache-Control seguro | Contiene `no-store\|no-cache\|private` | WARN | — |
+| COOKIE-SECURE | Cookie: Secure | Todas las cookies tienen `; secure` | FAIL | +12.4 |
+| COOKIE-HTTPONLY | Cookie: HttpOnly | Cookie de sesión tiene `; httponly` | FAIL | +8.6 |
+| COOKIE-SAMESITE | Cookie: SameSite | Todas las cookies tienen `SameSite=Lax\|Strict` | FAIL | — |
+| COOKIE-PATH | Cookie: Path | Todas las cookies tienen `Path` definido | WARN | — |
+| TLS-HTTP-TO-HTTPS | HTTP → HTTPS redirect | Código 301/302 + Location a `https://` | FAIL | +0.6 |
+| TLS-HSTS | HSTS | `max-age >= 31536000` | FAIL / WARN | — |
+| TLS-10-DISABLED | TLS 1.0 deshabilitado | Conexión TLS 1.0 rechazada | FAIL | — |
+| TLS-11-DISABLED | TLS 1.1 deshabilitado | Conexión TLS 1.1 rechazada | FAIL | — |
+| TLS-CERT-VALIDITY | Certificado SSL | Expira en > 30 días | FAIL / WARN | — |
+| HEADER-X-FRAME-OPTIONS | X-Frame-Options | Header presente | FAIL | — |
+| HEADER-X-CONTENT-TYPE-OPTIONS | X-Content-Type-Options | `nosniff` presente | FAIL | — |
+| HEADER-CSP | Content-Security-Policy | CSP presente sin `unsafe-eval` | FAIL / WARN | — |
+| HEADER-REFERRER-POLICY | Referrer-Policy | Header presente | WARN | — |
+| HEADER-PERMISSIONS-POLICY | Permissions-Policy | Header presente | WARN | — |
+| INFOLEAK-SERVER-HEADER | Server sin versión | No contiene número de versión | FAIL | — |
+| INFOLEAK-X-POWERED-BY | X-Powered-By ausente | Header ausente | FAIL | — |
+| INFOLEAK-ASP-NET-VERSION | X-AspNet-Version ausente | Header ausente | FAIL | — |
+| SERVERCFG-CORS-WILDCARD | CORS sin wildcard | No expone `*` en Access-Control | FAIL | — |
+| SERVERCFG-HTTP-TRACE | HTTP TRACE off | Responde 405/403/404 a TRACE | FAIL | — |
+| SERVERCFG-CACHE-CONTROL | Cache-Control seguro | Contiene `no-store\|no-cache\|private` | WARN | — |
 
 ---
 
@@ -392,13 +392,13 @@ else echo "⚠️  WARN — revisar si aplica a rutas autenticadas"; fi
 
 | Rule ID | Descripción | Tests relacionados |
 |---|---|---|
-| 10010 | Secure cookie attribute | TEST-01 |
-| 10015 | Incomplete or No Cache-control Header | TEST-20 |
-| 10020 | Anti-clickjacking Header | TEST-10 |
-| 10035 | Strict-Transport-Security Header | TEST-06 |
-| 10038 | Content Security Policy (CSP) | TEST-12 |
-| 10096 | Timestamp Disclosure | TEST-15 |
+| 10010 | Secure cookie attribute | COOKIE-SECURE |
+| 10015 | Incomplete or No Cache-control Header | SERVERCFG-CACHE-CONTROL |
+| 10020 | Anti-clickjacking Header | HEADER-X-FRAME-OPTIONS |
+| 10035 | Strict-Transport-Security Header | TLS-HSTS |
+| 10038 | Content Security Policy (CSP) | HEADER-CSP |
+| 10096 | Timestamp Disclosure | INFOLEAK-SERVER-HEADER |
 
 ---
 
-*Documento generado con asistencia de GitHub Copilot — DUOTICS 2026 · v6.5.*
+*Documento generado con asistencia de GitHub Copilot — DUOTICS 2026 · v7.0.*

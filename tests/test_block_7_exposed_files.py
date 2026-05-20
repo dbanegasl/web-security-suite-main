@@ -1,4 +1,4 @@
-"""Tests unitarios — Bloque 7: Archivos y rutas expuestas (TEST-26 a TEST-40)."""
+"""Tests unitarios — Bloque 7: Archivos y rutas expuestas (EXPOSED-ENV a EXPOSED-DS-STORE)."""
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
@@ -55,7 +55,7 @@ def _ctx_404():
     return _ctx_with_url_map({})
 
 
-# ── TEST-26: .env expuesto ────────────────────────────────────────────────────
+# ── EXPOSED-ENV: .env expuesto ────────────────────────────────────────────────────
 
 
 async def test_26_fail_env_exposed():
@@ -80,7 +80,7 @@ async def test_26_pass_html_200_on_404():
     assert r.status == Status.PASS
 
 
-# ── TEST-27: .git expuesto ────────────────────────────────────────────────────
+# ── EXPOSED-GIT: .git expuesto ────────────────────────────────────────────────────
 
 
 async def test_27_fail_git_head():
@@ -102,7 +102,7 @@ async def test_27_pass():
     assert r.status == Status.PASS
 
 
-# ── TEST-28: SVN/HG expuestos ─────────────────────────────────────────────────
+# ── EXPOSED-SVN-HG: SVN/HG expuestos ─────────────────────────────────────────────────
 
 
 async def test_28_fail_svn():
@@ -117,7 +117,7 @@ async def test_28_pass():
     assert r.status == Status.PASS
 
 
-# ── TEST-29: Volcados SQL ─────────────────────────────────────────────────────
+# ── EXPOSED-SQL-DUMPS: Volcados SQL ─────────────────────────────────────────────────────
 
 
 async def test_29_fail_sql_dump():
@@ -135,7 +135,7 @@ async def test_29_pass():
     assert r.status == Status.PASS
 
 
-# ── TEST-30: Archivos de backup ───────────────────────────────────────────────
+# ── EXPOSED-BACKUP-FILES: Archivos de backup ───────────────────────────────────────────────
 
 
 async def test_30_warn_backup():
@@ -150,7 +150,7 @@ async def test_30_pass():
     assert r.status == Status.PASS
 
 
-# ── TEST-31: phpinfo ──────────────────────────────────────────────────────────
+# ── EXPOSED-PHPINFO: phpinfo ──────────────────────────────────────────────────────────
 
 
 async def test_31_fail_phpinfo():
@@ -166,7 +166,7 @@ async def test_31_pass():
     assert r.status == Status.PASS
 
 
-# ── TEST-32: security.txt ─────────────────────────────────────────────────────
+# ── EXPOSED-SECURITY-TXT: security.txt ─────────────────────────────────────────────────────
 
 
 async def test_32_pass_present():
@@ -183,7 +183,7 @@ async def test_32_warn_absent():
     assert r.status == Status.WARN
 
 
-# ── TEST-33: server-status ────────────────────────────────────────────────────
+# ── EXPOSED-SERVER-STATUS: server-status ────────────────────────────────────────────────────
 
 
 async def test_33_fail_server_status():
@@ -200,7 +200,7 @@ async def test_33_pass_403():
     assert r.status == Status.PASS
 
 
-# ── TEST-34: Admin panels ─────────────────────────────────────────────────────
+# ── EXPOSED-ADMIN-PANELS: Admin panels ─────────────────────────────────────────────────────
 
 
 async def test_34_warn_wp_admin_200():
@@ -219,7 +219,7 @@ async def test_34_pass_all_401():
     assert r.status in (Status.PASS, Status.WARN)
 
 
-# ── TEST-35: Archivos de configuración ───────────────────────────────────────
+# ── EXPOSED-CONFIG-FILES: Archivos de configuración ───────────────────────────────────────
 
 
 async def test_35_fail_htaccess():
@@ -251,7 +251,7 @@ async def test_35_pass_403():
     assert r.status == Status.PASS
 
 
-# ── TEST-36: Manifiestos de dependencias ─────────────────────────────────────
+# ── EXPOSED-DEPENDENCY-MANIFESTS: Manifiestos de dependencias ─────────────────────────────────────
 
 
 async def test_36_warn_composer():
@@ -277,7 +277,7 @@ async def test_36_pass():
     assert r.status == Status.PASS
 
 
-# ── TEST-37: crossdomain.xml wildcard ────────────────────────────────────────
+# ── EXPOSED-CROSSDOMAIN-WILDCARD: crossdomain.xml wildcard ────────────────────────────────────────
 
 
 async def test_37_fail_wildcard():
@@ -302,7 +302,7 @@ async def test_37_pass_restricted():
     assert r.status == Status.PASS
 
 
-# ── TEST-38: API docs expuestos ───────────────────────────────────────────────
+# ── EXPOSED-API-DOCS: API docs expuestos ───────────────────────────────────────────────
 
 
 async def test_38_warn_swagger():
@@ -319,7 +319,7 @@ async def test_38_pass():
     assert r.status == Status.PASS
 
 
-# ── TEST-39: Spring Actuator ──────────────────────────────────────────────────
+# ── EXPOSED-SPRING-ACTUATOR: Spring Actuator ──────────────────────────────────────────────────
 
 
 async def test_39_fail_actuator_env():
@@ -345,7 +345,7 @@ async def test_39_pass():
     assert r.status == Status.PASS
 
 
-# ── TEST-40: .DS_Store ────────────────────────────────────────────────────────
+# ── EXPOSED-DS-STORE: .DS_Store ────────────────────────────────────────────────────────
 
 
 async def test_40_fail_ds_store():

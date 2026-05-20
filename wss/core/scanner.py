@@ -44,16 +44,16 @@ def _ensure_tests_loaded() -> None:
 
 async def scan(
     ctx: ScanContext,
-    test_ids: Optional[list[str]] = None,
+    test_codes: Optional[list[str]] = None,
 ) -> list[Result]:
     """Ejecuta todos los tests registrados contra ctx.
 
     Args:
         ctx:       Contexto del escaneo (dominio, cookie, IP, cliente HTTP).
-        test_ids:  Si se especifica, solo ejecuta los tests con esos IDs.
+        test_codes: Si se especifica, solo ejecuta los tests con esos códigos.
 
     Returns:
-        Lista de Result ordenada por ID de test.
+        Lista de Result ordenada por bloque/orden/código.
     """
     _ensure_tests_loaded()
 
@@ -65,10 +65,10 @@ async def scan(
         pass
 
     results: list[Result] = []
-    registry = sorted(TEST_REGISTRY, key=lambda m: m.id)
+    registry = sorted(TEST_REGISTRY, key=lambda m: (m.block, m.order, m.code))
 
     for meta in registry:
-        if test_ids and meta.id not in test_ids:
+        if test_codes and meta.code not in test_codes:
             continue
 
         t0 = time.monotonic()
@@ -78,7 +78,7 @@ async def scan(
             result = Result.skip(detail=f"error inesperado: {exc}")
 
         # Rellenar metadatos desde el decorador
-        result.id = meta.id
+        result.code = meta.code
         result.name = meta.name
         result.block = meta.block
         result.severity = meta.severity

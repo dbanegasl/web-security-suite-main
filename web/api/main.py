@@ -177,22 +177,22 @@ async def _probe_ip_reachable(ip: str, port: int = 443) -> bool:
         return False
 
 
-def _get_disabled_test_ids(session: Session) -> set[str]:
-    """Retorna el conjunto de IDs de tests deshabilitados en el catálogo."""
+def _get_disabled_test_codes(session: Session) -> set[str]:
+    """Retorna el conjunto de códigos de tests deshabilitados en el catálogo."""
     return {
-        r.id for r in session.exec(
+        r.code for r in session.exec(
             select(TestCatalog).where(TestCatalog.is_active == False)  # noqa: E712
         ).all()
     }
 
 
-async def _run_scan(domain: str, cookie: str, ip: str, disabled_ids: Optional[set[str]] = None) -> dict[str, Any]:
+async def _run_scan(domain: str, cookie: str, ip: str, disabled_codes: Optional[set[str]] = None) -> dict[str, Any]:
     """Ejecuta el scan con wss Python core y devuelve el resultado JSON."""
     async with _SCAN_SEM:
-        return await _run_scan_inner(domain, cookie, ip, disabled_ids=disabled_ids or set())
+        return await _run_scan_inner(domain, cookie, ip, disabled_codes=disabled_codes or set())
 
 
-async def _run_scan_inner(domain: str, cookie: str, ip: str, disabled_ids: Optional[set[str]] = None) -> dict[str, Any]:
+async def _run_scan_inner(domain: str, cookie: str, ip: str, disabled_codes: Optional[set[str]] = None) -> dict[str, Any]:
     """Lógica interna del scan usando wss core directamente (sin subprocess).
 
     Si hay IP forzada pero no es alcanzable (TCP probe en IP_PROBE_TIMEOUT seg),
@@ -205,16 +205,16 @@ async def _run_scan_inner(domain: str, cookie: str, ip: str, disabled_ids: Optio
     ctx = _build_scan_context(domain, cookie, effective_ip)
     try:
         # Ejecutar solo tests activos; los deshabilitados se añaden como SKIP sintético
-        active_ids: Optional[list[str]] = None
-        if disabled_ids:
+        active_codes: Optional[list[str]] = None
+        if disabled_codes:
             from wss.core.scanner import _ensure_tests_loaded
             from wss.core.registry import TEST_REGISTRY
             _ensure_tests_loaded()
-            all_ids = {m.id for m in TEST_REGISTRY}
-            active_ids = sorted(all_ids - disabled_ids)
+            all_codes = {m.code for m in TEST_REGISTRY}
+            active_codes = sorted(all_codes - disabled_codes)
 
         results = await asyncio.wait_for(
-            _wss_scan(ctx, test_ids=active_ids),
+            _wss_scan(ctx, test_codes=active_codes),
             timeout=SCAN_TIMEOUT,
         )
     except asyncio.TimeoutError:
@@ -225,20 +225,21 @@ async def _run_scan_inner(domain: str, cookie: str, ip: str, disabled_ids: Optio
             await ctx._client.aclose()
 
     # Añadir resultados SKIP sintéticos para tests deshabilitados
-    if disabled_ids:
+    if disabled_codes:
         from wss.core.registry import TEST_REGISTRY
         from wss.core.result import Result as _Result
-        for meta in sorted(TEST_REGISTRY, key=lambda m: m.id):
-            if meta.id in disabled_ids:
+        for meta in sorted(TEST_REGISTRY, key=lambda m: (m.block, m.order, m.code)):
+            if meta.code in disabled_codes:
                 skip_r = _Result.skip("Test deshabilitado por el administrador")
-                skip_r.id = meta.id
+                skip_r.code = meta.code
                 skip_r.name = meta.name
                 skip_r.block = meta.block
                 skip_r.severity = meta.severity
                 skip_r.cwe = meta.cwe
                 skip_r.duration_ms = 0.0
                 results.append(skip_r)
-        results.sort(key=lambda r: r.id)
+        order_map = {m.code: (m.block, m.order, m.code) for m in TEST_REGISTRY}
+        results.sort(key=lambda r: order_map.get(r.code, (r.block, 9999, r.code)))
 
     data: dict[str, Any] = json.loads(
         _json_generate(results, domain=domain, base_url=ctx.base_url,
@@ -300,7 +301,7 @@ async def get_tests(
     from wss.core.registry import BLOCK_META
     import json
 
-    stmt = select(TestCatalog).order_by(TestCatalog.id)
+    stmt = select(TestCatalog).order_by(TestCatalog.block, TestCatalog.display_order, TestCatalog.code)
     if block is not None:
         stmt = stmt.where(TestCatalog.block == block)
     if severity is not None:
@@ -311,6 +312,7 @@ async def get_tests(
     tests_out = [
         {
             "id": r.id,
+            "code": r.code,
             "name": r.name,
             "block": r.block,
             "block_name": r.block_name,
@@ -369,13 +371,14 @@ async def admin_get_tests(
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Acceso denegado")
     import json as _json
-    stmt = select(TestCatalog).order_by(TestCatalog.id)
+    stmt = select(TestCatalog).order_by(TestCatalog.block, TestCatalog.display_order, TestCatalog.code)
     if block is not None:
         stmt = stmt.where(TestCatalog.block == block)
     rows = session.exec(stmt).all()
     return [
         {
             "id": r.id,
+            "code": r.code,
             "name": r.name,
             "block": r.block,
             "block_name": r.block_name,
@@ -392,9 +395,9 @@ async def admin_get_tests(
     ]
 
 
-@app.patch("/api/admin/tests/{test_id}")
+@app.patch("/api/admin/tests/{test_code}")
 async def admin_patch_test(
-    test_id: str,
+    test_code: str,
     body: TestCatalogPatch,
     session: Session = Depends(database.get_session),
     current_user: User = Depends(auth.get_current_user),
@@ -402,7 +405,7 @@ async def admin_patch_test(
     """Edita nombre, severidad, descripción y/o estado activo de un test — solo admin."""
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Acceso denegado")
-    row = session.get(TestCatalog, test_id)
+    row = session.exec(select(TestCatalog).where(TestCatalog.code == test_code)).first()
     if not row:
         raise HTTPException(status_code=404, detail="Test no encontrado")
     if body.name is not None:
@@ -427,6 +430,7 @@ async def admin_patch_test(
     import json as _json
     return {
         "id": row.id,
+        "code": row.code,
         "name": row.name,
         "block": row.block,
         "block_name": row.block_name,
@@ -438,22 +442,22 @@ async def admin_patch_test(
     }
 
 
-@app.post("/api/admin/tests/{test_id}/reset")
+@app.post("/api/admin/tests/{test_code}/reset")
 async def admin_reset_test(
-    test_id: str,
+    test_code: str,
     session: Session = Depends(database.get_session),
     current_user: User = Depends(auth.get_current_user),
 ):
     """Restablece nombre, severidad y descripción al valor del código (TEST_REGISTRY) — solo admin."""
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Acceso denegado")
-    row = session.get(TestCatalog, test_id)
+    row = session.exec(select(TestCatalog).where(TestCatalog.code == test_code)).first()
     if not row:
         raise HTTPException(status_code=404, detail="Test no encontrado")
     from wss.core.scanner import _ensure_tests_loaded
     from wss.core.registry import TEST_REGISTRY
     _ensure_tests_loaded()
-    meta = next((m for m in TEST_REGISTRY if m.id == test_id), None)
+    meta = next((m for m in TEST_REGISTRY if m.code == test_code), None)
     if meta:
         row.name = meta.name
         row.severity = meta.severity.value if hasattr(meta.severity, "value") else str(meta.severity)
@@ -462,7 +466,7 @@ async def admin_reset_test(
     row.description_custom = False
     session.add(row)
     session.commit()
-    return {"ok": True, "test_id": test_id}
+    return {"ok": True, "test_code": test_code}
 
 
 # ── Endpoints: descubrimiento de cookies ─────────────────────────────────────
@@ -567,7 +571,7 @@ async def scan(
     session: Session = Depends(database.get_session),
 ):
     """Ejecuta el scan sobre un único dominio y devuelve JSON estructurado."""
-    data = await _run_scan(body.domain, body.session_cookie, body.ip, disabled_ids=_get_disabled_test_ids(session))
+    data = await _run_scan(body.domain, body.session_cookie, body.ip, disabled_codes=_get_disabled_test_codes(session))
     _save_scan(session, data, "individual", current_user.id)
     return data
 
@@ -586,7 +590,7 @@ async def batch(
     """
     results = []
     tasks = []
-    _disabled_ids = _get_disabled_test_ids(session)
+    _disabled_codes = _get_disabled_test_codes(session)
 
     for line in body.csv_content.splitlines():
         line = line.strip()
@@ -603,7 +607,7 @@ async def batch(
             results.append({"domain": domain, "error": str(exc)})
             continue
 
-        tasks.append(_run_scan(validated.domain, validated.session_cookie, validated.ip, disabled_ids=_disabled_ids))
+        tasks.append(_run_scan(validated.domain, validated.session_cookie, validated.ip, disabled_codes=_disabled_codes))
 
     scan_results = await asyncio.gather(*tasks, return_exceptions=True)
     for r in scan_results:
@@ -647,7 +651,7 @@ async def batch_stream(
 
     total   = len(domain_list) + len(parse_errors)
     user_id = current_user.id
-    _disabled_ids = _get_disabled_test_ids(session)
+    _disabled_codes = _get_disabled_test_codes(session)
 
     async def _stream():
         completed = 0
@@ -665,7 +669,7 @@ async def batch_stream(
 
         async def _scan_one(dom: str, cook: str, ip_str: str) -> dict:
             try:
-                return await _run_scan(dom, cook, ip_str, disabled_ids=_disabled_ids)
+                return await _run_scan(dom, cook, ip_str, disabled_codes=_disabled_codes)
             except Exception as exc:
                 return {"domain": dom, "error": str(exc)}
 
@@ -728,8 +732,8 @@ async def history_compare(
 
     data_a = json.loads(rec_a.results_json)
     data_b = json.loads(rec_b.results_json)
-    map_a = {t["id"]: t for t in data_a.get("tests", [])}
-    map_b = {t["id"]: t for t in data_b.get("tests", [])}
+    map_a = {t["code"]: t for t in data_a.get("tests", [])}
+    map_b = {t["code"]: t for t in data_b.get("tests", [])}
 
     diff = []
     for tid in sorted(set(map_a) | set(map_b)):
@@ -738,7 +742,7 @@ async def history_compare(
         ra = ta.get("result", "?")
         rb = tb.get("result", "?")
         diff.append({
-            "id": tid,
+            "code": tid,
             "name": ta.get("name") or tb.get("name", ""),
             "result_a": ra,
             "result_b": rb,
@@ -1208,7 +1212,7 @@ async def lists_scan_stream(
 
     total = len(domains)
     user_id = current_user.id
-    _disabled_ids = _get_disabled_test_ids(session)
+    _disabled_codes = _get_disabled_test_codes(session)
 
     async def _stream():
         completed = 0
@@ -1216,7 +1220,7 @@ async def lists_scan_stream(
 
         async def _scan_one(d: ListDomain) -> dict:
             try:
-                return await _run_scan(d.domain, d.session_cookie, d.ip, disabled_ids=_disabled_ids)
+                return await _run_scan(d.domain, d.session_cookie, d.ip, disabled_codes=_disabled_codes)
             except Exception as exc:
                 return {"domain": d.domain, "error": str(exc)}
 
@@ -1284,11 +1288,11 @@ async def lists_scan(
 
     async def _scan_one(d: ListDomain) -> dict:
         try:
-            return await _run_scan(d.domain, d.session_cookie, d.ip, disabled_ids=_disabled_ids)
+            return await _run_scan(d.domain, d.session_cookie, d.ip, disabled_codes=_disabled_codes)
         except Exception as exc:
             return {"domain": d.domain, "error": str(exc)}
 
-    _disabled_ids = _get_disabled_test_ids(session)
+    _disabled_codes = _get_disabled_test_codes(session)
     tasks = [asyncio.create_task(_scan_one(d)) for d in domains]
     scan_results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -1326,9 +1330,9 @@ async def history_evolution(
     for rec in records:
         data = json.loads(rec.results_json)
         for test in data.get("tests", []):
-            tid = test["id"]
+            tid = test["code"]
             if tid not in tests_ts:
-                tests_ts[tid] = {"id": tid, "name": test.get("name", ""), "series": []}
+                tests_ts[tid] = {"code": tid, "name": test.get("name", ""), "series": []}
             tests_ts[tid]["series"].append({
                 "date": rec.scanned_at.isoformat(),
                 "result": test.get("result", "?"),
@@ -1339,7 +1343,7 @@ async def history_evolution(
         "domain": domain,
         "days": days,
         "total_scans": len(records),
-        "tests": sorted(tests_ts.values(), key=lambda x: x["id"]),
+        "tests": sorted(tests_ts.values(), key=lambda x: x["code"]),
     }
 
 
@@ -1379,7 +1383,7 @@ async def lists_summary(
         if last:
             data = json.loads(last.results_json)
             for t in data.get("tests", []):
-                last_tests[t["id"]] = t.get("result", "?")
+                last_tests[t["code"]] = t.get("result", "?")
 
         result.append({
             "domain": d.domain,

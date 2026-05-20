@@ -1,4 +1,4 @@
-"""Tests unitarios — Bloque 8: DNS, Email y Dominio (TEST-41 a TEST-47)."""
+"""Tests unitarios — Bloque 8: DNS, Email y Dominio (DNS-SPF a DNS-SENSITIVE-PORTS)."""
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -42,7 +42,7 @@ def _make_rdata_answer(rdata_list: list):
     return answer
 
 
-# ── TEST-41: SPF ──────────────────────────────────────────────────────────────
+# ── DNS-SPF: SPF ──────────────────────────────────────────────────────────────
 
 
 async def test_41_fail_no_spf():
@@ -87,7 +87,7 @@ async def test_41_pass_spf_strict():
     assert r.status == Status.PASS
 
 
-# ── TEST-42: DMARC ────────────────────────────────────────────────────────────
+# ── DNS-DMARC: DMARC ────────────────────────────────────────────────────────────
 
 
 async def test_42_fail_no_dmarc():
@@ -123,7 +123,7 @@ async def test_42_pass_dmarc_full():
     assert r.status == Status.PASS
 
 
-# ── TEST-43: DKIM ─────────────────────────────────────────────────────────────
+# ── DNS-DKIM: DKIM ─────────────────────────────────────────────────────────────
 
 
 async def test_43_warn_no_dkim():
@@ -148,7 +148,7 @@ async def test_43_pass_dkim_found():
     assert "default" in r.detail
 
 
-# ── TEST-44: CAA ──────────────────────────────────────────────────────────────
+# ── DNS-CAA: CAA ──────────────────────────────────────────────────────────────
 
 
 async def test_44_warn_no_caa():
@@ -168,7 +168,7 @@ async def test_44_pass_caa_present():
     assert r.status == Status.PASS
 
 
-# ── TEST-45: DNSSEC ───────────────────────────────────────────────────────────
+# ── DNS-DNSSEC: DNSSEC ───────────────────────────────────────────────────────────
 
 
 async def test_45_warn_no_dnssec():
@@ -188,7 +188,7 @@ async def test_45_pass_dnskey_present():
     assert "2" in r.detail
 
 
-# ── TEST-46: Subdomain takeover ───────────────────────────────────────────────
+# ── DNS-SUBDOMAIN-TAKEOVER: Subdomain takeover ───────────────────────────────────────────────
 
 
 async def test_46_pass_no_cname():
@@ -226,7 +226,7 @@ async def test_46_fail_takeover_detected():
     assert "takeover" in r.detail.lower()
 
 
-# ── TEST-47: Puertos sensibles ────────────────────────────────────────────────
+# ── DNS-SENSITIVE-PORTS: Puertos sensibles ────────────────────────────────────────────────
 
 
 async def test_47_fail_port_open():

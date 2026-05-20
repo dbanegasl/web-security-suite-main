@@ -355,6 +355,7 @@ function renderResults(data) {
   const tbody = document.getElementById("tests-tbody");
   tbody.innerHTML = "";
   for (const t of data.tests) {
+    const code = testCode(t);
     const tr = document.createElement("tr");
     tr.dataset.block    = t.block    || "";
     tr.dataset.severity = t.severity || "";
@@ -362,11 +363,11 @@ function renderResults(data) {
     tr.innerHTML = `
       <td class="text-center align-middle pe-0">
         <button class="btn btn-link btn-sm p-0 lh-1" title="Ver en wiki"
-                onclick="openWikiModal('${escapeHtml(String(t.id))}')">
+                onclick="openWikiModal('${escapeHtml(String(code))}')">
           <i class="fa-solid fa-book-open text-info" style="font-size:.8rem"></i>
         </button>
       </td>
-      <td>${escapeHtml(t.id)}</td>
+      <td>${escapeHtml(code)}</td>
       <td>${escapeHtml(t.name)}</td>
       <td><span class="badge badge-${escapeHtml(t.result)}">${escapeHtml(t.result)}</span></td>
       <td class="muted">${escapeHtml(t.detail || "—")}</td>
@@ -581,69 +582,74 @@ btnBatchRun?.addEventListener("click", async () => {
  * @param {Array} results - Array de resultados de scan
  * @param {Array} [lines] - Líneas CSV originales (opcional, para fallback de nombre de dominio)
  */
-const TESTS = Array.from({ length: 55 }, (_, i) => String(i + 1).padStart(2, "0"));
+let TESTS = [];
 
 /** Metadatos de cada test: bloque, nivel de riesgo y peso para score */
 const TESTS_META = [
-  { id:"01", name:"Cookie: Secure",               block:"Cookies",              risk:"Medio",   weight:5,  riskDesc:"Cookie enviada en claro por HTTP" },
-  { id:"02", name:"Cookie: HttpOnly",              block:"Cookies",              risk:"Alto",    weight:8,  riskDesc:"Robo de sesión via XSS" },
-  { id:"03", name:"Cookie: SameSite=Lax|Strict",  block:"Cookies",              risk:"Medio",   weight:5,  riskDesc:"CSRF cross-site" },
-  { id:"04", name:"Cookie: Path definido",         block:"Cookies",              risk:"Bajo",    weight:2,  riskDesc:"Scope de cookie sin restringir" },
-  { id:"05", name:"HTTP → HTTPS redirect",         block:"Transporte",           risk:"Medio",   weight:5,  riskDesc:"Tráfico en claro posible" },
-  { id:"06", name:"HSTS Strict-Transport-Security",block:"Transporte",           risk:"Alto",    weight:8,  riskDesc:"SSL stripping attack" },
-  { id:"07", name:"TLS 1.0 deshabilitado",         block:"Transporte",           risk:"Alto",    weight:8,  riskDesc:"Protocolo roto (POODLE/BEAST)" },
-  { id:"08", name:"TLS 1.1 deshabilitado",         block:"Transporte",           risk:"Medio",   weight:5,  riskDesc:"Protocolo obsoleto" },
-  { id:"09", name:"Certificado SSL vigente",       block:"Transporte",           risk:"Crítico", weight:10, riskDesc:"Conexión insegura si expira" },
-  { id:"10", name:"X-Frame-Options",               block:"Cabeceras HTTP",       risk:"Alto",    weight:8,  riskDesc:"Clickjacking via iframes maliciosos" },
-  { id:"11", name:"X-Content-Type-Options: nosniff",block:"Cabeceras HTTP",      risk:"Medio",   weight:5,  riskDesc:"MIME confusion attack" },
-  { id:"12", name:"Content-Security-Policy (CSP)", block:"Cabeceras HTTP",       risk:"Alto",    weight:8,  riskDesc:"XSS sin restricción de scripts" },
-  { id:"13", name:"Referrer-Policy",               block:"Cabeceras HTTP",       risk:"Bajo",    weight:2,  riskDesc:"Fuga de URLs a terceros" },
-  { id:"14", name:"Permissions-Policy",            block:"Cabeceras HTTP",       risk:"Bajo",    weight:2,  riskDesc:"Acceso sin control a APIs del navegador" },
-  { id:"15", name:"Server header oculto",          block:"Fuga de info",         risk:"Medio",   weight:5,  riskDesc:"Revela versión del servidor" },
-  { id:"16", name:"X-Powered-By ausente",          block:"Fuga de info",         risk:"Medio",   weight:5,  riskDesc:"Revela stack tecnológico (PHP, etc.)" },
-  { id:"17", name:"X-AspNet-Version ausente",      block:"Fuga de info",         risk:"Medio",   weight:5,  riskDesc:"Revela versión de .NET" },
-  { id:"18", name:"CORS sin wildcard",             block:"Config. servidor",     risk:"Alto",    weight:8,  riskDesc:"Acceso cross-origin irrestricto" },
-  { id:"19", name:"HTTP TRACE deshabilitado",      block:"Config. servidor",     risk:"Medio",   weight:5,  riskDesc:"XST (Cross-Site Tracing)" },
-  { id:"20", name:"Cache-Control seguro",          block:"Config. servidor",     risk:"Medio",   weight:5,  riskDesc:"Datos sensibles en caché del navegador" },
-  { id:"21", name:"Headers deprecados ausentes",   block:"Modernización",        risk:"Bajo",    weight:2,  riskDesc:"X-XSS-Protection y Expect-CT son obsoletos" },
-  { id:"22", name:"COOP (Cross-Origin-Opener)",    block:"Aislamiento",          risk:"Medio",   weight:5,  riskDesc:"Ataques de ventana cross-origin" },
-  { id:"23", name:"COEP (Cross-Origin-Embedder)",  block:"Aislamiento",          risk:"Medio",   weight:5,  riskDesc:"Necesario para aislamiento de contexto" },
-  { id:"24", name:"CORP (Cross-Origin-Resource)",  block:"Aislamiento",          risk:"Medio",   weight:5,  riskDesc:"Recursos cargables desde orígenes externos" },
-  { id:"25", name:"X-Permitted-Cross-Domain",      block:"Aislamiento",          risk:"Bajo",    weight:2,  riskDesc:"Acceso de Flash/PDF a recursos del dominio" },
+  { code:"COOKIE-SECURE", name:"Cookie: Secure",               block:"Cookies",              risk:"Medio",   weight:5,  riskDesc:"Cookie enviada en claro por HTTP" },
+  { code:"COOKIE-HTTPONLY", name:"Cookie: HttpOnly",              block:"Cookies",              risk:"Alto",    weight:8,  riskDesc:"Robo de sesión via XSS" },
+  { code:"COOKIE-SAMESITE", name:"Cookie: SameSite=Lax|Strict",  block:"Cookies",              risk:"Medio",   weight:5,  riskDesc:"CSRF cross-site" },
+  { code:"COOKIE-PATH", name:"Cookie: Path definido",         block:"Cookies",              risk:"Bajo",    weight:2,  riskDesc:"Scope de cookie sin restringir" },
+  { code:"TLS-HTTP-TO-HTTPS", name:"HTTP → HTTPS redirect",         block:"Transporte",           risk:"Medio",   weight:5,  riskDesc:"Tráfico en claro posible" },
+  { code:"TLS-HSTS", name:"HSTS Strict-Transport-Security",block:"Transporte",           risk:"Alto",    weight:8,  riskDesc:"SSL stripping attack" },
+  { code:"TLS-10-DISABLED", name:"TLS 1.0 deshabilitado",         block:"Transporte",           risk:"Alto",    weight:8,  riskDesc:"Protocolo roto (POODLE/BEAST)" },
+  { code:"TLS-11-DISABLED", name:"TLS 1.1 deshabilitado",         block:"Transporte",           risk:"Medio",   weight:5,  riskDesc:"Protocolo obsoleto" },
+  { code:"TLS-CERT-VALIDITY", name:"Certificado SSL vigente",       block:"Transporte",           risk:"Crítico", weight:10, riskDesc:"Conexión insegura si expira" },
+  { code:"HEADER-X-FRAME-OPTIONS", name:"X-Frame-Options",               block:"Cabeceras HTTP",       risk:"Alto",    weight:8,  riskDesc:"Clickjacking via iframes maliciosos" },
+  { code:"HEADER-X-CONTENT-TYPE-OPTIONS", name:"X-Content-Type-Options: nosniff",block:"Cabeceras HTTP",      risk:"Medio",   weight:5,  riskDesc:"MIME confusion attack" },
+  { code:"HEADER-CSP", name:"Content-Security-Policy (CSP)", block:"Cabeceras HTTP",       risk:"Alto",    weight:8,  riskDesc:"XSS sin restricción de scripts" },
+  { code:"HEADER-REFERRER-POLICY", name:"Referrer-Policy",               block:"Cabeceras HTTP",       risk:"Bajo",    weight:2,  riskDesc:"Fuga de URLs a terceros" },
+  { code:"HEADER-PERMISSIONS-POLICY", name:"Permissions-Policy",            block:"Cabeceras HTTP",       risk:"Bajo",    weight:2,  riskDesc:"Acceso sin control a APIs del navegador" },
+  { code:"INFOLEAK-SERVER-HEADER", name:"Server header oculto",          block:"Fuga de info",         risk:"Medio",   weight:5,  riskDesc:"Revela versión del servidor" },
+  { code:"INFOLEAK-X-POWERED-BY", name:"X-Powered-By ausente",          block:"Fuga de info",         risk:"Medio",   weight:5,  riskDesc:"Revela stack tecnológico (PHP, etc.)" },
+  { code:"INFOLEAK-ASP-NET-VERSION", name:"X-AspNet-Version ausente",      block:"Fuga de info",         risk:"Medio",   weight:5,  riskDesc:"Revela versión de .NET" },
+  { code:"SERVERCFG-CORS-WILDCARD", name:"CORS sin wildcard",             block:"Config. servidor",     risk:"Alto",    weight:8,  riskDesc:"Acceso cross-origin irrestricto" },
+  { code:"SERVERCFG-HTTP-TRACE", name:"HTTP TRACE deshabilitado",      block:"Config. servidor",     risk:"Medio",   weight:5,  riskDesc:"XST (Cross-Site Tracing)" },
+  { code:"SERVERCFG-CACHE-CONTROL", name:"Cache-Control seguro",          block:"Config. servidor",     risk:"Medio",   weight:5,  riskDesc:"Datos sensibles en caché del navegador" },
+  { code:"MODERNHDR-DEPRECATED", name:"Headers deprecados ausentes",   block:"Modernización",        risk:"Bajo",    weight:2,  riskDesc:"X-XSS-Protection y Expect-CT son obsoletos" },
+  { code:"MODERNHDR-COOP", name:"COOP (Cross-Origin-Opener)",    block:"Aislamiento",          risk:"Medio",   weight:5,  riskDesc:"Ataques de ventana cross-origin" },
+  { code:"MODERNHDR-COEP", name:"COEP (Cross-Origin-Embedder)",  block:"Aislamiento",          risk:"Medio",   weight:5,  riskDesc:"Necesario para aislamiento de contexto" },
+  { code:"MODERNHDR-CORP", name:"CORP (Cross-Origin-Resource)",  block:"Aislamiento",          risk:"Medio",   weight:5,  riskDesc:"Recursos cargables desde orígenes externos" },
+  { code:"MODERNHDR-X-PERMITTED-CROSS-DOMAIN", name:"X-Permitted-Cross-Domain",      block:"Aislamiento",          risk:"Bajo",    weight:2,  riskDesc:"Acceso de Flash/PDF a recursos del dominio" },
   // Bloque 7 — Archivos y rutas expuestas
-  { id:"26", name:"Archivos .env no expuestos",             block:"Archivos y rutas",  risk:"Crítico", weight:10, riskDesc:"Variables de entorno, credenciales y secrets expuestos" },
-  { id:"27", name:"Repositorio .git no expuesto",           block:"Archivos y rutas",  risk:"Crítico", weight:10, riskDesc:"Código fuente y secrets accesibles públicamente" },
-  { id:"28", name:"Repositorios SVN/HG no expuestos",       block:"Archivos y rutas",  risk:"Alto",    weight:8,  riskDesc:"Historial de versiones y código fuente expuesto" },
-  { id:"29", name:"Volcados SQL no expuestos",              block:"Archivos y rutas",  risk:"Crítico", weight:10, riskDesc:"Datos de base de datos accesibles públicamente" },
-  { id:"30", name:"Archivos de backup no expuestos",        block:"Archivos y rutas",  risk:"Alto",    weight:8,  riskDesc:"Archivos con información sensible accesibles" },
-  { id:"31", name:"Página phpinfo no expuesta",             block:"Archivos y rutas",  risk:"Alto",    weight:8,  riskDesc:"Stack tecnológico y configuración del servidor expuestos" },
-  { id:"32", name:"security.txt presente (RFC 9116)",       block:"Archivos y rutas",  risk:"Bajo",    weight:2,  riskDesc:"Sin canal oficial para reporte de vulnerabilidades" },
-  { id:"33", name:"Páginas de estado no expuestas",         block:"Archivos y rutas",  risk:"Alto",    weight:8,  riskDesc:"Información interna de la aplicación expuesta" },
-  { id:"34", name:"Paneles de admin protegidos",            block:"Archivos y rutas",  risk:"Alto",    weight:8,  riskDesc:"Paneles de administración accesibles sin autenticación" },
-  { id:"35", name:"Archivos de config no expuestos",        block:"Archivos y rutas",  risk:"Crítico", weight:10, riskDesc:"Credenciales y configuración de la app expuestas" },
-  { id:"36", name:"Manifiestos de dependencias no expuestos",block:"Archivos y rutas", risk:"Medio",   weight:5,  riskDesc:"Stack tecnológico y versiones con vulns expuestas" },
-  { id:"37", name:"crossdomain.xml sin wildcard",           block:"Archivos y rutas",  risk:"Alto",    weight:8,  riskDesc:"Acceso cross-domain sin restricción de orígenes" },
-  { id:"38", name:"Documentación de API no expuesta",       block:"Archivos y rutas",  risk:"Medio",   weight:5,  riskDesc:"Endpoints y estructura de la API expuestos" },
-  { id:"39", name:"Spring Actuator no expuesto",            block:"Archivos y rutas",  risk:"Alto",    weight:8,  riskDesc:"Endpoints de gestión de Spring Boot accesibles" },
-  { id:"40", name:"Archivo .DS_Store no expuesto",          block:"Archivos y rutas",  risk:"Medio",   weight:5,  riskDesc:"Estructura de directorios del servidor expuesta" },
+  { code:"EXPOSED-ENV", name:"Archivos .env no expuestos",             block:"Archivos y rutas",  risk:"Crítico", weight:10, riskDesc:"Variables de entorno, credenciales y secrets expuestos" },
+  { code:"EXPOSED-GIT", name:"Repositorio .git no expuesto",           block:"Archivos y rutas",  risk:"Crítico", weight:10, riskDesc:"Código fuente y secrets accesibles públicamente" },
+  { code:"EXPOSED-SVN-HG", name:"Repositorios SVN/HG no expuestos",       block:"Archivos y rutas",  risk:"Alto",    weight:8,  riskDesc:"Historial de versiones y código fuente expuesto" },
+  { code:"EXPOSED-SQL-DUMPS", name:"Volcados SQL no expuestos",              block:"Archivos y rutas",  risk:"Crítico", weight:10, riskDesc:"Datos de base de datos accesibles públicamente" },
+  { code:"EXPOSED-BACKUP-FILES", name:"Archivos de backup no expuestos",        block:"Archivos y rutas",  risk:"Alto",    weight:8,  riskDesc:"Archivos con información sensible accesibles" },
+  { code:"EXPOSED-PHPINFO", name:"Página phpinfo no expuesta",             block:"Archivos y rutas",  risk:"Alto",    weight:8,  riskDesc:"Stack tecnológico y configuración del servidor expuestos" },
+  { code:"EXPOSED-SECURITY-TXT", name:"security.txt presente (RFC 9116)",       block:"Archivos y rutas",  risk:"Bajo",    weight:2,  riskDesc:"Sin canal oficial para reporte de vulnerabilidades" },
+  { code:"EXPOSED-SERVER-STATUS", name:"Páginas de estado no expuestas",         block:"Archivos y rutas",  risk:"Alto",    weight:8,  riskDesc:"Información interna de la aplicación expuesta" },
+  { code:"EXPOSED-ADMIN-PANELS", name:"Paneles de admin protegidos",            block:"Archivos y rutas",  risk:"Alto",    weight:8,  riskDesc:"Paneles de administración accesibles sin autenticación" },
+  { code:"EXPOSED-CONFIG-FILES", name:"Archivos de config no expuestos",        block:"Archivos y rutas",  risk:"Crítico", weight:10, riskDesc:"Credenciales y configuración de la app expuestas" },
+  { code:"EXPOSED-DEPENDENCY-MANIFESTS", name:"Manifiestos de dependencias no expuestos",block:"Archivos y rutas", risk:"Medio",   weight:5,  riskDesc:"Stack tecnológico y versiones con vulns expuestas" },
+  { code:"EXPOSED-CROSSDOMAIN-WILDCARD", name:"crossdomain.xml sin wildcard",           block:"Archivos y rutas",  risk:"Alto",    weight:8,  riskDesc:"Acceso cross-domain sin restricción de orígenes" },
+  { code:"EXPOSED-API-DOCS", name:"Documentación de API no expuesta",       block:"Archivos y rutas",  risk:"Medio",   weight:5,  riskDesc:"Endpoints y estructura de la API expuestos" },
+  { code:"EXPOSED-SPRING-ACTUATOR", name:"Spring Actuator no expuesto",            block:"Archivos y rutas",  risk:"Alto",    weight:8,  riskDesc:"Endpoints de gestión de Spring Boot accesibles" },
+  { code:"EXPOSED-DS-STORE", name:"Archivo .DS_Store no expuesto",          block:"Archivos y rutas",  risk:"Medio",   weight:5,  riskDesc:"Estructura de directorios del servidor expuesta" },
   // Bloque 8 — DNS, Email y Dominio
-  { id:"41", name:"Registro SPF configurado",               block:"DNS y Email",       risk:"Alto",    weight:8,  riskDesc:"Spoofing de correo desde el dominio posible" },
-  { id:"42", name:"Registro DMARC configurado",             block:"DNS y Email",       risk:"Alto",    weight:8,  riskDesc:"Sin política de autenticación de correo" },
-  { id:"43", name:"DKIM con selector activo",               block:"DNS y Email",       risk:"Medio",   weight:5,  riskDesc:"Autenticidad de correos enviados no verificable" },
-  { id:"44", name:"Registro CAA presente",                  block:"DNS y Email",       risk:"Bajo",    weight:2,  riskDesc:"Sin control sobre qué CAs emiten certificados" },
-  { id:"45", name:"DNSSEC habilitado",                      block:"DNS y Email",       risk:"Bajo",    weight:2,  riskDesc:"DNS vulnerable a spoofing y envenenamiento" },
-  { id:"46", name:"Sin riesgo de subdomain takeover",       block:"DNS y Email",       risk:"Alto",    weight:8,  riskDesc:"Subdominio apunta a servicio no controlado" },
-  { id:"47", name:"Puertos de BD no expuestos",             block:"DNS y Email",       risk:"Crítico", weight:10, riskDesc:"Bases de datos accesibles directamente desde Internet" },
+  { code:"DNS-SPF", name:"Registro SPF configurado",               block:"DNS y Email",       risk:"Alto",    weight:8,  riskDesc:"Spoofing de correo desde el dominio posible" },
+  { code:"DNS-DMARC", name:"Registro DMARC configurado",             block:"DNS y Email",       risk:"Alto",    weight:8,  riskDesc:"Sin política de autenticación de correo" },
+  { code:"DNS-DKIM", name:"DKIM con selector activo",               block:"DNS y Email",       risk:"Medio",   weight:5,  riskDesc:"Autenticidad de correos enviados no verificable" },
+  { code:"DNS-CAA", name:"Registro CAA presente",                  block:"DNS y Email",       risk:"Bajo",    weight:2,  riskDesc:"Sin control sobre qué CAs emiten certificados" },
+  { code:"DNS-DNSSEC", name:"DNSSEC habilitado",                      block:"DNS y Email",       risk:"Bajo",    weight:2,  riskDesc:"DNS vulnerable a spoofing y envenenamiento" },
+  { code:"DNS-SUBDOMAIN-TAKEOVER", name:"Sin riesgo de subdomain takeover",       block:"DNS y Email",       risk:"Alto",    weight:8,  riskDesc:"Subdominio apunta a servicio no controlado" },
+  { code:"DNS-SENSITIVE-PORTS", name:"Puertos de BD no expuestos",             block:"DNS y Email",       risk:"Crítico", weight:10, riskDesc:"Bases de datos accesibles directamente desde Internet" },
   // Bloque 9 — Fingerprinting y Contenido
-  { id:"48", name:"Django DEBUG=True no expuesto",          block:"Fingerprinting",    risk:"Alto",    weight:8,  riskDesc:"Stack trace e información sensible expuestos" },
-  { id:"49", name:"Laravel debug page no expuesta",         block:"Fingerprinting",    risk:"Alto",    weight:8,  riskDesc:"Configuración y stack trace expuestos" },
-  { id:"50", name:"Spring Boot Actuator no expuesto",       block:"Fingerprinting",    risk:"Alto",    weight:8,  riskDesc:"Endpoints de gestión y métricas accesibles" },
-  { id:"51", name:"Meta generator sin versión de CMS",      block:"Fingerprinting",    risk:"Medio",   weight:5,  riskDesc:"Versión del CMS facilita ataques dirigidos" },
-  { id:"52", name:"Comentarios HTML sin datos sensibles",   block:"Fingerprinting",    risk:"Medio",   weight:5,  riskDesc:"Datos sensibles en comentarios HTML visibles" },
-  { id:"53", name:"Sin contenido mixto (HTTP en HTTPS)",    block:"Fingerprinting",    risk:"Medio",   weight:5,  riskDesc:"Recursos HTTP debilitan la seguridad HTTPS" },
-  { id:"54", name:"Formularios con action HTTPS o relativo",block:"Fingerprinting",    risk:"Alto",    weight:8,  riskDesc:"Formularios envían datos a endpoints HTTP" },
-  { id:"55", name:"Campos de contraseña no servidos por HTTP",block:"Fingerprinting",  risk:"Crítico", weight:10, riskDesc:"Credenciales enviadas sin cifrado" },
+  { code:"FINGERPRINT-DJANGO-DEBUG", name:"Django DEBUG=True no expuesto",          block:"Fingerprinting",    risk:"Alto",    weight:8,  riskDesc:"Stack trace e información sensible expuestos" },
+  { code:"FINGERPRINT-LARAVEL-DEBUG", name:"Laravel debug page no expuesta",         block:"Fingerprinting",    risk:"Alto",    weight:8,  riskDesc:"Configuración y stack trace expuestos" },
+  { code:"FINGERPRINT-SPRING-ACTUATOR", name:"Spring Boot Actuator no expuesto",       block:"Fingerprinting",    risk:"Alto",    weight:8,  riskDesc:"Endpoints de gestión y métricas accesibles" },
+  { code:"FINGERPRINT-CMS-GENERATOR", name:"Meta generator sin versión de CMS",      block:"Fingerprinting",    risk:"Medio",   weight:5,  riskDesc:"Versión del CMS facilita ataques dirigidos" },
+  { code:"CONTENT-HTML-COMMENTS-SENSITIVE", name:"Comentarios HTML sin datos sensibles",   block:"Fingerprinting",    risk:"Medio",   weight:5,  riskDesc:"Datos sensibles en comentarios HTML visibles" },
+  { code:"CONTENT-MIXED-CONTENT", name:"Sin contenido mixto (HTTP en HTTPS)",    block:"Fingerprinting",    risk:"Medio",   weight:5,  riskDesc:"Recursos HTTP debilitan la seguridad HTTPS" },
+  { code:"CONTENT-FORM-HTTP-ACTION", name:"Formularios con action HTTPS o relativo",block:"Fingerprinting",    risk:"Alto",    weight:8,  riskDesc:"Formularios envían datos a endpoints HTTP" },
+  { code:"CONTENT-PASSWORD-OVER-HTTP", name:"Campos de contraseña no servidos por HTTP",block:"Fingerprinting",  risk:"Crítico", weight:10, riskDesc:"Credenciales enviadas sin cifrado" },
 ];
+TESTS = TESTS_META.map(m => m.code);
+
+function testCode(t) {
+  return t?.code || "";
+}
 
 /**
  * Calcula un score 0–100 ponderado por nivel de riesgo.
@@ -652,7 +658,7 @@ const TESTS_META = [
 function calcScore(tests) {
   let earned = 0, max = 0;
   for (const t of tests) {
-    const meta = TESTS_META.find(m => m.id === t.id);
+    const meta = TESTS_META.find(m => m.code === testCode(t));
     if (!meta || t.result === "SKIP") continue;
     max += meta.weight;
     if (t.result === "PASS") earned += meta.weight;
@@ -672,11 +678,11 @@ function scoreLabel(score) {
 /** Bloque Markdown con la tabla de referencia de todos los tests */
 function mdReferenceTable() {
   let t  = `## Referencia de tests\n\n`;
-  t += `| ID | Test | Bloque | Riesgo | Riesgo si falla |\n`;
+  t += `| Código | Test | Bloque | Riesgo | Riesgo si falla |\n`;
   t += `|:--:|------|--------|:------:|-----------------|\n`;
   for (const m of TESTS_META) {
     const riskBold = m.risk === "Alto" || m.risk === "Crítico" ? `**${m.risk}**` : m.risk;
-    t += `| ${m.id} | ${m.name} | ${m.block} | ${riskBold} | ${m.riskDesc} |\n`;
+    t += `| ${m.code} | ${m.name} | ${m.block} | ${riskBold} | ${m.riskDesc} |\n`;
   }
   return t + "\n";
 }
@@ -684,7 +690,7 @@ function mdReferenceTable() {
 function renderBatchTable(table, results, lines = []) {
   const colCount = TESTS.length + 4;
   let html = "<thead><tr><th>Dominio</th>";
-  TESTS.forEach(t => { html += `<th class="wiki-th-link" title="TEST-${t} — clic para ver detalle" onclick="openWikiModal('${t}')" style="cursor:pointer">${t}</th>`; });
+  TESTS.forEach(t => { html += `<th class="wiki-th-link" title="${t} — clic para ver detalle" onclick="openWikiModal('${t}')" style="cursor:pointer">${t}</th>`; });
   html += "<th>OK</th><th>FL</th><th>WN</th></tr></thead><tbody>";
 
   results.forEach((r, idx) => {
@@ -695,7 +701,7 @@ function renderBatchTable(table, results, lines = []) {
     if (r.error) {
       html += `<td colspan="${TESTS.length + 3}" style="color:var(--red)">${escapeHtml(r.error)}</td>`;
     } else {
-      const testMap = Object.fromEntries(r.tests.map(t => [t.id, t]));
+      const testMap = Object.fromEntries(r.tests.map(t => [testCode(t), t]));
       let p = 0, f = 0, w = 0;
       TESTS.forEach(t => {
         const test = testMap[t];
@@ -707,7 +713,7 @@ function renderBatchTable(table, results, lines = []) {
         if (res === "PASS") p++;
         if (res === "FAIL") f++;
         if (res === "WARN") w++;
-        const tip = escapeHtml(`TEST-${t}: ${test?.name || ""}${test?.detail ? " — " + test.detail : ""}`);
+        const tip = escapeHtml(`${t}: ${test?.name || ""}${test?.detail ? " — " + test.detail : ""}`);
         html += `<td class="${cls} wiki-cell" onclick="openWikiModal('${t}')" title="${tip}" style="cursor:pointer">${ch}</td>`;
       });
       html += `<td class="cell-P">${p}</td><td class="cell-F">${f}</td><td class="cell-W">${w}</td>`;
@@ -719,7 +725,7 @@ function renderBatchTable(table, results, lines = []) {
       r.tests.forEach(t => {
         const cls = t.result === "PASS" ? "cell-P" : t.result === "FAIL" ? "cell-F"
                   : t.result === "WARN" ? "cell-W" : "cell-S";
-        html += `<div class="detail-test-row"><span class="detail-id">TEST-${t.id}</span>`;
+        html += `<div class="detail-test-row"><span class="detail-id">${testCode(t)}</span>`;
         html += `<span class="detail-name">${escapeHtml(t.name)}</span>`;
         html += `<span class="detail-result ${cls}">${t.result}</span>`;
         if (t.detail) html += `<span class="detail-info">${escapeHtml(t.detail)}</span>`;
@@ -908,7 +914,7 @@ function openCompareModal(data) {
       : d.result_b === "FAIL" ? '<span class="cell-F">↓ FAIL</span>'
       : `<span class="cell-W">~ ${escapeHtml(d.result_b)}</span>`;
     return `<tr class="${d.changed ? "diff-changed" : ""}">
-      <td>${escapeHtml(d.id)}</td>
+      <td>${escapeHtml(d.code)}</td>
       <td>${escapeHtml(d.name)}</td>
       <td><span class="badge badge-${escapeHtml(d.result_a)}">${escapeHtml(d.result_a)}</span></td>
       <td><span class="badge badge-${escapeHtml(d.result_b)}">${escapeHtml(d.result_b)}</span></td>
@@ -1126,7 +1132,7 @@ function buildMarkdownReport(data) {
   md += `| # | Test | Resultado | Detalle |\n|---|------|:---------:|---------|\n`;
   for (const t of data.tests) {
     const icon = t.result === "PASS" ? "✅ PASS" : t.result === "FAIL" ? "❌ FAIL" : t.result === "WARN" ? "⚠️ WARN" : "⏭ SKIP";
-    md += `| ${t.id} | ${t.name} | ${icon} | ${t.detail || "—"} |\n`;
+    md += `| ${testCode(t)} | ${t.name} | ${icon} | ${t.detail || "—"} |\n`;
   }
   md += `\n---\n\n`;
 
@@ -1135,8 +1141,8 @@ function buildMarkdownReport(data) {
   if (fails.length) {
     md += `## ❌ Hallazgos críticos — acción requerida\n\n`;
     for (const t of fails) {
-      const meta = TESTS_META.find(m => m.id === t.id);
-      md += `### TEST-${t.id} — ${t.name}\n\n`;
+      const meta = TESTS_META.find(m => m.code === testCode(t));
+      md += `### ${testCode(t)} — ${t.name}\n\n`;
       md += `- **Riesgo:** ${meta?.risk || "—"}\n`;
       md += `- **Impacto:** ${meta?.riskDesc || "—"}\n`;
       if (t.detail) md += `- **Detalle:** ${t.detail}\n`;
@@ -1150,8 +1156,8 @@ function buildMarkdownReport(data) {
   if (warns.length) {
     md += `## ⚠️ Advertencias — revisión recomendada\n\n`;
     for (const t of warns) {
-      const meta = TESTS_META.find(m => m.id === t.id);
-      md += `- **TEST-${t.id} — ${t.name}**: ${t.detail || meta?.riskDesc || "—"}\n`;
+      const meta = TESTS_META.find(m => m.code === testCode(t));
+      md += `- **${testCode(t)} — ${t.name}**: ${t.detail || meta?.riskDesc || "—"}\n`;
     }
     md += `\n---\n\n`;
   }
@@ -1184,10 +1190,10 @@ function buildSarifReport(data) {
   // Reglas: una por test ejecutado
   const rules = (data.tests || []).map(t => {
     const rule = {
-      id: `WSS-${t.id}`,
+      id: `WSS-${testCode(t)}`,
       name: (t.name || "").replace(/[\s\-:]/g, ""),
-      shortDescription: { text: t.name || t.id },
-      fullDescription:  { text: t.name || t.id },
+      shortDescription: { text: t.name || testCode(t) },
+      fullDescription:  { text: t.name || testCode(t) },
       defaultConfiguration: { level: SEVERITY_TO_LEVEL[t.severity] || "warning" },
       properties: { tags: [], severity: t.severity || "", block: t.block },
     };
@@ -1200,7 +1206,7 @@ function buildSarifReport(data) {
     .filter(t => t.result === "FAIL" || t.result === "WARN")
     .map(t => {
       const r = {
-        ruleId: `WSS-${t.id}`,
+        ruleId: `WSS-${testCode(t)}`,
         level:  STATUS_TO_LEVEL[t.result],
         message: { text: t.detail || t.name },
         locations: [{
@@ -1286,7 +1292,7 @@ function buildBatchMarkdownReport(results, title = "Análisis Batch") {
     md += header + sep;
     for (const r of validResults) {
       const cells = TESTS.map(id => {
-        const t = r.tests.find(x => x.id === id);
+        const t = r.tests.find(x => testCode(x) === id);
         if (!t) return " ";
         return t.result === "PASS" ? "P" : t.result === "FAIL" ? "F" : t.result === "WARN" ? "W" : "S";
       });
@@ -1298,7 +1304,8 @@ function buildBatchMarkdownReport(results, title = "Análisis Batch") {
     const failCount = {};
     for (const r of validResults) {
       for (const t of r.tests) {
-        if (t.result === "FAIL") failCount[t.id] = (failCount[t.id] || 0) + 1;
+        const code = testCode(t);
+        if (t.result === "FAIL") failCount[code] = (failCount[code] || 0) + 1;
       }
     }
     const sortedFails = Object.entries(failCount).sort((a, b) => b[1] - a[1]);
@@ -1307,7 +1314,7 @@ function buildBatchMarkdownReport(results, title = "Análisis Batch") {
       md += `| Test | Descripción | Dominios afectados | Riesgo |\n`;
       md += `|:----:|-------------|:-----------------:|:------:|\n`;
       for (const [id, count] of sortedFails) {
-        const meta = TESTS_META.find(m => m.id === id);
+        const meta = TESTS_META.find(m => m.code === id);
         const pct  = Math.round(count / validResults.length * 100);
         const riskBold = meta?.risk === "Alto" || meta?.risk === "Crítico" ? `**${meta.risk}**` : (meta?.risk || "—");
         md += `| ${id} | ${meta?.name || "—"} | ${count} / ${validResults.length} (${pct}%) | ${riskBold} |\n`;
@@ -1329,7 +1336,7 @@ function buildBatchMarkdownReport(results, title = "Análisis Batch") {
     md += `| # | Test | Resultado | Detalle |\n|---|------|:---------:|---------|\n`;
     for (const t of r.tests) {
       const icon = t.result === "PASS" ? "✅" : t.result === "FAIL" ? "❌" : t.result === "WARN" ? "⚠️" : "⏭";
-      md += `| ${t.id} | ${t.name} | ${icon} ${t.result} | ${t.detail || "—"} |\n`;
+      md += `| ${testCode(t)} | ${t.name} | ${icon} ${t.result} | ${t.detail || "—"} |\n`;
     }
     md += `\n`;
   }
@@ -1439,7 +1446,7 @@ function _renderWikiTable() {
     if (blk && String(t.block) !== blk) return false;
     if (sev && t.severity !== sev)       return false;
     if (query && !(
-      t.id.includes(query) ||
+      testCode(t).toLowerCase().includes(query) ||
       t.name.toLowerCase().includes(query) ||
       (t.description || "").toLowerCase().includes(query) ||
       (t.cwe || "").toLowerCase().includes(query)
@@ -1449,8 +1456,8 @@ function _renderWikiTable() {
 
   tbody.innerHTML = filtered.map(t => {
     const sColor = SEV_COLOR[t.severity] || "secondary";
-    return `<tr class="wiki-row" data-test-id="${t.id}" style="cursor:pointer">
-      <td><code class="text-info">${t.id}</code></td>
+    return `<tr class="wiki-row" data-test-id="${testCode(t)}" style="cursor:pointer">
+      <td><code class="text-info">${testCode(t)}</code></td>
       <td>${escapeHtml(t.name)}${t.description ? `<div class="text-muted small text-truncate wiki-desc-preview" style="max-width:300px">${escapeHtml(t.description.replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim().substring(0,80))}…</div>` : ""}</td>
       <td><span class="badge bg-secondary">${t.block} — ${escapeHtml(t.block_name)}</span></td>
       <td><span class="badge bg-${sColor}">${t.severity}</span></td>
@@ -1465,7 +1472,7 @@ function _renderWikiTable() {
 let _wikiDetailTestId = null;
 
 function openWikiDetailPanel(testId) {
-  const t = _wikiData?.tests?.find(x => x.id === testId);
+  const t = _wikiData?.tests?.find(x => testCode(x) === testId);
   if (!t) return;
   _wikiDetailTestId = testId;
 
@@ -1475,7 +1482,7 @@ function openWikiDetailPanel(testId) {
   const layout    = document.getElementById("wiki-layout");
   if (!panel || !layout) return;
 
-  document.getElementById("wd-id").textContent           = t.id;
+  document.getElementById("wd-id").textContent           = testCode(t);
   document.getElementById("wd-name").textContent         = t.name;
 
   const sevEl = document.getElementById("wd-severity");
@@ -1584,17 +1591,14 @@ document.getElementById("wm-description")?.addEventListener("click", e => {
 });
 
 async function openWikiModal(testId) {
-  const normId = id => String(parseInt(id, 10) || 0).padStart(2, "0");
-  const norm = normId(testId);
-
   if (!_wikiData) {
     try { _wikiData = await apiFetch("/api/tests"); } catch { _wikiData = null; }
   }
-  const t = _wikiData?.tests?.find(x => normId(x.id) === norm);
+  const t = _wikiData?.tests?.find(x => testCode(x) === testId);
 
   const SEV_COLOR = { CRITICAL: "danger", HIGH: "warning", MEDIUM: "info", LOW: "secondary" };
 
-  document.getElementById("wm-id").textContent   = t ? t.id : testId;
+  document.getElementById("wm-id").textContent   = t ? testCode(t) : testId;
   document.getElementById("wm-name").textContent = t?.name || "";
 
   const sevEl = document.getElementById("wm-severity");
@@ -1659,7 +1663,7 @@ async function openWikiModal(testId) {
     const slug = (t?.name || testId).replace(/[^a-z0-9]/gi, "-").toLowerCase().replace(/-+/g, "-");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([md], { type: "text/markdown" }));
-    a.download = `TEST-${t?.id || testId}-${slug}.md`;
+    a.download = `${t ? testCode(t) : testId}-${slug}.md`;
     a.click();
     URL.revokeObjectURL(a.href);
   };
@@ -1688,7 +1692,7 @@ function htmlInlineToMd(el) {
 function buildTestMarkdown(t) {
   if (!t) return "";
   const lines = [];
-  lines.push(`# TEST-${t.id} — ${t.name}`, "");
+  lines.push(`# ${testCode(t)} — ${t.name}`, "");
   lines.push(`**Severidad:** ${t.severity || "—"}  `);
   lines.push(`**Bloque:** ${t.block} — ${t.block_name || "—"}  `);
   if (t.cwe) {
@@ -2348,7 +2352,7 @@ function renderEvolutionMatrix(data) {
 
   data.tests.forEach(test => {
     const byDate = Object.fromEntries(test.series.map(s => [s.date, s.result]));
-    html += `<tr><td class="small"><span class="text-muted">${escapeHtml(test.id)}</span> ${escapeHtml(test.name)}</td>`;
+    html += `<tr><td class="small"><span class="text-muted">${escapeHtml(testCode(test))}</span> ${escapeHtml(test.name)}</td>`;
     allDates.forEach(d => {
       const r = byDate[d];
       if (!r) { html += `<td class="text-center text-muted">—</td>`; return; }
@@ -2408,7 +2412,7 @@ function renderListEvolutionMatrix(data) {
   }
 
   // Obtener IDs de tests del primer dominio con scans
-  const testIds = TESTS_META.map(t => t.id);
+  const testIds = TESTS_META.map(t => t.code);
   const trendIcon = t => t === "improving" ? `<i class="fa-solid fa-arrow-trend-up text-success" title="Mejorando"></i>`
                        : t === "worsening" ? `<i class="fa-solid fa-arrow-trend-down text-danger" title="Empeorando"></i>`
                        : `<i class="fa-solid fa-minus text-muted" title="Estable"></i>`;
@@ -2416,7 +2420,7 @@ function renderListEvolutionMatrix(data) {
   let html = `<p class="text-muted small mb-2"><strong>${escapeHtml(data.list_name)}</strong> — ${data.domains.length} dominio${data.domains.length !== 1 ? "s" : ""}</p>`;
   html += `<div class="table-responsive"><table class="table table-dark table-sm table-bordered evo-table">`;
   html += `<thead><tr><th style="min-width:160px">Dominio</th><th class="text-center">Tendencia</th>`;
-  testIds.forEach(id => html += `<th class="text-center" style="min-width:44px" title="${TESTS_META.find(t=>t.id===id)?.name||id}">${id}</th>`);
+  testIds.forEach(id => html += `<th class="text-center" style="min-width:44px" title="${TESTS_META.find(t=>t.code===id)?.name||id}">${id}</th>`);
   html += `</tr></thead><tbody>`;
 
   data.domains.forEach(d => {
@@ -2716,7 +2720,7 @@ function _renderAdminTests(tests) {
   const status   = document.getElementById("admin-tests-filter-status")?.value || "";
 
   let filtered = tests.filter(t => {
-    if (search && !`${t.id} ${t.name}`.toLowerCase().includes(search)) return false;
+    if (search && !`${testCode(t)} ${t.name}`.toLowerCase().includes(search)) return false;
     if (block && String(t.block) !== block) return false;
     if (status === "active" && !t.is_active) return false;
     if (status === "inactive" && t.is_active) return false;
@@ -2741,7 +2745,7 @@ function _renderAdminTests(tests) {
     const customMark = t.description_custom ? ' <i class="fa-solid fa-pen-to-square text-info fa-xs" title="Descripción editada"></i>' : "";
     return `
       <tr class="${t.is_active ? "" : "opacity-50"}">
-        <td><code class="text-info">${t.id}</code></td>
+        <td><code class="text-info">${testCode(t)}</code></td>
         <td>
           ${escapeHtml(t.name)}${customMark}
           ${t.description ? `<div class="text-muted small text-truncate" style="max-width:320px">${escapeHtml(t.description.substring(0, 80))}${t.description.length > 80 ? "…" : ""}</div>` : ""}
@@ -2751,13 +2755,13 @@ function _renderAdminTests(tests) {
         <td class="text-center">
           <div class="form-check form-switch d-inline-block m-0">
             <input class="form-check-input admin-test-toggle" type="checkbox" role="switch"
-              data-test-id="${t.id}" ${t.is_active ? "checked" : ""}
-              title="${t.is_active ? "Desactivar" : "Activar"} test ${t.id}">
+              data-test-id="${testCode(t)}" ${t.is_active ? "checked" : ""}
+              title="${t.is_active ? "Desactivar" : "Activar"} test ${testCode(t)}">
           </div>
         </td>
         <td class="text-end">
-          <button class="btn btn-outline-info btn-xs admin-test-edit-btn" data-test-id="${t.id}"
-            title="Editar test ${t.id}">
+          <button class="btn btn-outline-info btn-xs admin-test-edit-btn" data-test-id="${testCode(t)}"
+            title="Editar test ${testCode(t)}">
             <i class="fa-solid fa-pen fa-xs"></i>
           </button>
         </td>
@@ -2783,7 +2787,7 @@ document.getElementById("admin-tests-tbody")?.addEventListener("change", async e
       method: "PATCH",
       body: JSON.stringify({ is_active: isActive }),
     });
-    const idx = _adminTestsData.findIndex(t => t.id === testId);
+    const idx = _adminTestsData.findIndex(t => testCode(t) === testId);
     if (idx !== -1) _adminTestsData[idx].is_active = isActive;
     _renderAdminTests(_adminTestsData);
     showToast("success", `Test ${testId} ${isActive ? "activado" : "desactivado"}`);
@@ -2804,9 +2808,9 @@ document.getElementById("admin-tests-tbody")?.addEventListener("click", e => {
 });
 
 function openAdminTestEditModal(testId) {
-  const t = _adminTestsData.find(x => x.id === testId);
+  const t = _adminTestsData.find(x => testCode(x) === testId);
   if (!t) return;
-  document.getElementById("edit-test-id").value          = t.id;
+  document.getElementById("edit-test-id").value          = testCode(t);
   document.getElementById("edit-test-name").value        = t.name;
   document.getElementById("edit-test-description").value = t.description || "";
   document.getElementById("edit-test-block").value       = `${t.block} — ${t.block_name}`;
@@ -2816,7 +2820,7 @@ function openAdminTestEditModal(testId) {
   const badge = document.getElementById("edit-test-custom-badge");
   if (badge) badge.style.display = t.description_custom ? "" : "none";
   const title = document.getElementById("modal-edit-test-label");
-  if (title) title.innerHTML = `<i class="fa-solid fa-pen-to-square me-2 text-info"></i>Editar test <code>${t.id}</code> — ${escapeHtml(t.name)}`;
+  if (title) title.innerHTML = `<i class="fa-solid fa-pen-to-square me-2 text-info"></i>Editar test <code>${testCode(t)}</code> — ${escapeHtml(t.name)}`;
   const modalEl = document.getElementById("modal-edit-test");
   const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
   modal.show();
@@ -2836,7 +2840,7 @@ document.getElementById("btn-edit-test-save")?.addEventListener("click", async (
       method: "PATCH",
       body: JSON.stringify({ name, severity, cwe: cwe || "", description }),
     });
-    const idx = _adminTestsData.findIndex(t => t.id === testId);
+    const idx = _adminTestsData.findIndex(t => testCode(t) === testId);
     if (idx !== -1) Object.assign(_adminTestsData[idx], updated);
     _renderAdminTests(_adminTestsData);
     bootstrap.Modal.getInstance(document.getElementById("modal-edit-test"))?.hide();

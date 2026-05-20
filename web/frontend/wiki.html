@@ -321,40 +321,40 @@
   <a href="#overview">📋 Resumen general</a>
 
   <div class="section-label">Bloque 1 — Cookies</div>
-  <a href="#t01">TEST-01 <span class="badge badge-fail">Secure</span></a>
-  <a href="#t02">TEST-02 <span class="badge badge-fail">HttpOnly</span></a>
-  <a href="#t03">TEST-03 <span class="badge badge-warn">SameSite</span></a>
-  <a href="#t04">TEST-04 <span class="badge badge-warn">Path</span></a>
+  <a href="#t01">COOKIE-SECURE <span class="badge badge-fail">Secure</span></a>
+  <a href="#t02">COOKIE-HTTPONLY <span class="badge badge-fail">HttpOnly</span></a>
+  <a href="#t03">COOKIE-SAMESITE <span class="badge badge-warn">SameSite</span></a>
+  <a href="#t04">COOKIE-PATH <span class="badge badge-warn">Path</span></a>
 
   <div class="section-label">Bloque 2 — Transporte</div>
-  <a href="#t05">TEST-05 <span class="badge badge-fail">HTTP→HTTPS</span></a>
-  <a href="#t06">TEST-06 <span class="badge badge-fail">HSTS</span></a>
-  <a href="#t07">TEST-07 <span class="badge badge-fail">TLS 1.0</span></a>
-  <a href="#t08">TEST-08 <span class="badge badge-warn">TLS 1.1</span></a>
-  <a href="#t09">TEST-09 <span class="badge badge-fail">SSL Cert</span></a>
+  <a href="#t05">TLS-HTTP-TO-HTTPS <span class="badge badge-fail">HTTP→HTTPS</span></a>
+  <a href="#t06">TLS-HSTS <span class="badge badge-fail">HSTS</span></a>
+  <a href="#t07">TLS-10-DISABLED <span class="badge badge-fail">TLS 1.0</span></a>
+  <a href="#t08">TLS-11-DISABLED <span class="badge badge-warn">TLS 1.1</span></a>
+  <a href="#t09">TLS-CERT-VALIDITY <span class="badge badge-fail">SSL Cert</span></a>
 
   <div class="section-label">Bloque 3 — Cabeceras HTTP</div>
-  <a href="#t10">TEST-10 <span class="badge badge-fail">X-Frame-Options</span></a>
-  <a href="#t11">TEST-11 <span class="badge badge-fail">X-Content-Type</span></a>
-  <a href="#t12">TEST-12 <span class="badge badge-fail">CSP</span></a>
-  <a href="#t13">TEST-13 <span class="badge badge-warn">Referrer-Policy</span></a>
-  <a href="#t14">TEST-14 <span class="badge badge-warn">Permissions-Policy</span></a>
+  <a href="#t10">HEADER-X-FRAME-OPTIONS <span class="badge badge-fail">X-Frame-Options</span></a>
+  <a href="#t11">HEADER-X-CONTENT-TYPE-OPTIONS <span class="badge badge-fail">X-Content-Type</span></a>
+  <a href="#t12">HEADER-CSP <span class="badge badge-fail">CSP</span></a>
+  <a href="#t13">HEADER-REFERRER-POLICY <span class="badge badge-warn">Referrer-Policy</span></a>
+  <a href="#t14">HEADER-PERMISSIONS-POLICY <span class="badge badge-warn">Permissions-Policy</span></a>
 
   <div class="section-label">Bloque 4 — Fuga de info</div>
-  <a href="#t15">TEST-15 <span class="badge badge-warn">Server header</span></a>
-  <a href="#t16">TEST-16 <span class="badge badge-warn">X-Powered-By</span></a>
-  <a href="#t17">TEST-17 <span class="badge badge-pass">X-AspNet</span></a>
+  <a href="#t15">INFOLEAK-SERVER-HEADER <span class="badge badge-warn">Server header</span></a>
+  <a href="#t16">INFOLEAK-X-POWERED-BY <span class="badge badge-warn">X-Powered-By</span></a>
+  <a href="#t17">INFOLEAK-ASP-NET-VERSION <span class="badge badge-pass">X-AspNet</span></a>
 
   <div class="section-label">Bloque 5 — Config. servidor</div>
-  <a href="#t18">TEST-18 <span class="badge badge-fail">CORS</span></a>
-  <a href="#t19">TEST-19 <span class="badge badge-warn">HTTP TRACE</span></a>
-  <a href="#t20">TEST-20 <span class="badge badge-warn">Cache-Control</span></a>
+  <a href="#t18">SERVERCFG-CORS-WILDCARD <span class="badge badge-fail">CORS</span></a>
+  <a href="#t19">SERVERCFG-HTTP-TRACE <span class="badge badge-warn">HTTP TRACE</span></a>
+  <a href="#t20">SERVERCFG-CACHE-CONTROL <span class="badge badge-warn">Cache-Control</span></a>
   <div class="section-label">Bloque 6 — Modernización</div>
-  <a href="#t21">TEST-21 <span class="badge badge-warn">Deprecados</span></a>
-  <a href="#t22">TEST-22 <span class="badge badge-warn">COOP</span></a>
-  <a href="#t23">TEST-23 <span class="badge badge-warn">COEP</span></a>
-  <a href="#t24">TEST-24 <span class="badge badge-warn">CORP</span></a>
-  <a href="#t25">TEST-25 <span class="badge badge-warn">X-Permitted-CD</span></a>
+  <a href="#t21">MODERNHDR-DEPRECATED <span class="badge badge-warn">Deprecados</span></a>
+  <a href="#t22">MODERNHDR-COOP <span class="badge badge-warn">COOP</span></a>
+  <a href="#t23">MODERNHDR-COEP <span class="badge badge-warn">COEP</span></a>
+  <a href="#t24">MODERNHDR-CORP <span class="badge badge-warn">CORP</span></a>
+  <a href="#t25">MODERNHDR-X-PERMITTED-CROSS-DOMAIN <span class="badge badge-warn">X-Permitted-CD</span></a>
 </nav>
 
 <!-- ═══════════════════════════ MAIN ═══════════════════════════ -->
@@ -395,10 +395,10 @@
   <!-- ══════════════ BLOQUE 1 — COOKIES ══════════════ -->
   <div class="block-heading"><span class="icon">🍪</span> Bloque 1 — Cookies de sesión</div>
 
-  <!-- TEST-01 -->
+  <!-- COOKIE-SECURE -->
   <div class="test-card" id="t01">
     <div class="card-header" onclick="toggle(this)">
-      <span class="test-id">TEST-01</span>
+      <span class="test-id">COOKIE-SECURE</span>
       <span class="test-name">Cookie flag: Secure</span>
       <span class="risk-badge risk-medio">Riesgo MEDIO</span>
       <span class="chevron">▶</span>
@@ -457,10 +457,10 @@ app.use(session({
     </div>
   </div>
 
-  <!-- TEST-02 -->
+  <!-- COOKIE-HTTPONLY -->
   <div class="test-card" id="t02">
     <div class="card-header" onclick="toggle(this)">
-      <span class="test-id">TEST-02</span>
+      <span class="test-id">COOKIE-HTTPONLY</span>
       <span class="test-name">Cookie flag: HttpOnly</span>
       <span class="risk-badge risk-alto">Riesgo ALTO</span>
       <span class="chevron">▶</span>
@@ -508,10 +508,10 @@ $CFG->cookiehttponly = true;</pre></div>
     </div>
   </div>
 
-  <!-- TEST-03 -->
+  <!-- COOKIE-SAMESITE -->
   <div class="test-card" id="t03">
     <div class="card-header" onclick="toggle(this)">
-      <span class="test-id">TEST-03</span>
+      <span class="test-id">COOKIE-SAMESITE</span>
       <span class="test-name">Cookie flag: SameSite</span>
       <span class="risk-badge risk-medio">Riesgo MEDIO</span>
       <span class="chevron">▶</span>
@@ -546,10 +546,10 @@ $CFG->cookiehttponly = true;</pre></div>
     </div>
   </div>
 
-  <!-- TEST-04 -->
+  <!-- COOKIE-PATH -->
   <div class="test-card" id="t04">
     <div class="card-header" onclick="toggle(this)">
-      <span class="test-id">TEST-04</span>
+      <span class="test-id">COOKIE-PATH</span>
       <span class="test-name">Cookie attribute: Path</span>
       <span class="risk-badge risk-bajo">Riesgo BAJO</span>
       <span class="chevron">▶</span>
@@ -573,10 +573,10 @@ $CFG->cookiehttponly = true;</pre></div>
   <!-- ══════════════ BLOQUE 2 — TRANSPORTE ══════════════ -->
   <div class="block-heading"><span class="icon">🔒</span> Bloque 2 — Transporte y TLS</div>
 
-  <!-- TEST-05 -->
+  <!-- TLS-HTTP-TO-HTTPS -->
   <div class="test-card" id="t05">
     <div class="card-header" onclick="toggle(this)">
-      <span class="test-id">TEST-05</span>
+      <span class="test-id">TLS-HTTP-TO-HTTPS</span>
       <span class="test-name">HTTP → HTTPS redirect 301/302</span>
       <span class="risk-badge risk-medio">Riesgo MEDIO</span>
       <span class="chevron">▶</span>
@@ -636,10 +636,10 @@ RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]</pre></div>
     </div>
   </div>
 
-  <!-- TEST-06 -->
+  <!-- TLS-HSTS -->
   <div class="test-card" id="t06">
     <div class="card-header" onclick="toggle(this)">
-      <span class="test-id">TEST-06</span>
+      <span class="test-id">TLS-HSTS</span>
       <span class="test-name">HSTS — Strict-Transport-Security</span>
       <span class="risk-badge risk-alto">Riesgo ALTO</span>
       <span class="chevron">▶</span>
@@ -691,10 +691,10 @@ Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains
     </div>
   </div>
 
-  <!-- TEST-07 -->
+  <!-- TLS-10-DISABLED -->
   <div class="test-card" id="t07">
     <div class="card-header" onclick="toggle(this)">
-      <span class="test-id">TEST-07</span>
+      <span class="test-id">TLS-10-DISABLED</span>
       <span class="test-name">TLS 1.0 deshabilitado</span>
       <span class="risk-badge risk-alto">Riesgo ALTO</span>
       <span class="chevron">▶</span>
@@ -730,10 +730,10 @@ SSLHonorCipherOrder off</pre></div>
     </div>
   </div>
 
-  <!-- TEST-08 -->
+  <!-- TLS-11-DISABLED -->
   <div class="test-card" id="t08">
     <div class="card-header" onclick="toggle(this)">
-      <span class="test-id">TEST-08</span>
+      <span class="test-id">TLS-11-DISABLED</span>
       <span class="test-name">TLS 1.1 deshabilitado</span>
       <span class="risk-badge risk-medio">Riesgo MEDIO</span>
       <span class="chevron">▶</span>
@@ -743,15 +743,15 @@ SSLHonorCipherOrder off</pre></div>
       <p>Intenta establecer una conexión TLS 1.1 con el servidor. TLS 1.1 fue oficialmente deprecado por la IETF en 2021 (RFC 8996).</p>
 
       <h4>Remediación</h4>
-      <p>Misma configuración que TEST-07. Deshabilitar TLS 1.0 y 1.1 en el mismo bloque de configuración dejando solo TLS 1.2 y TLS 1.3.</p>
+      <p>Misma configuración que TLS-10-DISABLED. Deshabilitar TLS 1.0 y 1.1 en el mismo bloque de configuración dejando solo TLS 1.2 y TLS 1.3.</p>
       <div class="info-box tip">💡 TLS 1.3 es el estándar recomendado actualmente. Ofrece mejor rendimiento (1-RTT handshake) y seguridad mejorada.</div>
     </div>
   </div>
 
-  <!-- TEST-09 -->
+  <!-- TLS-CERT-VALIDITY -->
   <div class="test-card" id="t09">
     <div class="card-header" onclick="toggle(this)">
-      <span class="test-id">TEST-09</span>
+      <span class="test-id">TLS-CERT-VALIDITY</span>
       <span class="test-name">Certificado SSL vigente</span>
       <span class="risk-badge risk-critico">Riesgo CRÍTICO</span>
       <span class="chevron">▶</span>
@@ -804,10 +804,10 @@ LEFT=$(( ($(date -d "$EXPIRY" +%s) - $(date +%s)) / 86400 ))
   <!-- ══════════════ BLOQUE 3 — CABECERAS ══════════════ -->
   <div class="block-heading"><span class="icon">📋</span> Bloque 3 — Cabeceras de seguridad HTTP</div>
 
-  <!-- TEST-10 -->
+  <!-- HEADER-X-FRAME-OPTIONS -->
   <div class="test-card" id="t10">
     <div class="card-header" onclick="toggle(this)">
-      <span class="test-id">TEST-10</span>
+      <span class="test-id">HEADER-X-FRAME-OPTIONS</span>
       <span class="test-name">X-Frame-Options (anti-clickjacking)</span>
       <span class="risk-badge risk-alto">Riesgo ALTO</span>
       <span class="chevron">▶</span>
@@ -853,10 +853,10 @@ app.use(helmet.frameguard({ action: 'sameorigin' }));</pre></div>
     </div>
   </div>
 
-  <!-- TEST-11 -->
+  <!-- HEADER-X-CONTENT-TYPE-OPTIONS -->
   <div class="test-card" id="t11">
     <div class="card-header" onclick="toggle(this)">
-      <span class="test-id">TEST-11</span>
+      <span class="test-id">HEADER-X-CONTENT-TYPE-OPTIONS</span>
       <span class="test-name">X-Content-Type-Options: nosniff</span>
       <span class="risk-badge risk-medio">Riesgo MEDIO</span>
       <span class="chevron">▶</span>
@@ -882,10 +882,10 @@ app.use(helmet.frameguard({ action: 'sameorigin' }));</pre></div>
     </div>
   </div>
 
-  <!-- TEST-12 -->
+  <!-- HEADER-CSP -->
   <div class="test-card" id="t12">
     <div class="card-header" onclick="toggle(this)">
-      <span class="test-id">TEST-12</span>
+      <span class="test-id">HEADER-CSP</span>
       <span class="test-name">Content-Security-Policy (CSP)</span>
       <span class="risk-badge risk-alto">Riesgo ALTO</span>
       <span class="chevron">▶</span>
@@ -943,10 +943,10 @@ add_header Content-Security-Policy-Report-Only "
     </div>
   </div>
 
-  <!-- TEST-13 -->
+  <!-- HEADER-REFERRER-POLICY -->
   <div class="test-card" id="t13">
     <div class="card-header" onclick="toggle(this)">
-      <span class="test-id">TEST-13</span>
+      <span class="test-id">HEADER-REFERRER-POLICY</span>
       <span class="test-name">Referrer-Policy</span>
       <span class="risk-badge risk-bajo">Riesgo BAJO</span>
       <span class="chevron">▶</span>
@@ -970,10 +970,10 @@ add_header Content-Security-Policy-Report-Only "
     </div>
   </div>
 
-  <!-- TEST-14 -->
+  <!-- HEADER-PERMISSIONS-POLICY -->
   <div class="test-card" id="t14">
     <div class="card-header" onclick="toggle(this)">
-      <span class="test-id">TEST-14</span>
+      <span class="test-id">HEADER-PERMISSIONS-POLICY</span>
       <span class="test-name">Permissions-Policy</span>
       <span class="risk-badge risk-bajo">Riesgo BAJO</span>
       <span class="chevron">▶</span>
@@ -998,10 +998,10 @@ add_header Content-Security-Policy-Report-Only "
   <!-- ══════════════ BLOQUE 4 — FUGA ══════════════ -->
   <div class="block-heading"><span class="icon">🕵️</span> Bloque 4 — Fuga de información</div>
 
-  <!-- TEST-15 -->
+  <!-- INFOLEAK-SERVER-HEADER -->
   <div class="test-card" id="t15">
     <div class="card-header" onclick="toggle(this)">
-      <span class="test-id">TEST-15</span>
+      <span class="test-id">INFOLEAK-SERVER-HEADER</span>
       <span class="test-name">Server header oculto (sin versión)</span>
       <span class="risk-badge risk-medio">Riesgo MEDIO</span>
       <span class="chevron">▶</span>
@@ -1037,10 +1037,10 @@ ServerSignature Off</pre></div>
     </div>
   </div>
 
-  <!-- TEST-16 -->
+  <!-- INFOLEAK-X-POWERED-BY -->
   <div class="test-card" id="t16">
     <div class="card-header" onclick="toggle(this)">
-      <span class="test-id">TEST-16</span>
+      <span class="test-id">INFOLEAK-X-POWERED-BY</span>
       <span class="test-name">X-Powered-By ausente</span>
       <span class="risk-badge risk-medio">Riesgo MEDIO</span>
       <span class="chevron">▶</span>
@@ -1072,10 +1072,10 @@ Header always unset X-Generator</pre></div>
     </div>
   </div>
 
-  <!-- TEST-17 -->
+  <!-- INFOLEAK-ASP-NET-VERSION -->
   <div class="test-card" id="t17">
     <div class="card-header" onclick="toggle(this)">
-      <span class="test-id">TEST-17</span>
+      <span class="test-id">INFOLEAK-ASP-NET-VERSION</span>
       <span class="test-name">X-AspNet-Version ausente</span>
       <span class="risk-badge risk-medio">Riesgo MEDIO</span>
       <span class="chevron">▶</span>
@@ -1115,10 +1115,10 @@ app.Use(async (context, next) => {
   <!-- ══════════════ BLOQUE 5 — CONFIG ══════════════ -->
   <div class="block-heading"><span class="icon">⚙️</span> Bloque 5 — Configuración del servidor</div>
 
-  <!-- TEST-18 -->
+  <!-- SERVERCFG-CORS-WILDCARD -->
   <div class="test-card" id="t18">
     <div class="card-header" onclick="toggle(this)">
-      <span class="test-id">TEST-18</span>
+      <span class="test-id">SERVERCFG-CORS-WILDCARD</span>
       <span class="test-name">CORS — sin wildcard Access-Control-Allow-Origin</span>
       <span class="risk-badge risk-alto">Riesgo ALTO</span>
       <span class="chevron">▶</span>
@@ -1156,10 +1156,10 @@ app.use(cors({
     </div>
   </div>
 
-  <!-- TEST-19 -->
+  <!-- SERVERCFG-HTTP-TRACE -->
   <div class="test-card" id="t19">
     <div class="card-header" onclick="toggle(this)">
-      <span class="test-id">TEST-19</span>
+      <span class="test-id">SERVERCFG-HTTP-TRACE</span>
       <span class="test-name">HTTP TRACE deshabilitado</span>
       <span class="risk-badge risk-medio">Riesgo MEDIO</span>
       <span class="chevron">▶</span>
@@ -1196,10 +1196,10 @@ if ($request_method = TRACE) {
     </div>
   </div>
 
-  <!-- TEST-20 -->
+  <!-- SERVERCFG-CACHE-CONTROL -->
   <div class="test-card" id="t20">
     <div class="card-header" onclick="toggle(this)">
-      <span class="test-id">TEST-20</span>
+      <span class="test-id">SERVERCFG-CACHE-CONTROL</span>
       <span class="test-name">Cache-Control adecuado</span>
       <span class="risk-badge risk-medio">Riesgo MEDIO</span>
       <span class="chevron">▶</span>
@@ -1243,10 +1243,10 @@ res.set('Pragma', 'no-cache');</pre></div>
     </div>
   </div>
 
-  <!-- TEST-21 -->
+  <!-- MODERNHDR-DEPRECATED -->
   <div class="test-card" id="t21">
     <div class="test-header" onclick="toggle(this)">
-      <span class="test-id">TEST-21</span>
+      <span class="test-id">MODERNHDR-DEPRECATED</span>
       <span class="test-name">Headers deprecados ausentes</span>
       <span class="badge badge-warn">Modernización</span>
       <span class="chevron">▼</span>
@@ -1271,10 +1271,10 @@ header_remove('Expect-CT');</pre></div>
     </div>
   </div>
 
-  <!-- TEST-22 -->
+  <!-- MODERNHDR-COOP -->
   <div class="test-card" id="t22">
     <div class="test-header" onclick="toggle(this)">
-      <span class="test-id">TEST-22</span>
+      <span class="test-id">MODERNHDR-COOP</span>
       <span class="test-name">Cross-Origin-Opener-Policy (COOP)</span>
       <span class="badge badge-warn">Aislamiento</span>
       <span class="chevron">▼</span>
@@ -1294,10 +1294,10 @@ header_remove('Expect-CT');</pre></div>
     </div>
   </div>
 
-  <!-- TEST-23 -->
+  <!-- MODERNHDR-COEP -->
   <div class="test-card" id="t23">
     <div class="test-header" onclick="toggle(this)">
-      <span class="test-id">TEST-23</span>
+      <span class="test-id">MODERNHDR-COEP</span>
       <span class="test-name">Cross-Origin-Embedder-Policy (COEP)</span>
       <span class="badge badge-warn">Aislamiento</span>
       <span class="chevron">▼</span>
@@ -1317,10 +1317,10 @@ header_remove('Expect-CT');</pre></div>
     </div>
   </div>
 
-  <!-- TEST-24 -->
+  <!-- MODERNHDR-CORP -->
   <div class="test-card" id="t24">
     <div class="test-header" onclick="toggle(this)">
-      <span class="test-id">TEST-24</span>
+      <span class="test-id">MODERNHDR-CORP</span>
       <span class="test-name">Cross-Origin-Resource-Policy (CORP)</span>
       <span class="badge badge-warn">Aislamiento</span>
       <span class="chevron">▼</span>
@@ -1340,10 +1340,10 @@ header_remove('Expect-CT');</pre></div>
     </div>
   </div>
 
-  <!-- TEST-25 -->
+  <!-- MODERNHDR-X-PERMITTED-CROSS-DOMAIN -->
   <div class="test-card" id="t25">
     <div class="test-header" onclick="toggle(this)">
-      <span class="test-id">TEST-25</span>
+      <span class="test-id">MODERNHDR-X-PERMITTED-CROSS-DOMAIN</span>
       <span class="test-name">X-Permitted-Cross-Domain-Policies</span>
       <span class="badge badge-warn">Aislamiento</span>
       <span class="chevron">▼</span>

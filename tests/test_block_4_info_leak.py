@@ -1,4 +1,4 @@
-"""Tests unitarios — Bloque 4: Fuga de información (TEST-15 a TEST-17)."""
+"""Tests unitarios — Bloque 4: Fuga de información (INFOLEAK-SERVER-HEADER a INFOLEAK-ASP-NET-VERSION)."""
 from __future__ import annotations
 
 from wss.core.result import Status
@@ -18,7 +18,7 @@ def _ctx_with_headers(headers: dict[str, str]):
     return ctx
 
 
-# ── TEST-15: Server header ────────────────────────────────────────────────────
+# ── INFOLEAK-SERVER-HEADER: Server header ────────────────────────────────────────────────────
 
 
 async def test_15_pass_absent():
@@ -46,7 +46,7 @@ async def test_15_fail_apache_version():
     assert r.status == Status.FAIL
 
 
-# ── TEST-16: X-Powered-By ─────────────────────────────────────────────────────
+# ── INFOLEAK-X-POWERED-BY: X-Powered-By ─────────────────────────────────────────────────────
 
 
 async def test_16_pass_absent():
@@ -62,7 +62,7 @@ async def test_16_fail_present():
     assert "PHP" in r.detail
 
 
-# ── TEST-17: X-AspNet-Version ─────────────────────────────────────────────────
+# ── INFOLEAK-ASP-NET-VERSION: X-AspNet-Version ─────────────────────────────────────────────────
 
 
 async def test_17_pass_absent():

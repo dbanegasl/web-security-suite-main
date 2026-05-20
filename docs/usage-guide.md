@@ -1,6 +1,6 @@
 # Guía de uso — web-security-suite
 
-Guía operativa v6.5. Motor Python `wss`, interfaz web Docker (FastAPI + SPA nginx + SQLite). Para la especificación técnica de cada test, ver [tests-reference.md](tests-reference.md). Para añadir tests, ver [creating-tests.md](creating-tests.md).
+Guía operativa v7.0. Motor Python `wss`, interfaz web Docker (FastAPI + SPA nginx + SQLite). Para la especificación técnica de cada test, ver [tests-reference.md](tests-reference.md). Para añadir tests, ver [creating-tests.md](creating-tests.md).
 
 ---
 
@@ -101,14 +101,7 @@ curl http://localhost:8778/api/health
 
 ## SQLite — datos persistentes
 
-Los datos se almacenan en un volumen Docker. Si se elimina el volumen (`docker compose down -v`), se pierden todos los datos. Para restaurar:
-
-```bash
-# Re-seed de descripciones de tests
-python3 temp/seed_descriptions.py
-```
-
-El catálogo de tests (`sync_test_catalog()`) se sincroniza automáticamente al arrancar la API — añade tests nuevos sin borrar descripciones existentes.
+Los datos se almacenan en `data/wss.db` (bind mount). Si se elimina este archivo, se pierden historial, listas y catálogo. Al reiniciar la API, `sync_test_catalog()` recrea automáticamente el catálogo con descripciones desde `wss/descriptions.py` y el usuario admin se recrea si `APP_FIRST_ADMIN_PASSWORD` está configurado — no se requiere ningún script adicional.
 
 ---
 
@@ -175,7 +168,7 @@ DOMAIN=app.ejemplo.com SESSION_COOKIE_NAME=sessionid IP=192.168.1.10 bash scan-c
 
 ## Correcciones comunes
 
-### TEST-01/02/03 — Cookie sin Secure / HttpOnly / SameSite
+### COOKIE-SECURE/02/03 — Cookie sin Secure / HttpOnly / SameSite
 
 **Laravel** — agregar a `.env`:
 ```
@@ -196,7 +189,7 @@ proxy_cookie_flags ~ Secure HttpOnly SameSite=Lax;
 
 ---
 
-### TEST-06 — HSTS ausente o `max-age` insuficiente
+### TLS-HSTS — HSTS ausente o `max-age` insuficiente
 
 ```nginx
 add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
@@ -204,7 +197,7 @@ add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" alway
 
 ---
 
-### TEST-10 — X-Frame-Options ausente
+### HEADER-X-FRAME-OPTIONS — X-Frame-Options ausente
 
 ```nginx
 add_header X-Frame-Options "SAMEORIGIN" always;
@@ -212,7 +205,7 @@ add_header X-Frame-Options "SAMEORIGIN" always;
 
 ---
 
-### TEST-11 — X-Content-Type-Options ausente
+### HEADER-X-CONTENT-TYPE-OPTIONS — X-Content-Type-Options ausente
 
 ```nginx
 add_header X-Content-Type-Options "nosniff" always;
@@ -220,7 +213,7 @@ add_header X-Content-Type-Options "nosniff" always;
 
 ---
 
-### TEST-12 — CSP ausente
+### HEADER-CSP — CSP ausente
 
 ```nginx
 add_header Content-Security-Policy "default-src 'self'; script-src 'self'; object-src 'none';" always;
@@ -229,7 +222,7 @@ add_header Content-Security-Policy "default-src 'self'; script-src 'self'; objec
 
 ---
 
-### TEST-14 — Permissions-Policy ausente (WARN)
+### HEADER-PERMISSIONS-POLICY — Permissions-Policy ausente (WARN)
 
 ```nginx
 add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
@@ -237,7 +230,7 @@ add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
 
 ---
 
-### TEST-15 — Server header revela versión
+### INFOLEAK-SERVER-HEADER — Server header revela versión
 
 ```nginx
 # En nginx.conf (bloque http):
@@ -246,7 +239,7 @@ server_tokens off;
 
 ---
 
-### TEST-16 — X-Powered-By presente
+### INFOLEAK-X-POWERED-BY — X-Powered-By presente
 
 ```nginx
 # Nginx — ocultar header generado por PHP-FPM:
@@ -259,7 +252,7 @@ expose_php = Off
 
 ---
 
-### TEST-19 — HTTP TRACE activo
+### SERVERCFG-HTTP-TRACE — HTTP TRACE activo
 
 ```nginx
 if ($request_method = TRACE) { return 405; }

@@ -1,4 +1,4 @@
-"""Tests unitarios — Bloque 9: Fingerprinting y Content Analysis (TEST-48 a TEST-55)."""
+"""Tests unitarios — Bloque 9: Fingerprinting y Content Analysis (FINGERPRINT-DJANGO-DEBUG a CONTENT-PASSWORD-OVER-HTTP)."""
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -58,7 +58,7 @@ def _ctx_with_url_responses(url_map: dict[str, tuple[int, str]]):
     return ctx
 
 
-# ── TEST-48: Django debug ─────────────────────────────────────────────────────
+# ── FINGERPRINT-DJANGO-DEBUG: Django debug ─────────────────────────────────────────────────────
 
 
 DJANGO_DEBUG_PAGE = """
@@ -95,7 +95,7 @@ async def test_48_skip_no_response():
     assert r.status == Status.SKIP
 
 
-# ── TEST-49: Laravel debug ────────────────────────────────────────────────────
+# ── FINGERPRINT-LARAVEL-DEBUG: Laravel debug ────────────────────────────────────────────────────
 
 
 LARAVEL_DEBUG_PAGE = """
@@ -122,7 +122,7 @@ async def test_49_pass_normal_page():
     assert r.status == Status.PASS
 
 
-# ── TEST-50: Spring Actuator ──────────────────────────────────────────────────
+# ── FINGERPRINT-SPRING-ACTUATOR: Spring Actuator ──────────────────────────────────────────────────
 
 
 ACTUATOR_RESPONSE = '{"_links":{"self":{"href":"http://example.com/actuator","templated":false},"health":{"href":"http://example.com/actuator/health","templated":false}}}'
@@ -141,7 +141,7 @@ async def test_50_pass_actuator_404():
     assert r.status == Status.PASS
 
 
-# ── TEST-51: CMS version en meta generator ───────────────────────────────────
+# ── FINGERPRINT-CMS-GENERATOR: CMS version en meta generator ───────────────────────────────────
 
 
 async def test_51_warn_wordpress_version():
@@ -173,7 +173,7 @@ async def test_51_pass_no_generator():
     assert r.status == Status.PASS
 
 
-# ── TEST-52: Comentarios HTML sensibles ──────────────────────────────────────
+# ── CONTENT-HTML-COMMENTS-SENSITIVE: Comentarios HTML sensibles ──────────────────────────────────────
 
 
 async def test_52_warn_password_in_comment():
@@ -205,7 +205,7 @@ async def test_52_pass_no_comments():
     assert r.status == Status.PASS
 
 
-# ── TEST-53: Mixed content ────────────────────────────────────────────────────
+# ── CONTENT-MIXED-CONTENT: Mixed content ────────────────────────────────────────────────────
 
 
 async def test_53_warn_http_img_src():
@@ -230,7 +230,7 @@ async def test_53_pass_all_https():
     assert r.status == Status.PASS
 
 
-# ── TEST-54: Formularios con action HTTP ─────────────────────────────────────
+# ── CONTENT-FORM-HTTP-ACTION: Formularios con action HTTP ─────────────────────────────────────
 
 
 async def test_54_fail_form_http_action():
@@ -255,7 +255,7 @@ async def test_54_pass_form_relative_action():
     assert r.status == Status.PASS
 
 
-# ── TEST-55: Contraseñas sobre HTTP ──────────────────────────────────────────
+# ── CONTENT-PASSWORD-OVER-HTTP: Contraseñas sobre HTTP ──────────────────────────────────────────
 
 
 async def test_55_fail_password_over_http():

@@ -1,4 +1,4 @@
-"""Bloque 9 — Fingerprinting y Content Analysis (TEST-48 a TEST-55)."""
+"""Bloque 9 — Fingerprinting y Content Analysis (FINGERPRINT-DJANGO-DEBUG a CONTENT-PASSWORD-OVER-HTTP)."""
 from __future__ import annotations
 
 import re
@@ -41,11 +41,11 @@ from typing import Any
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-48  Página de debug Django expuesta
+# FINGERPRINT-DJANGO-DEBUG  Página de debug Django expuesta
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test(
-    "48",
+    "FINGERPRINT-DJANGO-DEBUG",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="Django DEBUG=True no expuesto",
@@ -73,11 +73,11 @@ async def test_django_debug(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-49  Página de debug Laravel expuesta
+# FINGERPRINT-LARAVEL-DEBUG  Página de debug Laravel expuesta
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test(
-    "49",
+    "FINGERPRINT-LARAVEL-DEBUG",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="Laravel debug page no expuesta",
@@ -104,11 +104,11 @@ async def test_laravel_debug(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-50  Spring Boot Actuator expuesto
+# FINGERPRINT-SPRING-ACTUATOR  Spring Boot Actuator expuesto
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test(
-    "50",
+    "FINGERPRINT-SPRING-ACTUATOR",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="Spring Boot Actuator no expuesto",
@@ -131,11 +131,11 @@ async def test_spring_actuator(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-51  Versión CMS en meta generator
+# FINGERPRINT-CMS-GENERATOR  Versión CMS en meta generator
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test(
-    "51",
+    "FINGERPRINT-CMS-GENERATOR",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="Meta generator sin versión de CMS",
@@ -174,7 +174,7 @@ async def test_cms_version(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-52  Comentarios HTML con datos sensibles
+# CONTENT-HTML-COMMENTS-SENSITIVE  Comentarios HTML con datos sensibles
 # ─────────────────────────────────────────────────────────────────────────────
 
 _SENSITIVE_COMMENT_PATTERNS = re.compile(
@@ -185,7 +185,7 @@ _SENSITIVE_COMMENT_PATTERNS = re.compile(
 
 
 @test(
-    "52",
+    "CONTENT-HTML-COMMENTS-SENSITIVE",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="Comentarios HTML sin datos sensibles",
@@ -213,7 +213,7 @@ async def test_html_comments(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-53  Contenido mixto (mixed content)
+# CONTENT-MIXED-CONTENT  Contenido mixto (mixed content)
 # ─────────────────────────────────────────────────────────────────────────────
 
 _MIXED_CONTENT_RE = re.compile(
@@ -223,7 +223,7 @@ _MIXED_CONTENT_RE = re.compile(
 
 
 @test(
-    "53",
+    "CONTENT-MIXED-CONTENT",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="Sin contenido mixto (HTTP en HTTPS)",
@@ -246,11 +246,11 @@ async def test_mixed_content(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-54  Formularios con acción HTTP
+# CONTENT-FORM-HTTP-ACTION  Formularios con acción HTTP
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test(
-    "54",
+    "CONTENT-FORM-HTTP-ACTION",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="Formularios con action HTTPS o relativo",
@@ -277,11 +277,11 @@ async def test_form_http_action(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-55  Campos de contraseña servidos por HTTP
+# CONTENT-PASSWORD-OVER-HTTP  Campos de contraseña servidos por HTTP
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test(
-    "55",
+    "CONTENT-PASSWORD-OVER-HTTP",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="Campos de contraseña no servidos por HTTP",

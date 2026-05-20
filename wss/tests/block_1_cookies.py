@@ -1,4 +1,4 @@
-"""Bloque 1 — Cookies (TEST-01 a TEST-04)
+"""Bloque 1 — Cookies (COOKIE-SECURE a COOKIE-PATH)
 
 Verifica que las cookies establecidas por el servidor tengan los atributos
 de seguridad correctos. Paridad exacta con la lógica bash de scan-cli.sh.
@@ -27,7 +27,7 @@ def _cookie_name(raw: str) -> str:
 
 
 @test(
-    "01",
+    "COOKIE-SECURE",
     block=1,
     block_name="Cookies",
     name="Cookie attribute: Secure",
@@ -51,7 +51,7 @@ async def test_secure(ctx: ScanContext) -> Result:
 
 
 @test(
-    "02",
+    "COOKIE-HTTPONLY",
     block=1,
     block_name="Cookies",
     name="Cookie attribute: HttpOnly",
@@ -86,7 +86,7 @@ async def test_httponly(ctx: ScanContext) -> Result:
 
 
 @test(
-    "03",
+    "COOKIE-SAMESITE",
     block=1,
     block_name="Cookies",
     name="Cookie attribute: SameSite=Lax|Strict",
@@ -114,7 +114,7 @@ async def test_samesite(ctx: ScanContext) -> Result:
 
 
 @test(
-    "04",
+    "COOKIE-PATH",
     block=1,
     block_name="Cookies",
     name="Cookie attribute: Path definido",

@@ -1,4 +1,4 @@
-"""Bloque 7 — Archivos y rutas expuestas (TEST-26 a TEST-40)."""
+"""Bloque 7 — Archivos y rutas expuestas (EXPOSED-ENV a EXPOSED-DS-STORE)."""
 from __future__ import annotations
 
 import asyncio
@@ -52,11 +52,11 @@ async def _probe_many(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-26  Archivos .env expuestos
+# EXPOSED-ENV  Archivos .env expuestos
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test(
-    "26",
+    "EXPOSED-ENV",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="Archivos .env no expuestos",
@@ -75,11 +75,11 @@ async def test_env_exposed(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-27  Repositorio Git expuesto
+# EXPOSED-GIT  Repositorio Git expuesto
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test(
-    "27",
+    "EXPOSED-GIT",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="Repositorio .git no expuesto",
@@ -99,11 +99,11 @@ async def test_git_exposed(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-28  Repositorios SVN/HG expuestos
+# EXPOSED-SVN-HG  Repositorios SVN/HG expuestos
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test(
-    "28",
+    "EXPOSED-SVN-HG",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="Repositorios SVN/HG no expuestos",
@@ -120,11 +120,11 @@ async def test_svn_hg_exposed(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-29  Volcados de base de datos expuestos
+# EXPOSED-SQL-DUMPS  Volcados de base de datos expuestos
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test(
-    "29",
+    "EXPOSED-SQL-DUMPS",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="Volcados SQL no expuestos",
@@ -144,11 +144,11 @@ async def test_sql_dumps_exposed(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-30  Archivos de copia de seguridad expuestos
+# EXPOSED-BACKUP-FILES  Archivos de copia de seguridad expuestos
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test(
-    "30",
+    "EXPOSED-BACKUP-FILES",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="Archivos de backup no expuestos",
@@ -174,11 +174,11 @@ async def test_backup_files_exposed(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-31  Páginas phpinfo expuestas
+# EXPOSED-PHPINFO  Páginas phpinfo expuestas
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test(
-    "31",
+    "EXPOSED-PHPINFO",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="Página phpinfo no expuesta",
@@ -196,11 +196,11 @@ async def test_phpinfo_exposed(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-32  Archivo security.txt presente
+# EXPOSED-SECURITY-TXT  Archivo security.txt presente
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test(
-    "32",
+    "EXPOSED-SECURITY-TXT",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="security.txt presente (RFC 9116)",
@@ -218,11 +218,11 @@ async def test_security_txt(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-33  Páginas de estado del servidor expuestas
+# EXPOSED-SERVER-STATUS  Páginas de estado del servidor expuestas
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test(
-    "33",
+    "EXPOSED-SERVER-STATUS",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="Páginas de estado del servidor no expuestas",
@@ -241,11 +241,11 @@ async def test_server_status_exposed(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-34  Paneles de administración sin protección
+# EXPOSED-ADMIN-PANELS  Paneles de administración sin protección
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test(
-    "34",
+    "EXPOSED-ADMIN-PANELS",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="Paneles de administración protegidos",
@@ -270,11 +270,11 @@ async def test_admin_panels(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-35  Archivos de configuración del servidor expuestos
+# EXPOSED-CONFIG-FILES  Archivos de configuración del servidor expuestos
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test(
-    "35",
+    "EXPOSED-CONFIG-FILES",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="Archivos de configuración no expuestos",
@@ -298,11 +298,11 @@ async def test_config_files_exposed(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-36  Manifiestos de dependencias expuestos
+# EXPOSED-DEPENDENCY-MANIFESTS  Manifiestos de dependencias expuestos
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test(
-    "36",
+    "EXPOSED-DEPENDENCY-MANIFESTS",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="Manifiestos de dependencias no expuestos",
@@ -330,11 +330,11 @@ async def test_dependency_manifests(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-37  Políticas de acceso entre dominios inseguras
+# EXPOSED-CROSSDOMAIN-WILDCARD  Políticas de acceso entre dominios inseguras
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test(
-    "37",
+    "EXPOSED-CROSSDOMAIN-WILDCARD",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="crossdomain.xml sin wildcard",
@@ -353,11 +353,11 @@ async def test_crossdomain_wildcard(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-38  Documentación de API expuesta
+# EXPOSED-API-DOCS  Documentación de API expuesta
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test(
-    "38",
+    "EXPOSED-API-DOCS",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="Documentación de API no expuesta públicamente",
@@ -380,11 +380,11 @@ async def test_api_docs_exposed(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-39  Endpoints de Spring Actuator expuestos
+# EXPOSED-SPRING-ACTUATOR  Endpoints de Spring Actuator expuestos
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test(
-    "39",
+    "EXPOSED-SPRING-ACTUATOR",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="Spring Actuator no expuesto",
@@ -408,11 +408,11 @@ async def test_actuator_exposed(ctx: ScanContext) -> Result:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TEST-40  Archivo .DS_Store expuesto
+# EXPOSED-DS-STORE  Archivo .DS_Store expuesto
 # ─────────────────────────────────────────────────────────────────────────────
 
 @test(
-    "40",
+    "EXPOSED-DS-STORE",
     block=_BLOCK,
     block_name=_BLOCK_NAME,
     name="Archivo .DS_Store no expuesto",

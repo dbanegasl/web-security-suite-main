@@ -1,4 +1,4 @@
-"""Bloque 6 — Headers modernos y deprecados (TEST-21 a TEST-25)."""
+"""Bloque 6 — Headers modernos y deprecados (MODERNHDR-DEPRECATED a MODERNHDR-X-PERMITTED-CROSS-DOMAIN)."""
 from __future__ import annotations
 
 import re
@@ -9,7 +9,7 @@ from wss.core.result import Result
 
 
 @test(
-    "21",
+    "MODERNHDR-DEPRECATED",
     block=6,
     block_name="Headers modernos y deprecados",
     name="Headers deprecados ausentes",
@@ -29,7 +29,7 @@ async def test_deprecated_headers(ctx: ScanContext) -> Result:
 
 
 @test(
-    "22",
+    "MODERNHDR-COOP",
     block=6,
     block_name="Headers modernos y deprecados",
     name="Cross-Origin-Opener-Policy (COOP)",
@@ -45,7 +45,7 @@ async def test_coop(ctx: ScanContext) -> Result:
 
 
 @test(
-    "23",
+    "MODERNHDR-COEP",
     block=6,
     block_name="Headers modernos y deprecados",
     name="Cross-Origin-Embedder-Policy (COEP)",
@@ -61,7 +61,7 @@ async def test_coep(ctx: ScanContext) -> Result:
 
 
 @test(
-    "24",
+    "MODERNHDR-CORP",
     block=6,
     block_name="Headers modernos y deprecados",
     name="Cross-Origin-Resource-Policy (CORP)",
@@ -77,7 +77,7 @@ async def test_corp(ctx: ScanContext) -> Result:
 
 
 @test(
-    "25",
+    "MODERNHDR-X-PERMITTED-CROSS-DOMAIN",
     block=6,
     block_name="Headers modernos y deprecados",
     name="X-Permitted-Cross-Domain-Policies",
