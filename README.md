@@ -1,6 +1,6 @@
 # web-security-suite
 
-Suite de pruebas de seguridad HTTP para auditoría de dominios web. Ejecuta **55 tests** organizados en 9 bloques, detectando las vulnerabilidades más comunes (OWASP Top 10 basics, Security Headers, exposición de archivos, DNS/email y fingerprinting).
+Suite de pruebas de seguridad HTTP para auditoría de dominios web. Ejecuta **72 tests** organizados en 12 bloques, detectando las vulnerabilidades más comunes (OWASP Top 10 basics, Security Headers, exposición de archivos, DNS/email, fingerprinting, amenazas activas e infraestructura IA expuesta).
 
 **Versión:** 7.0 · **Autor:** Daniel Banegas · **Organización:** DUOTICS
 
@@ -9,7 +9,7 @@ Suite de pruebas de seguridad HTTP para auditoría de dominios web. Ejecuta **55
 ## Características
 
 - Motor 100 % Python (`wss`) — `httpx` + `asyncio`; sin dependencias externas de shell
-- **55 tests** en 9 bloques de seguridad con auto-discovery por `pkgutil`
+- **72 tests** en 12 bloques de seguridad con auto-discovery por `pkgutil`
 - **Interfaz web Docker** completa: SPA Bootstrap 5.3, FastAPI, SQLite, autenticación JWT
 - **Análisis individual** desde formulario web o API REST
 - **Análisis batch con SSE**: resultados en tiempo real, dominio a dominio conforme terminan
@@ -77,7 +77,7 @@ navegador → nginx :FRONTEND_PORT ─┬─ /api/                    → FastAP
 | `POST` | `/api/auth/login` | Login → JWT |
 | `GET` | `/api/auth/me` | Info del usuario autenticado |
 | `GET` | `/api/health` | Health check |
-| `GET` | `/api/tests` | Catálogo de los 55 tests |
+| `GET` | `/api/tests` | Catálogo de los 72 tests |
 | `GET` | `/api/discover-cookies` | Descubre cookies del dominio indicado |
 | `POST` | `/api/scan` | Scan individual → JSON |
 | `POST` | `/api/batch` | Scan batch síncrono → JSON |
@@ -127,6 +127,9 @@ Todos los endpoints (excepto `/api/health` y `/api/auth/login`) requieren `Autho
 | **7** | Archivos y rutas expuestas | 15 | .env, .git, backups, paneles admin, logs, etc. |
 | **8** | DNS, Email y Dominio | 7 | SPF, DMARC, DNSSEC, CAA, MX, WHOIS |
 | **9** | Fingerprinting y Contenido | 8 | Stack disclosure, mixed content, subresource integrity, etc. |
+| **10** | Vulnerabilidades de producto | 4 | CVEs nginx (versión/HTTP2), nginx status expuesto, webshells PHP |
+| **11** | Amenazas activas (SHADOW-AETHER) | 6 | Webshells NeoReGeorg/P0wny, consolas JBoss/Tomcat/Zimbra, fingerprinting Struts2 |
+| **12** | Infraestructura IA expuesta | 7 | APIs LLM (Ollama/LiteLLM), Jupyter, bases vectoriales, Gradio, MLflow, archivos de prompt |
 
 ---
 
@@ -152,7 +155,7 @@ web-security-suite/
 │   └── tests/
 │       ├── block_1_cookies.py
 │       ├── block_2_transport.py
-│       └── …                      # 9 bloques, 55 tests
+│       └── …                      # 12 bloques, 72 tests
 ├── web/
 │   ├── docker-compose.yml
 │   ├── api/

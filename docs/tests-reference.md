@@ -1,12 +1,12 @@
 # Referencia de tests — web-security-suite
 
-Especificación técnica de los 55 tests (v7.0). Los bloques 1-6 incluyen snippets bash independientes; los bloques 7-9 están implementados en Python (`wss/tests/block_7_*.py`, etc.). Para añadir tests, ver [creating-tests.md](creating-tests.md).
+Especificación técnica de los 72 tests (v9.0). Los bloques 1-6 incluyen snippets bash independientes; los bloques 7-12 están implementados en Python (`wss/tests/block_7_*.py`, etc.). Para añadir tests, ver [creating-tests.md](creating-tests.md).
 
 > Los snippets bash de bloques 1-6 asumen ejecución independiente. En el motor Python `wss`, todos los tests usan `ScanContext` con httpx.
 
 **Referencia:** OWASP Top 10 · Security Headers · ZAP Active Scan rules
 
-> **Bloques 7-9** (EXPOSED-ENV a CONTENT-PASSWORD-OVER-HTTP): Archivos/rutas expuestas, DNS/Email/Dominio, Fingerprinting/Contenido — implementados en Python `wss`. Ver código en `wss/tests/block_7_*.py`, `block_8_*.py`, `block_9_*.py`.
+> **Bloques 7-12** (EXPOSED-ENV a AI-DEVTOOLS-EXPOSED): Archivos/rutas expuestas, DNS/Email/Dominio, Fingerprinting/Contenido, Amenazas activas y Infraestructura IA — implementados en Python `wss`. Ver código en `wss/tests/block_7_*.py`, ..., `block_12_*.py`.
 
 ---
 
@@ -358,6 +358,175 @@ if [[ -z "$CACHE" ]]; then echo "⚠️  WARN — ausente, navegador puede cache
 elif echo "$CACHE" | grep -qiP "no-store|no-cache|private"; then echo "✅ PASS"
 else echo "⚠️  WARN — revisar si aplica a rutas autenticadas"; fi
 ```
+
+---
+
+## Bloque 10 — Vulnerabilidades de producto
+
+> Implementado en Python — `wss/tests/block_10_product_cves.py`. Detecta CVEs activos en nginx, endpoint de estado expuesto y webshells PHP genéricas.
+
+### CVE-NGINX-VERSION — nginx versión vulnerable (CVE-2025-42945)
+
+| Campo | Valor |
+|---|---|
+| **Severidad** | HIGH |
+| **CWE** | CWE-122 |
+| **Criterio PASS** | La cabecera `Server` no revela nginx o la versión está fuera del rango vulnerable |
+| **Criterio FAIL** | nginx/X.Y.Z detectado en rango 0.6.27 – 1.30.0 (desbordamiento heap módulo mp4) |
+| **Criterio SKIP** | La cabecera `Server` no expone versión de nginx |
+
+```python
+server = await ctx.get_header("server")
+version = _parse_nginx_version(server)  # extrae (X, Y, Z)
+if version and (0, 6, 27) <= version <= (1, 30, 0):
+    return Result.fail(f"nginx/{ver_str} en rango vulnerable CVE-2025-42945")
+```
+
+### CVE-NGINX-HTTP2 — nginx HTTP/2 vulnerable (CVE-2025-42926)
+
+| Campo | Valor |
+|---|---|
+| **Severidad** | MEDIUM |
+| **CWE** | CWE-693 |
+| **Criterio PASS** | Versión fuera del rango 1.29.4 – 1.30.0 |
+| **Criterio WARN** | nginx en rango vulnerable (RST flood DoS vía HTTP/2) |
+| **Criterio SKIP** | La cabecera `Server` no expone versión de nginx |
+
+### NGINX-STATUS-EXPOSED — Endpoint de estado nginx expuesto
+
+| Campo | Valor |
+|---|---|
+| **Severidad** | HIGH |
+| **CWE** | CWE-200 |
+| **Criterio PASS** | Ninguno de `/nginx_status`, `/stub_status`, `/status`, `/basic_status` es accesible |
+| **Criterio FAIL** | Al menos un endpoint devuelve HTTP 200 con métricas de nginx |
+
+Patrones detectados: `Active connections:`, `server accepts handled requests`, `Reading: N Writing: N`, `requests: N`.
+
+### WEBSHELL-DETECTED — Webshell PHP detectada
+
+| Campo | Valor |
+|---|---|
+| **Severidad** | CRITICAL |
+| **CWE** | CWE-434 |
+| **Criterio PASS** | No se encontraron indicadores de webshell en rutas conocidas |
+| **Criterio FAIL** | Score ≥ 2 patrones de webshell (compromiso confirmado) |
+| **Criterio WARN** | Score = 1 patrón (sospechoso, verificar manualmente) |
+
+Rutas probadas: `/shell.php`, `/cmd.php`, `/c99.php`, `/r57.php`, `/w.php`, variantes en `/uploads/`, `/images/`, `/wp-content/uploads/`.
+
+---
+
+## Bloque 11 — Amenazas activas: SHADOW-AETHER
+
+> Implementado en Python — `wss/tests/block_11_shadow_aether.py`. Detecta webshells conocidas, consolas de administración expuestas y fingerprinting de frameworks vulnerables.
+
+### SA040-WEBSHELL-NEOREGEORG — Webshell NeoReGeorg
+
+**Qué verifica:** Rutas características de NeoReGeorg (`/tunnel.php`, `/neoreg.php`, `/neoregeorg.php`) y el marcador `Georg says, 'All seems fine'` en el cuerpo de la respuesta.  
+**Falla si:** Se detecta HTTP 200 con indicadores de NeoReGeorg.  
+**Severidad:** CRITICAL | **CWE:** CWE-506
+
+---
+
+### SA040-WEBSHELL-POW — Webshell P0wny-shell
+
+**Qué verifica:** Rutas de P0wny-shell (`/shell.php`, `/p0wny.php`, `/pow.php`) y el marcador `p0wny@shell` en el cuerpo.  
+**Falla si:** Se detecta HTTP 200 con el marcador P0wny.  
+**Severidad:** CRITICAL | **CWE:** CWE-506
+
+---
+
+### SA040-ADMIN-JBOSS — Consola de administración JBoss expuesta
+
+**Qué verifica:** Acceso público a `/jmx-console/`, `/admin-console/`, `/management/` con respuesta HTTP 200 y contenido de interfaz administrativa.  
+**Falla si:** La consola es accesible sin restricción de red.  
+**Severidad:** CRITICAL | **CWE:** CWE-306
+
+---
+
+### SA040-ADMIN-TOMCAT — Tomcat Manager expuesto
+
+**Qué verifica:** Acceso público al Tomcat Manager (`/manager/html`, `/manager/text`) con respuesta HTTP 200 o 401/403.  
+**Falla si:** El Manager responde desde una dirección externa.  
+**Severidad:** HIGH | **CWE:** CWE-306
+
+---
+
+### SA040-ADMIN-ZIMBRA — Panel de administración Zimbra expuesto
+
+**Qué verifica:** Acceso público a `/zimbraAdmin/` y presencia del indicador `Zimbra` en cabeceras de respuesta HTTP.  
+**Falla si:** El panel de administración Zimbra es accesible o las cabeceras revelan el servidor.  
+**Severidad:** HIGH | **CWE:** CWE-306
+
+---
+
+### SA040-STRUTS2-FINGERPRINT — Fingerprinting Apache Struts 2
+
+**Qué verifica:** Cabeceras HTTP que revelen Struts 2: `X-Struts-Version`, `X-Struts-Component`, o `struts` en `X-Powered-By`.  
+**Falla si:** Las cabeceras revelan el uso de Struts 2.  
+**Severidad:** HIGH | **CWE:** CWE-200
+
+---
+
+## Bloque 12 — Infraestructura de IA expuesta
+
+> Implementado en Python — `wss/tests/block_12_ai_infrastructure.py`. Detecta APIs LLM, herramientas ML y archivos de configuración de agentes IA accesibles públicamente.
+
+### AI-LLM-API-EXPOSED — API LLM local expuesta (Ollama / LiteLLM)
+
+**Qué verifica:** Acceso público a Ollama (puerto 11434, `/api/tags`, `/api/version`) y LiteLLM (puerto 4000, `/health`, `/models`).  
+**Falla si:** La API responde HTTP 200 desde Internet con contenido de lista de modelos o estado de salud.  
+**Severidad:** CRITICAL | **CWE:** CWE-306
+
+---
+
+### AI-JUPYTER-EXPOSED — Jupyter Notebook/Lab expuesto
+
+**Qué verifica:** Acceso público a Jupyter (puerto 8888, `/api/kernels`, `/tree`, `/lab`).  
+**Falla si:** Jupyter responde sin requerir token de autenticación.  
+**Severidad:** CRITICAL | **CWE:** CWE-306
+
+---
+
+### AI-VECTORDB-EXPOSED — Base de datos vectorial expuesta (Chroma / Weaviate)
+
+**Qué verifica:** Acceso público a Chroma (puerto 8000, `/api/v1/heartbeat`) y Weaviate (puerto 8080, `/v1/schema`, `/.well-known/ready`).  
+**Falla si:** La base de datos vectorial es accesible sin autenticación.  
+**Severidad:** HIGH | **CWE:** CWE-306
+
+---
+
+### AI-GRADIO-EXPOSED — Interfaz Gradio expuesta
+
+**Qué verifica:** Acceso público a Gradio (puerto 7860, `/info`, `/`) con el marcador `gradio` en el cuerpo.  
+**Falla si:** La interfaz Gradio es accesible sin autenticación desde Internet.  
+**Severidad:** HIGH | **CWE:** CWE-306
+
+---
+
+### AI-MLFLOW-EXPOSED — MLflow Tracking expuesto
+
+**Qué verifica:** Acceso público a MLflow (puerto 5000, `/health`, `/api/2.0/mlflow/experiments/list`).  
+**Falla si:** El servidor MLflow es accesible desde Internet sin credenciales.  
+**Severidad:** HIGH | **CWE:** CWE-306
+
+---
+
+### AI-PROMPT-FILES-EXPOSED — Archivos de configuración de agentes IA expuestos
+
+**Qué verifica:** Archivos accesibles en la raíz web: `AGENTS.md`, `.cursorrules`, `system_prompt.txt`, `ai_config.json`, `claude.md`, `.claude.md`, `CLAUDE.md`, `prompt.md`, `.openai_api_key`, `.anthropic_api_key`.  
+**Escala a CRITICAL** si el cuerpo contiene material de claves (`sk-ant-`, `sk-proj-`, `sk-`).  
+**Falla si:** Algún archivo es accesible públicamente (HTTP 200).  
+**Severidad:** HIGH (CRITICAL si contiene claves) | **CWE:** CWE-552
+
+---
+
+### AI-DEVTOOLS-EXPOSED — Herramientas de desarrollo IA expuestas
+
+**Qué verifica:** Rutas de herramientas de desarrollo LLM: `/playground`, `/langserve`, `/v1/models` con indicadores de LangChain/LangServe/OpenAI-compatible proxy.  
+**Falla si:** Se detectan herramientas de desarrollo IA activas en producción.  
+**Severidad:** MEDIUM | **CWE:** CWE-306
 
 ---
 

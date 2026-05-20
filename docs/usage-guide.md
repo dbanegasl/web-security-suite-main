@@ -265,4 +265,5 @@ if ($request_method = TRACE) { return 405; }
 - Los tests solo realizan peticiones `HEAD` / `GET` pasivas — no modifican el servidor.
 - Los tests TLS requieren acceso al puerto 443 del dominio desde el host donde corre Docker.
 - En entornos sin DNS interno, usar el campo "IP forzada" o la variable `IP` en CLI.
-- El motor Python `wss` usa `httpx` con `asyncio` — no hay dependencia de `curl`, `openssl` ni `dig` para los tests de bloques 7-9.
+- El motor Python `wss` usa `httpx` con `asyncio` — no hay dependencia de `curl`, `openssl` ni `dig` para los tests de bloques 7-12.
+- **Bloque 12 — Infraestructura IA (puertos alternativos):** Los tests comprueban puertos como 11434 (Ollama), 8888 (Jupyter), 7860 (Gradio), 5000 (MLflow) y 8000/8080 (bases vectoriales). Si el servidor objetivo no expone esos puertos, `httpx` devuelve `ConnectError` y el test se marca como `SKIP` automáticamente — no es un fallo. Solo se genera `FAIL` cuando el puerto responde con contenido que confirma el servicio IA accesible sin autenticación.

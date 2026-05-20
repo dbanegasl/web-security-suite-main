@@ -859,4 +859,341 @@ DESCRIPTIONS: dict[str, str] = {
             ("HSTS", 'add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;'),
         ]),
     ),
+
+    # ══════════════ BLOQUE 10 — VULNERABILIDADES DE PRODUCTO ══════════════
+
+    "CVE-NGINX-VERSION": desc(
+        "Que la cabecera <code>Server</code> no revele una versión de nginx en el rango "
+        "vulnerable 0.6.27 – 1.30.0 (CVE-2025-42945, CVSS 9.1). "
+        "Este rango cubre un desbordamiento de búfer basado en heap en el módulo mp4.",
+        "CVE-2025-42945 permite ejecución remota de código o denegación de servicio "
+        "mediante un archivo MP4 especialmente construido. El rango afectado es extenso "
+        "y cubre prácticamente todas las versiones LTS publicadas hasta 2025 (CWE-122).",
+        [("PASS", "Versión de nginx no está en el rango vulnerable"),
+         ("FAIL", "Versión de nginx en rango vulnerable CVE-2025-42945"),
+         ("SKIP", "La cabecera Server no revela versión de nginx")],
+        tabs("CVE-NGINX-VERSION", [
+            ("Debian/Ubuntu", "apt-get update && apt-get install --only-upgrade nginx"),
+            ("RHEL/CentOS", "yum update nginx  # o dnf update nginx"),
+            ("Compilado", "# Actualizar a nginx >= 1.30.1 (stable) o >= 1.31.x (mainline)\n"
+                          "# https://nginx.org/en/CHANGES"),
+        ]),
+    ),
+
+    "CVE-NGINX-HTTP2": desc(
+        "Que la cabecera <code>Server</code> no revele una versión de nginx en el rango "
+        "1.29.4 – 1.30.0, afectado por CVE-2025-42926 (DoS mediante RST flood en HTTP/2).",
+        "CVE-2025-42926 permite a un atacante enviar múltiples frames RST vía HTTP/2 para "
+        "agotar los recursos del servidor (protección insuficiente, CWE-693). "
+        "Requiere que el servidor acepte conexiones HTTP/2.",
+        [("PASS", "Versión de nginx no está en el rango vulnerable de CVE-2025-42926"),
+         ("WARN", "Versión de nginx en rango vulnerable CVE-2025-42926 HTTP/2"),
+         ("SKIP", "La cabecera Server no revela versión de nginx")],
+        tabs("CVE-NGINX-HTTP2", [
+            ("Nginx", "# Actualizar a >= 1.30.1 o deshabilitar HTTP/2:\n"
+                      "# En nginx.conf: listen 443 ssl;  (sin http2)\n"
+                      "# o actualizar: apt-get install --only-upgrade nginx"),
+            ("Verificar HTTP/2", "curl -sI --http2 https://dominio.com | grep -i '^HTTP'"),
+        ]),
+    ),
+
+    "NGINX-STATUS-EXPOSED": desc(
+        "Que el módulo <code>stub_status</code> de nginx no sea accesible públicamente "
+        "en rutas como <code>/nginx_status</code>, <code>/stub_status</code>, "
+        "<code>/status</code> o <code>/basic_status</code>.",
+        "El endpoint de estado de nginx expone métricas internas: conexiones activas, "
+        "total de peticiones procesadas y estado de los workers. Esta información "
+        "facilita el fingerprinting preciso y la planificación de ataques DoS (CWE-200).",
+        [("PASS", "Endpoints de estado nginx no expuestos"),
+         ("FAIL", "Endpoint de estado nginx accesible públicamente")],
+        tabs("NGINX-STATUS-EXPOSED", [
+            ("Nginx", "# Limitar stub_status solo a localhost:\n"
+                      "location /nginx_status {\n"
+                      "  stub_status;\n"
+                      "  allow 127.0.0.1;\n"
+                      "  deny all;\n"
+                      "}"),
+            ("Verificar", "curl -s http://localhost/nginx_status"),
+        ]),
+    ),
+
+    "WEBSHELL-DETECTED": desc(
+        "Que no existan webshells PHP activas en rutas conocidas "
+        "(<code>/shell.php</code>, <code>/cmd.php</code>, <code>/c99.php</code>, etc.). "
+        "La detección se basa en patrones en el cuerpo de la respuesta.",
+        "Una webshell activa indica que el servidor ha sido comprometido. Las webshells "
+        "permiten al atacante ejecutar comandos arbitrarios, exfiltrar datos y mantener "
+        "persistencia en el sistema (CWE-434).",
+        [("PASS", "No se detectaron webshells PHP en rutas comunes"),
+         ("FAIL", "Webshell PHP activa detectada — servidor comprometido"),
+         ("WARN", "Patrón sospechoso de webshell encontrado — verificar manualmente")],
+        tabs("WEBSHELL-DETECTED", [
+            ("Auditoría", "# Buscar webshells en el directorio web:\n"
+                          "find /var/www -name '*.php' -newer /etc/passwd -ls\n"
+                          "grep -rl 'eval.*base64_decode\\|system\\|passthru\\|shell_exec' /var/www"),
+            ("Eliminar", "# Eliminar el archivo y auditar logs:\n"
+                         "rm -f /var/www/html/shell.php\n"
+                         "grep shell.php /var/log/nginx/access.log"),
+            ("Prevención", "# Deshabilitar ejecución PHP en directorios de uploads:\n"
+                           "location ~* /uploads/.*\\.php$ {\n"
+                           "  deny all;\n"
+                           "}"),
+        ]),
+    ),
+
+    # ══════════════ BLOQUE 11 — AMENAZAS ACTIVAS (SHADOW-AETHER) ══════════════
+
+    "SA040-WEBSHELL-NEOREGEORG": desc(
+        "Que el servidor no exponga rutas características de la webshell "
+        "<strong>NeoReGeorg</strong> (<code>/tunnel.php</code>, <code>/neoreg.php</code>, "
+        "<code>/neoregeorg.php</code>). Comprueba respuesta HTTP 200 con el marcador "
+        "<code>Georg says, 'All seems fine'</code> o <code>NeoReGeorg</code>.",
+        "NeoReGeorg es una herramienta de tunelización de red usada post-explotación para "
+        "crear canales SOCKS hacia redes internas. Su presencia indica un servidor ya "
+        "comprometido (CWE-506).",
+        [("PASS", "No se encontraron indicadores de NeoReGeorg"),
+         ("FAIL", "Webshell NeoReGeorg detectada — servidor comprometido"),
+         ("WARN", "Ruta sospechosa devuelve HTTP 200 sin marcadores definitivos")],
+        tabs("SA040-WEBSHELL-NEOREGEORG", [
+            ("Acción inmediata", "# 1. Aísla el servidor inmediatamente\n"
+             "# 2. Preserva los logs antes de cualquier modificación\n"
+             "# 3. Busca webshells adicionales:\n"
+             "find /var/www -name '*.php' -newer /var/www/html/index.php -ls\n"
+             "# 4. Revoca credenciales comprometidas y notifica al CSIRT"),
+            ("Nginx — bloquear rutas", "location ~* (tunnel|neoreg|neoregeorg)\\.php$ {\n  deny all;\n  return 404;\n}"),
+        ]),
+    ),
+
+    "SA040-WEBSHELL-POW": desc(
+        "Que el servidor no exponga rutas características de la webshell "
+        "<strong>P0wny-shell</strong> (<code>/shell.php</code>, <code>/p0wny.php</code>, "
+        "<code>/pow.php</code>). Comprueba respuesta HTTP 200 con el marcador "
+        "<code>p0wny@shell</code> en el cuerpo.",
+        "P0wny-shell ofrece una interfaz de shell interactiva en el navegador sobre el "
+        "servidor web comprometido, con acceso al sistema de ficheros y comandos del SO. "
+        "Su presencia indica compromiso activo (CWE-506).",
+        [("PASS", "No se encontraron indicadores de P0wny-shell"),
+         ("FAIL", "Webshell P0wny detectada — servidor comprometido"),
+         ("WARN", "Ruta sospechosa devuelve HTTP 200 sin marcador definitivo")],
+        tabs("SA040-WEBSHELL-POW", [
+            ("Acción inmediata", "# 1. Aísla el servidor inmediatamente\n"
+             "# 2. Busca scripts PHP recientes:\n"
+             "find /var/www -name '*.php' -mtime -30 | xargs grep -l 'p0wny\\|c99\\|r57' 2>/dev/null\n"
+             "# 3. Revoca credenciales y notifica al CSIRT"),
+        ]),
+    ),
+
+    "SA040-ADMIN-JBOSS": desc(
+        "Que la consola de administración de <strong>JBoss / WildFly</strong> "
+        "(<code>/jmx-console/</code>, <code>/admin-console/</code>, "
+        "<code>/management/</code>) no sea accesible públicamente sin autenticación.",
+        "Las consolas JBoss sin autenticación permiten despliegue remoto de aplicaciones "
+        "arbitrarias (WAR/EAR), equivalente a ejecución remota de código (CWE-306).",
+        [("PASS", "Consola JBoss/WildFly no accesible o protegida"),
+         ("FAIL", "Consola de administración JBoss accesible sin autenticación"),
+         ("WARN", "Ruta de administración accesible — verificar si requiere credenciales")],
+        tabs("SA040-ADMIN-JBOSS", [
+            ("WildFly — standalone.xml", "<interfaces>\n  <interface name=\"management\">\n"
+             "    <!-- Vincular solo a localhost -->\n"
+             "    <loopback/>\n  </interface>\n</interfaces>"),
+            ("Nginx — bloquear externo", "location ~* ^/(jmx-console|admin-console|management) {\n"
+             "  allow 127.0.0.1;\n  deny all;\n}"),
+        ]),
+    ),
+
+    "SA040-ADMIN-TOMCAT": desc(
+        "Que el <em>Tomcat Manager</em> (<code>/manager/html</code>, "
+        "<code>/manager/text</code>) y el <em>Host Manager</em> no sean accesibles "
+        "desde direcciones públicas.",
+        "El Tomcat Manager permite desplegar WARs remotamente. Con credenciales débiles "
+        "o sin autenticación es la vía de explotación más común para RCE en entornos Java "
+        "(CWE-306).",
+        [("PASS", "Manager/Host-Manager de Tomcat no accesible externamente"),
+         ("FAIL", "Tomcat Manager accesible sin restricción de IP"),
+         ("WARN", "Respuesta sospechosa en ruta de Manager — verificar acceso")],
+        tabs("SA040-ADMIN-TOMCAT", [
+            ("context.xml del Manager", "<Context>\n  <Valve className=\"org.apache.catalina.valves.RemoteAddrValve\"\n"
+             "         allow=\"127\\.\\d+\\.\\d+\\.\\d+|::1\" />\n</Context>"),
+            ("Nginx — bloquear externo", "location /manager/ {\n  allow 127.0.0.1;\n  deny all;\n}"),
+        ]),
+    ),
+
+    "SA040-ADMIN-ZIMBRA": desc(
+        "Que el panel de administración de <strong>Zimbra</strong> (puerto 7071 o ruta "
+        "<code>/zimbraAdmin/</code>) no sea accesible desde redes públicas sin "
+        "autenticación.",
+        "La consola Zimbra Admin expone gestión de cuentas, dominios y configuración del "
+        "servidor de correo. Sin restricción de acceso es objetivo prioritario para "
+        "comprometer comunicaciones corporativas (CWE-306).",
+        [("PASS", "Panel de administración Zimbra no accesible externamente"),
+         ("FAIL", "Panel Zimbra Admin accesible sin restricción"),
+         ("WARN", "Indicadores de Zimbra detectados en cabeceras — verificar puerto 7071")],
+        tabs("SA040-ADMIN-ZIMBRA", [
+            ("Zimbra — restringir acceso", "# En zimbra.conf o firewall:\n"
+             "zmprov ms `zmhostname` zimbraAdminNetworkAddress 127.0.0.1\n"
+             "# Firewall: bloquear puerto 7071 desde Internet"),
+            ("Nginx — proxy con control de acceso", "location /zimbraAdmin/ {\n"
+             "  allow 10.0.0.0/8;\n  deny all;\n  proxy_pass https://127.0.0.1:7071/;\n}"),
+        ]),
+    ),
+
+    "SA040-STRUTS2-FINGERPRINT": desc(
+        "Que las cabeceras HTTP no revelen indicadores de <strong>Apache Struts 2</strong> "
+        "(<code>X-Struts-*</code>, <code>struts</code> en <code>X-Powered-By</code>) "
+        "que faciliten ataques dirigidos.",
+        "Struts 2 tiene un historial de vulnerabilidades críticas de RCE (CVE-2017-5638, "
+        "CVE-2018-11776, CVE-2023-50164). Exponer la tecnología permite a atacantes "
+        "orientar exploits específicos (CWE-200).",
+        [("PASS", "No se detectan cabeceras que revelen Struts 2"),
+         ("WARN", "Cabeceras revelan uso de Apache Struts 2 — eliminar para reducir superficie"),
+         ("SKIP", "Sin respuesta HTTP inicial disponible")],
+        tabs("SA040-STRUTS2-FINGERPRINT", [
+            ("Struts — struts.xml", "<constant name=\"struts.devMode\" value=\"false\" />\n"
+             "<constant name=\"struts.configuration.xml.reload\" value=\"false\" />"),
+            ("Nginx — eliminar cabeceras reveladoras", "proxy_hide_header X-Struts-Version;\n"
+             "proxy_hide_header X-Powered-By;"),
+            ("Tomcat — server.xml", "<!-- Eliminar atributo 'server' -->\n"
+             "<Connector port=\"8080\" server=\" \" ... />"),
+        ]),
+    ),
+
+    # ══════════════ BLOQUE 12 — INFRAESTRUCTURA DE IA EXPUESTA ══════════════
+
+    "AI-LLM-API-EXPOSED": desc(
+        "Que los endpoints de APIs LLM locales (<strong>Ollama</strong> en puerto 11434, "
+        "<strong>LiteLLM</strong> en puerto 4000) no sean accesibles desde redes públicas "
+        "sin autenticación.",
+        "Una API LLM expuesta permite consultas ilimitadas sin coste, exfiltración de "
+        "modelos propietarios y uso como pivote para ataques de prompt injection contra "
+        "sistemas internos (CWE-306).",
+        [("PASS", "APIs LLM no accesibles externamente"),
+         ("FAIL", "API LLM accesible sin autenticación desde Internet"),
+         ("WARN", "Respuesta parcial en puerto de API LLM — verificar restricción")],
+        tabs("AI-LLM-API-EXPOSED", [
+            ("Ollama — restringir interfaz", "# En /etc/systemd/system/ollama.service:\n"
+             "Environment=\"OLLAMA_HOST=127.0.0.1:11434\"\nsystemctl daemon-reload && systemctl restart ollama"),
+            ("LiteLLM — autenticación", "# En config.yaml:\ngeneral_settings:\n  master_key: sk-tu-clave-segura\n"
+             "  allow_requests_on_db_unavailable: false"),
+            ("Firewall", "ufw deny 11434\nufw deny 4000\n# O con iptables:\niptables -A INPUT -p tcp --dport 11434 -j DROP"),
+        ]),
+    ),
+
+    "AI-JUPYTER-EXPOSED": desc(
+        "Que el servidor <strong>Jupyter Notebook/Lab</strong> (puerto 8888) no sea "
+        "accesible públicamente sin token de autenticación.",
+        "Jupyter sin autenticación ofrece ejecución arbitraria de código Python/R/Julia "
+        "en el servidor, acceso al sistema de ficheros y posibilidad de escalar privilegios "
+        "con las credenciales del proceso (CWE-306).",
+        [("PASS", "Jupyter no accesible externamente o protegido con token"),
+         ("FAIL", "Jupyter accesible sin autenticación — ejecución de código remota"),
+         ("WARN", "Jupyter accesible pero requiere token — verificar fortaleza")],
+        tabs("AI-JUPYTER-EXPOSED", [
+            ("Jupyter — restringir interfaz", "# jupyter_server_config.py:\nc.ServerApp.ip = '127.0.0.1'\n"
+             "c.ServerApp.token = 'token-largo-aleatorio'\nc.ServerApp.password_required = True"),
+            ("Firewall", "ufw deny 8888\n# Acceder solo vía SSH tunnel:\nssh -L 8888:localhost:8888 usuario@servidor"),
+        ]),
+    ),
+
+    "AI-VECTORDB-EXPOSED": desc(
+        "Que las bases de datos vectoriales (<strong>Chroma</strong> en puerto 8000, "
+        "<strong>Weaviate</strong> en puerto 8080) no sean accesibles desde Internet "
+        "sin autenticación.",
+        "Las bases de datos vectoriales almacenan embeddings de documentos sensibles "
+        "(contratos, código fuente, datos de clientes) y permiten búsqueda semántica. "
+        "Un acceso no autorizado equivale a una fuga masiva de información propietaria "
+        "(CWE-306).",
+        [("PASS", "Bases de datos vectoriales no accesibles externamente"),
+         ("FAIL", "Base de datos vectorial accesible sin autenticación"),
+         ("WARN", "Puerto de base de datos vectorial alcanzable — verificar autenticación")],
+        tabs("AI-VECTORDB-EXPOSED", [
+            ("Chroma — variables de entorno", "CHROMA_SERVER_HOST=127.0.0.1\n"
+             "CHROMA_SERVER_AUTHN_CREDENTIALS=usuario:contraseña-segura\n"
+             "CHROMA_SERVER_AUTHN_PROVIDER=chromadb.auth.basic_authn.BasicAuthenticationServerProvider"),
+            ("Weaviate — autenticación", "# docker-compose.yml:\nenvironment:\n"
+             "  AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'false'\n"
+             "  AUTHENTICATION_APIKEY_ENABLED: 'true'\n"
+             "  AUTHENTICATION_APIKEY_ALLOWED_KEYS: 'clave-segura'"),
+        ]),
+    ),
+
+    "AI-GRADIO-EXPOSED": desc(
+        "Que las interfaces <strong>Gradio</strong> (puerto 7860) no sean accesibles "
+        "públicamente sin autenticación.",
+        "Gradio expone demos de modelos ML que pueden incluir subida de ficheros, "
+        "ejecución de inferencia con coste computacional y, en versiones vulnerables, "
+        "path traversal (CVE-2024-1561). Sin autenticación cualquier usuario externo "
+        "puede abusar de los recursos del servidor (CWE-306).",
+        [("PASS", "Gradio no accesible externamente"),
+         ("FAIL", "Interfaz Gradio accesible sin autenticación"),
+         ("WARN", "Puerto Gradio alcanzable — verificar configuración de autenticación")],
+        tabs("AI-GRADIO-EXPOSED", [
+            ("Gradio — autenticación", "import gradio as gr\ndemo = gr.Interface(...)\n"
+             "demo.launch(auth=('usuario', 'contraseña'), server_name='127.0.0.1')"),
+            ("Firewall", "ufw deny 7860\n# Exponer solo detrás de reverse proxy con auth básica"),
+        ]),
+    ),
+
+    "AI-MLFLOW-EXPOSED": desc(
+        "Que el servidor <strong>MLflow Tracking</strong> (puerto 5000) no sea accesible "
+        "públicamente sin autenticación.",
+        "MLflow Tracking almacena artefactos de experimentos ML (modelos entrenados, "
+        "datasets, hiperparámetros, métricas). La exposición permite robo de modelos "
+        "propietarios y puede revelar datos de entrenamiento sensibles (CWE-306).",
+        [("PASS", "MLflow no accesible externamente"),
+         ("FAIL", "MLflow Tracking accesible sin autenticación"),
+         ("WARN", "Puerto MLflow alcanzable — verificar si requiere credenciales")],
+        tabs("AI-MLFLOW-EXPOSED", [
+            ("MLflow — autenticación básica", "mlflow server \\\n  --host 127.0.0.1 \\\n"
+             "  --backend-store-uri sqlite:///mlflow.db \\\n  --app-name basic-auth"),
+            ("Variables de entorno", "MLFLOW_TRACKING_USERNAME=admin\nMLFLOW_TRACKING_PASSWORD=contraseña-segura"),
+            ("Firewall", "ufw deny 5000\n# Acceder vía SSH tunnel o reverse proxy autenticado"),
+        ]),
+    ),
+
+    "AI-PROMPT-FILES-EXPOSED": desc(
+        "Que archivos de configuración de agentes IA (<code>AGENTS.md</code>, "
+        "<code>.cursorrules</code>, <code>system_prompt.txt</code>, "
+        "<code>ai_config.json</code>, <code>claude.md</code>) y archivos de claves "
+        "(<code>.openai_api_key</code>, <code>.anthropic_api_key</code>) no sean "
+        "accesibles desde la raíz web del servidor.",
+        "Estos archivos revelan instrucciones del sistema, restricciones de comportamiento "
+        "del agente IA y en el peor caso claves de API activas. Escala a CRITICAL si se "
+        "detecta material de claves (<code>sk-ant-</code>, <code>sk-proj-</code>, "
+        "<code>sk-</code>) o a WARN si el archivo supera 500 líneas (posible prompt "
+        "complejo) (CWE-552).",
+        [("PASS", "Archivos de configuración IA no accesibles"),
+         ("FAIL", "Archivos de prompt/configuración IA accesibles públicamente"),
+         ("WARN", "Archivo de configuración IA accesible — revisar si contiene datos sensibles")],
+        tabs("AI-PROMPT-FILES-EXPOSED", [
+            ("Nginx — bloquear archivos sensibles", "location ~* ^/(AGENTS|CLAUDE|claude|system_prompt|ai_config"
+             "|\\.cursorrules|\\.openai_api_key|\\.anthropic_api_key) {\n  deny all;\n  return 404;\n}"),
+            ("Apache — .htaccess", "<FilesMatch \"^(AGENTS\\.md|CLAUDE\\.md|\\.cursorrules|"
+             "system_prompt\\.txt|ai_config\\.json|\\.openai_api_key|\\.anthropic_api_key)$\">\n"
+             "  Require all denied\n</FilesMatch>"),
+            ("Recomendación", "# Nunca almacenar archivos de configuración IA en el document root\n"
+             "# Usar variables de entorno para claves de API\n"
+             "# Revisar .gitignore para excluir archivos sensibles"),
+        ]),
+    ),
+
+    "AI-DEVTOOLS-EXPOSED": desc(
+        "Que herramientas de desarrollo IA accesibles por HTTP como "
+        "<strong>LangChain Playground</strong> (<code>/playground</code>), "
+        "<strong>LangServe</strong> (<code>/langserve</code>) o rutas de API de "
+        "<strong>OpenAI-compatible proxy</strong> (<code>/v1/models</code>) no sean "
+        "accesibles externamente en producción.",
+        "Las herramientas de desarrollo LLM expuestas en producción permiten exploración "
+        "de capacidades, abuso de recursos computacionales (GPU/API) y pueden revelar "
+        "la arquitectura interna del sistema de IA (CWE-306).",
+        [("PASS", "Herramientas de desarrollo IA no accesibles externamente"),
+         ("FAIL", "Herramientas de desarrollo IA accesibles en producción"),
+         ("WARN", "Ruta de API IA alcanzable — verificar si es intencional")],
+        tabs("AI-DEVTOOLS-EXPOSED", [
+            ("LangServe — deshabilitar playground", "# En la configuración de FastAPI/LangServe:\n"
+             "app = FastAPI()\n# No añadir add_routes() en producción\n"
+             "# O usar variables de entorno:\nDEPLOY_ENV=production  # deshabilita playground"),
+            ("Nginx — restringir rutas de dev", "location ~* ^/(playground|langserve|v1/models) {\n"
+             "  allow 10.0.0.0/8;\n  allow 127.0.0.1;\n  deny all;\n}"),
+        ]),
+    ),
 }

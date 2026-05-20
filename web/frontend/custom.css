@@ -818,6 +818,11 @@ body.is-admin .admin-only-el { display: revert !important; }
 .hb-yellow-txt  { color: var(--wss-warn);            background: rgba(210,153,34,.10); }
 .hb-magenta-txt { color: var(--wss-skip);            background: rgba(188,140,255,.10); }
 .hb-teal-txt    { color: #26a69a;                    background: rgba(38,166,154,.10); }
+.hb-red-txt     { color: var(--wss-fail);            background: rgba(248,81,73,.10); }
+.hb-purple-txt  { color: #a371f7;                    background: rgba(163,113,247,.10); }
+.hb-indigo-txt  { color: #6575f7;                    background: rgba(88,101,242,.10); }
+.hb-rose-txt    { color: #f472b6;                    background: rgba(236,72,153,.10); }
+.hb-cyan-txt    { color: #22d3ee;                    background: rgba(6,182,212,.10); }
 
 @media (max-width: 767.98px) {
   .home-hero { padding: 20px 16px 16px; }
@@ -979,6 +984,26 @@ body.is-admin .admin-only-el { display: revert !important; }
 .hb-teal    { background: rgba(38,166,154,.06); }
 .hb-teal    .hb-num, .hb-teal    .hb-icon { color: #26a69a; }
 .hb-teal:hover { border-color: rgba(38,166,154,.30); }
+
+.hb-red     { background: rgba(248,81,73,.06); }
+.hb-red     .hb-num, .hb-red     .hb-icon { color: var(--wss-fail); }
+.hb-red:hover { border-color: rgba(248,81,73,.30); }
+
+.hb-purple  { background: rgba(163,113,247,.06); }
+.hb-purple  .hb-num, .hb-purple  .hb-icon { color: #a371f7; }
+.hb-purple:hover { border-color: rgba(163,113,247,.30); }
+
+.hb-indigo  { background: rgba(88,101,242,.06); }
+.hb-indigo  .hb-num, .hb-indigo  .hb-icon { color: #6575f7; }
+.hb-indigo:hover { border-color: rgba(88,101,242,.30); }
+
+.hb-rose    { background: rgba(236,72,153,.06); }
+.hb-rose    .hb-num, .hb-rose    .hb-icon { color: #f472b6; }
+.hb-rose:hover { border-color: rgba(236,72,153,.30); }
+
+.hb-cyan    { background: rgba(6,182,212,.06); }
+.hb-cyan    .hb-num, .hb-cyan    .hb-icon { color: #22d3ee; }
+.hb-cyan:hover { border-color: rgba(6,182,212,.30); }
 
 /* ── Tema Brite (light) — overrides ──────────────────────────── */
 [data-bs-theme="light"] .sidebar {

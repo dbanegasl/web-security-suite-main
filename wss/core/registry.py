@@ -56,6 +56,12 @@ BLOCK_META: dict[int, BlockMeta] = {
                  "SPF, DMARC, DKIM, CAA, DNSSEC, subdomain takeover y puertos DB expuestos."),
     9: BlockMeta(9, "Fingerprinting",               "fa-fingerprint",          "hb-indigo",
                  "Páginas de debug activas, versión de CMS expuesta, mixed content y formularios inseguros."),
+    10: BlockMeta(10, "Vulnerabilidades de producto", "fa-bug",                  "hb-yellow",
+                  "CVEs activos en nginx (versión y HTTP/2), endpoint de estado expuesto y webshells PHP."),
+    11: BlockMeta(11, "Amenazas activas",            "fa-radiation",            "hb-rose",
+                  "Webshells conocidas (NeoReGeorg, P0wny), consolas de administración expuestas y fingerprinting de Struts2."),
+    12: BlockMeta(12, "Infraestructura IA expuesta", "fa-robot",                "hb-cyan",
+                  "APIs LLM, Jupyter, bases de datos vectoriales, Gradio, MLflow y archivos de configuración de IA accesibles públicamente."),
 }
 
 

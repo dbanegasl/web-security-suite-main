@@ -644,6 +644,26 @@ const TESTS_META = [
   { code:"CONTENT-MIXED-CONTENT", name:"Sin contenido mixto (HTTP en HTTPS)",    block:"Fingerprinting",    risk:"Medio",   weight:5,  riskDesc:"Recursos HTTP debilitan la seguridad HTTPS" },
   { code:"CONTENT-FORM-HTTP-ACTION", name:"Formularios con action HTTPS o relativo",block:"Fingerprinting",    risk:"Alto",    weight:8,  riskDesc:"Formularios envían datos a endpoints HTTP" },
   { code:"CONTENT-PASSWORD-OVER-HTTP", name:"Campos de contraseña no servidos por HTTP",block:"Fingerprinting",  risk:"Crítico", weight:10, riskDesc:"Credenciales enviadas sin cifrado" },
+  // Bloque 10 — Vulnerabilidades de producto
+  { code:"CVE-NGINX-VERSION",    name:"CVE-2025-42945: nginx heap overflow",    block:"Vulns de producto",  risk:"Alto",    weight:8,  riskDesc:"nginx 0.6.27–1.30.0 vulnerable a heap overflow en módulo mp4" },
+  { code:"CVE-NGINX-HTTP2",      name:"CVE-2025-42926: nginx HTTP/2 DoS",        block:"Vulns de producto",  risk:"Medio",   weight:5,  riskDesc:"nginx 1.29.4–1.30.0 vulnerable a RST flood HTTP/2" },
+  { code:"NGINX-STATUS-EXPOSED", name:"nginx status endpoint no expuesto",        block:"Vulns de producto",  risk:"Alto",    weight:8,  riskDesc:"Métricas internas de nginx accesibles públicamente" },
+  { code:"WEBSHELL-DETECTED",    name:"Sin webshells PHP detectadas",              block:"Vulns de producto",  risk:"Crítico", weight:10, riskDesc:"Acceso remoto de atacante mediante webshell PHP" },
+  // Bloque 11 — Amenazas activas (SHADOW-AETHER)
+  { code:"SHADOW-OPEN-REDIRECT",  name:"Sin open redirect explotable",            block:"Amenazas activas",   risk:"Medio",   weight:5,  riskDesc:"Redirección a dominio externo arbitrario" },
+  { code:"SHADOW-HOST-INJECTION", name:"Sin Host header injection",               block:"Amenazas activas",   risk:"Alto",    weight:8,  riskDesc:"Cache poisoning o SSRF vía cabecera Host manipulada" },
+  { code:"SHADOW-SSRF-METADATA",  name:"Sin SSRF a metadata cloud",               block:"Amenazas activas",   risk:"Crítico", weight:10, riskDesc:"Acceso a credenciales de instancia cloud vía SSRF" },
+  { code:"SHADOW-CLICKJACKING",   name:"Sin clickjacking via iframe",             block:"Amenazas activas",   risk:"Alto",    weight:8,  riskDesc:"Engaño al usuario mediante iframe superpuesto" },
+  { code:"SHADOW-SSTI",           name:"Sin SSTI en parámetros comunes",          block:"Amenazas activas",   risk:"Crítico", weight:10, riskDesc:"Ejecución de código en servidor vía template injection" },
+  { code:"SHADOW-PATH-TRAVERSAL", name:"Sin path traversal básico",              block:"Amenazas activas",   risk:"Crítico", weight:10, riskDesc:"Lectura de archivos del sistema fuera del webroot" },
+  // Bloque 12 — Infraestructura IA expuesta
+  { code:"AI-OLLAMA-EXPOSED",       name:"Ollama API no expuesta",              block:"IA expuesta",          risk:"Crítico", weight:10, riskDesc:"API de modelos LLM local accesible sin autenticación" },
+  { code:"AI-OPENWEBUI-EXPOSED",    name:"Open WebUI no expuesto",              block:"IA expuesta",          risk:"Alto",    weight:8,  riskDesc:"Interfaz web de LLM accesible sin autenticación" },
+  { code:"AI-LOCALAI-EXPOSED",      name:"LocalAI no expuesto",                 block:"IA expuesta",          risk:"Alto",    weight:8,  riskDesc:"Servidor de IA local accesible sin autenticación" },
+  { code:"AI-FLOWISE-EXPOSED",      name:"Flowise no expuesto",                  block:"IA expuesta",          risk:"Alto",    weight:8,  riskDesc:"Plataforma de flujos LLM accesible sin autenticación" },
+  { code:"AI-LANGFLOW-EXPOSED",     name:"Langflow no expuesto",                 block:"IA expuesta",          risk:"Alto",    weight:8,  riskDesc:"Framework de flujos LLM accesible sin autenticación" },
+  { code:"AI-LITELLM-EXPOSED",      name:"LiteLLM proxy no expuesto",            block:"IA expuesta",          risk:"Alto",    weight:8,  riskDesc:"Proxy de LLMs accesible sin autenticación" },
+  { code:"AI-ANYTHINGLLM-EXPOSED",  name:"AnythingLLM no expuesto",             block:"IA expuesta",          risk:"Alto",    weight:8,  riskDesc:"Plataforma RAG/LLM accesible sin autenticación" },
 ];
 TESTS = TESTS_META.map(m => m.code);
 

@@ -1,6 +1,6 @@
 # web-security-suite — Agent Instructions
 
-Suite de auditoría de seguridad HTTP para dominios web. Motor Python (`wss`) con **55 tests organizados en 9 bloques**. Interfaz web completa: SPA Bootstrap 5.3, FastAPI, SQLite, autenticación JWT, SSE en tiempo real.
+Suite de auditoría de seguridad HTTP para dominios web. Motor Python (`wss`) con **72 tests organizados en 12 bloques**. Interfaz web completa: SPA Bootstrap 5.3, FastAPI, SQLite, autenticación JWT, SSE en tiempo real.
 
 ## Estructura
 
@@ -15,7 +15,7 @@ wss/                   # Motor Python de scanning
   tests/
     block_1_cookies.py
     block_2_transport.py
-    … (9 bloques, 55 tests)
+    … (12 bloques, 72 tests)
 scan-cli.sh            # Script CLI legacy (Bash)
 domains.csv            # Dominios batch (gitignored; usar domains.csv.example como base)
 reports/               # Reportes Markdown (contenido gitignored, carpeta trackeada)
@@ -51,7 +51,10 @@ web/                   # Interfaz web Docker
 | 7 | Archivos y rutas expuestas | 15 |
 | 8 | DNS, Email y Dominio | 7 |
 | 9 | Fingerprinting y Contenido | 8 |
-| **Total** | | **55** |
+| 10 | Vulnerabilidades de producto | 4 |
+| 11 | Amenazas activas (SHADOW-AETHER) | 6 |
+| 12 | Infraestructura IA expuesta | 7 |
+| **Total** | | **72** |
 
 ## Motor de scanning (`wss/`)
 
