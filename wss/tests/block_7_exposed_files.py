@@ -425,7 +425,7 @@ async def test_ds_store_exposed(ctx: ScanContext) -> Result:
     if res is None:
         return Result.skip("no se pudo conectar")
     code, body = res
-    if code == 200 and (
+    if code == 200 and not _is_html_error(body) and (
         body.startswith("\x00\x00\x00") or "Bud1" in body[:20] or len(body) > 100
     ):
         return Result.fail("/.DS_Store accesible — revela estructura de directorios")

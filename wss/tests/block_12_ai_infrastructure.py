@@ -173,7 +173,7 @@ _CHROMA_PATHS = [
 ]
 _WEAVIATE_PATHS = [
     ("/v1/meta", ["\"version\"", "\"hostname\""]),
-    ("/v1/.well-known/ready", [""]),  # 200 es suficiente
+    ("/v1/.well-known/ready", []),  # 200 sin HTML es suficiente
 ]
 _VECTORDB_ALT_PORTS = [8000, 8080]
 
@@ -210,10 +210,10 @@ async def test_vectordb_exposed(ctx: ScanContext) -> Result:
     for (path, keywords), resp in zip(_WEAVIATE_PATHS, results[idx:idx + len(_WEAVIATE_PATHS)]):
         idx += 1
         if resp is not None and resp.status_code == 200:
+            if "text/html" in resp.headers.get("content-type", ""):
+                continue
             if not keywords or _has_all(resp.text, keywords):
                 return Result.fail(f"Weaviate expuesto sin autenticación en {path}")
-            if path == "/v1/.well-known/ready":
-                return Result.fail(f"Weaviate health endpoint accesible en {path}")
 
     # Puertos alternativos — Chroma
     for port in _VECTORDB_ALT_PORTS:
@@ -230,6 +230,8 @@ async def test_vectordb_exposed(ctx: ScanContext) -> Result:
         for (path, keywords), resp in zip(_WEAVIATE_PATHS, results[idx:idx + len(_WEAVIATE_PATHS)]):
             idx += 1
             if resp is not None and resp.status_code == 200:
+                if "text/html" in resp.headers.get("content-type", ""):
+                    continue
                 if not keywords or _has_all(resp.text, keywords):
                     return Result.fail(
                         f"Weaviate expuesto sin autenticación en puerto {port}{path}"
@@ -348,7 +350,7 @@ _PROMPT_PATHS = [
 ]
 
 # Patrones de API keys — si están presentes el impacto escala a crítico
-_API_KEY_PATTERNS = ["sk-ant-", "sk-proj-", "sk-"]
+_API_KEY_PATTERNS = ["sk-ant-", "sk-proj-"]
 
 # Indicador SA-040: AGENTS.md o CLAUDE.md grande sugiere repositorio de agente desplegado
 _SA040_INDICATOR_PATHS = ["/claude.md", "/.claude.md", "/CLAUDE.md", "/AGENTS.md"]
@@ -369,6 +371,10 @@ async def test_prompt_files_exposed(ctx: ScanContext) -> Result:
 
     for path, resp in zip(_PROMPT_PATHS, responses):
         if resp is None or resp.status_code != 200:
+            continue
+
+        # Respuesta HTML genérica (catch-all 200) — no es un archivo de prompt real
+        if "text/html" in resp.headers.get("content-type", ""):
             continue
 
         body = resp.text

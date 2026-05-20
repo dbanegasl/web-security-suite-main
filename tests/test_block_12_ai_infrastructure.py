@@ -203,6 +203,39 @@ async def test_vectordb_fail_weaviate_meta():
     assert "weaviate" in r.detail.lower()
 
 
+async def test_vectordb_fail_weaviate_ready():
+    """Weaviate /v1/.well-known/ready retorna 200 JSON → debe ser FAIL."""
+    ctx = make_ctx()
+    mock_client = MagicMock()
+
+    async def _mock_get(url, **kwargs):
+        if "/v1/.well-known/ready" in str(url):
+            return _make_response(200, "{}")
+        return _make_response(404)
+
+    mock_client.get = AsyncMock(side_effect=_mock_get)
+    ctx._client = mock_client
+    r = await _run_vectordb(ctx)
+    assert r.status == Status.FAIL
+    assert "weaviate" in r.detail.lower()
+
+
+async def test_vectordb_pass_weaviate_ready_html():
+    """200 con body HTML en /v1/.well-known/ready no es un Weaviate real (catch-all)."""
+    ctx = make_ctx()
+    mock_client = MagicMock()
+
+    async def _mock_get(url, **kwargs):
+        if "/v1/.well-known/ready" in str(url):
+            return _make_response(200, "<!doctype html><title>UNAE</title>", {"content-type": "text/html; charset=utf-8"})
+        return _make_response(404)
+
+    mock_client.get = AsyncMock(side_effect=_mock_get)
+    ctx._client = mock_client
+    r = await _run_vectordb(ctx)
+    assert r.status == Status.PASS
+
+
 async def test_vectordb_fail_alt_port_chroma():
     ctx = _ctx_with_mock({
         ":8000/api/v1/heartbeat": (200, '{"nanosecond heartbeat":1}')
@@ -312,11 +345,11 @@ async def test_prompt_pass_all_404():
 
 async def test_prompt_fail_openai_key():
     ctx = _ctx_with_mock({
-        "/.openai_api_key": (200, "sk-abc123def456ghi789jkl")
+        "/.openai_api_key": (200, "sk-proj-abc123def456ghi789jkl")
     })
     r = await _run_prompt(ctx)
     assert r.status == Status.FAIL
-    assert "sk-" in r.detail
+    assert "sk-proj-" in r.detail
     assert "CRÍTICO" in r.detail or "crítico" in r.detail.lower()
 
 
@@ -357,6 +390,24 @@ async def test_prompt_fail_large_agents_md():
 
 async def test_prompt_pass_404_on_all():
     ctx = _ctx_with_mock({"/other_path": (200, "not a prompt file")})
+    r = await _run_prompt(ctx)
+    assert r.status == Status.PASS
+
+
+async def test_prompt_pass_html_catchall():
+    """200 con Content-Type text/html en /claude.md no es un prompt real (catch-all)."""
+    ctx = make_ctx()
+    mock_client = MagicMock()
+
+    async def _mock_get(url, **kwargs):
+        return _make_response(
+            200,
+            "<!doctype html><html><title>UNAE SERVICIOS</title><body>sk-icon</body></html>",
+            {"content-type": "text/html; charset=utf-8"},
+        )
+
+    mock_client.get = AsyncMock(side_effect=_mock_get)
+    ctx._client = mock_client
     r = await _run_prompt(ctx)
     assert r.status == Status.PASS
 

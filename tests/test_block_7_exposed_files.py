@@ -360,3 +360,12 @@ async def test_40_pass_404():
     ctx = _ctx_404()
     r = await _run_ds_store_exposed(ctx)
     assert r.status == Status.PASS
+
+
+async def test_40_pass_html_catchall():
+    """Servidor con catch-all 200+HTML no debe marcar .DS_Store como FAIL."""
+    ctx = _ctx_with_url_map({
+        "/.DS_Store": (200, "<!doctype html><html><head><title>UNAE SERVICIOS</title></head><body></body></html>"),
+    })
+    r = await _run_ds_store_exposed(ctx)
+    assert r.status == Status.PASS
